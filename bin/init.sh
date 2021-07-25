@@ -59,6 +59,9 @@ echo "deb http://nginx.org/packages/mainline/debian `lsb_release -cs` nginx" \
 apt update
 apt install nginx
 
+# keep a copy of the distribution nginx.conf
+cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.dist.bak
+
 $SCRIPT_PATH/bin/sync.sh /etc/nginx
 
 cd /etc/nginx/conf.d
