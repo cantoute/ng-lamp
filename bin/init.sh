@@ -20,7 +20,7 @@ cat $SCRIPT_PATH/../root-fs/etc/.gitignore.certbot >> /etc/.gitignore
 # Don't realy see the point of having this
 apt remove --purge apparmor
 
-apt install postfix fail2ban rsync vim zip
+apt install postfix rsync vim zip
 
 apt install certbot
 
@@ -32,6 +32,10 @@ apt install webp
 apt install pwgen tree
 apt install nload nmap
 apt install memcached
+
+echo "if you chose to install the firewall, don't forget to open port 21"
+apt install arno-iptables-firewall
+apt install fail2ban
 
 apt install apache2 apache2-utils
 a2enmod deflate setenvif headers auth_basic auth_digest expires env proxy_fcgi rewrite alias remoteip
@@ -110,6 +114,13 @@ service munin-node restart
 # update user skel (.bashrc)
 $SCRIPT_PATH/sync.sh /etc/skel/
 
+# setup fail2ban
+# for phpMyAdmin don't forget to add this: $cfg['AuthLog'] = 'syslog';
+
+$SCRIPT_PATH/sync.sh /etc/fail2ban/
+
+service fail2ban restart
+
 # create www-adm user (phpmyadmin)
 pwgen
 adduser www-adm
@@ -120,7 +131,7 @@ echo "wget https://files.phpmyadmin.net/phpMyAdmin/5.1.1/phpMyAdmin-5.1.1-all-la
 echo "tar xzf phpMyAdmin-5.1.1-all-languages.tar.gz"
 echo "ln -s phpMyAdmin-5.1.1-all-languages www.mysql"
 echo "exit"
-echo "# Now as root run this to add .user.ini"
+echo "# Now as root run this to add .user.ini and config.inc.php"
 echo "$SCRIPT_PATH/sync.sh /home/www-adm/www.mysql"
 echo "chown -R www-adm:www-adm /home/www-adm/www.mysql"
 echo "You still have to add blowfish key"

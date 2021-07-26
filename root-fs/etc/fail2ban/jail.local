@@ -1,0 +1,35 @@
+
+[DEFAULT]
+ignoreip = 127.0.0.1/8 195.15.226.130/32
+
+[sshd]
+enabled = true
+port    = 22
+filter  = sshd
+maxretry = 3
+bantime = 600
+findtime = 3600
+
+[phpmyadmin-syslog]
+enabled  = true
+maxretry = 5
+bantime = 600
+findtime = 600
+port = http,https
+
+# [proftpd]
+# enabled   = true
+# port      = ftp,ftp-data,ftps,ftps-data,ssh
+# maxretry = 3
+# bantime = 600
+# findtime = 600
+
+[recidive]
+enabled = true
+protocol = all
+logpath  = /var/log/fail2ban.log
+banaction = %(banaction_allports)s
+bantime  = 1d
+findtime = 8h
+maxretry = 2
+
