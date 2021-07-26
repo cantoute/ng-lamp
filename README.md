@@ -25,50 +25,59 @@ This stack is flexible, solid and works well for wordpress hosting. Getting the 
 
 ```txt
 .
-├── bin
-│   ├── init.sh
-│   └── sync.sh
-└── root-fs
-    ├── etc
-    │   ├── apache2
-    │   │   ├── conf-available
-    │   │   │   └── ng-lamp.conf
-    │   │   ├── ports.conf
-    │   │   └── sites-available
-    │   │       ├── 000-ng-lamp-default.conf
-    │   │       ├── localhost.conf
-    │   │       └── www.exemple.com.conf.skel
-    │   ├── nginx
-    │   │   ├── ng-lamp
-    │   │   │   ├── cloudflare.conf
-    │   │   │   ├── default-host.conf
-    │   │   │   ├── limit.conf
-    │   │   │   ├── localhost.conf
-    │   │   │   ├── misc.conf
-    │   │   │   ├── munin.conf.skel
-    │   │   │   ├── phpmyadmin.conf.skel
-    │   │   │   ├── redirect.conf.skel
-    │   │   │   ├── ssl.conf
-    │   │   │   ├── upstreams.conf
-    │   │   │   └── wordpress.conf.skel
-    │   │   └── snippets
-    │   │       ├── ban-bots.conf
-    │   │       ├── common-proxy-buffer.conf
-    │   │       ├── common-proxy.conf
-    │   │       ├── common-proxy-timeout.conf
-    │   │       ├── common-vhost.conf
-    │   │       ├── letsencrypt-acme-challenge.conf
-    │   │       ├── wordpress.conf
-    │   │       └── wordpress-webp-express.conf
-    │   └── php
-    │       └── 7.4
-    │           └── fpm
-    │               └── pool.d
-    │                   └── www-adm.conf
-    └── home
-        └── www-adm
-            └── www.mysql
-                └── .user.ini
+├── etc
+│   ├── apache2
+│   │   ├── conf-available
+│   │   │   └── ng-lamp.conf
+│   │   ├── ports.conf
+│   │   └── sites-available
+│   │       ├── 000-ng-lamp-default.conf
+│   │       ├── localhost.conf
+│   │       └── www.exemple.com.conf.skel
+│   ├── fail2ban
+│   │   └── jail.local
+│   ├── .gitignore.certbot
+│   ├── munin
+│   │   └── plugin-conf.d
+│   │       ├── apache
+│   │       └── nginx
+│   ├── nginx
+│   │   ├── nginx.conf
+│   │   ├── ng-lamp
+│   │   │   ├── cloudflare.conf
+│   │   │   ├── default-host.conf
+│   │   │   ├── limit.conf
+│   │   │   ├── localhost.conf
+│   │   │   ├── misc.conf
+│   │   │   ├── munin.conf.skel
+│   │   │   ├── phpmyadmin.conf.skel
+│   │   │   ├── redirect.conf.skel
+│   │   │   ├── ssl.conf
+│   │   │   ├── upstreams.conf
+│   │   │   └── wordpress.conf.skel
+│   │   └── snippets
+│   │       ├── ban-bots.conf
+│   │       ├── common-proxy-buffer.conf
+│   │       ├── common-proxy.conf
+│   │       ├── common-proxy-timeout.conf
+│   │       ├── common-vhost.conf
+│   │       ├── letsencrypt-acme-challenge.conf
+│   │       ├── wordpress.conf
+│   │       └── wordpress-webp-express.conf
+│   ├── php
+│   │   └── 7.4
+│   │       └── fpm
+│   │           └── pool.d
+│   │               └── www-adm.conf
+│   ├── skel
+│   │   └── .bashrc
+│   └── vim
+│       └── vimrc.local
+└── home
+    └── www-adm
+        └── www.mysql
+            ├── config.inc.php
+            └── .user.ini
 ```
 
 ### What it does
