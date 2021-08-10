@@ -11,8 +11,8 @@ This code has not been tested fully.
 ## TODO:
 
 - try `init.sh` on a fresh install
-- fail2ban on phpMyAdmin
-- munin configuration
+- ~~fail2ban on phpMyAdmin~~ Done
+- ~~munin configuration~~ Done
 - backups (rdiff-backup / mysqldump)
 - install imgopt utility
 - adding varnish
