@@ -36,7 +36,6 @@ This stack is flexible, solid and works well for wordpress hosting. Getting the 
 │   │       └── www.exemple.com.conf.skel
 │   ├── fail2ban
 │   │   └── jail.local
-│   ├── .gitignore.certbot
 │   ├── munin
 │   │   └── plugin-conf.d
 │   │       ├── apache
@@ -44,16 +43,16 @@ This stack is flexible, solid and works well for wordpress hosting. Getting the 
 │   ├── nginx
 │   │   ├── nginx.conf
 │   │   ├── ng-lamp
-│   │   │   ├── cloudflare.conf
-│   │   │   ├── default-host.conf
-│   │   │   ├── limit.conf
-│   │   │   ├── localhost.conf
-│   │   │   ├── misc.conf
+│   │   │   ├── 00_cloudflare.conf
+│   │   │   ├── 00_limit.conf
+│   │   │   ├── 00_misc.conf
+│   │   │   ├── 00_ssl.conf
+│   │   │   ├── 00_upstreams.conf
+│   │   │   ├── 10_default-host.conf
+│   │   │   ├── 11_localhost.conf
 │   │   │   ├── munin.conf.skel
 │   │   │   ├── phpmyadmin.conf.skel
 │   │   │   ├── redirect.conf.skel
-│   │   │   ├── ssl.conf
-│   │   │   ├── upstreams.conf
 │   │   │   └── wordpress.conf.skel
 │   │   └── snippets
 │   │       ├── ban-bots.conf
@@ -70,14 +69,12 @@ This stack is flexible, solid and works well for wordpress hosting. Getting the 
 │   │           └── pool.d
 │   │               └── www-adm.conf
 │   ├── skel
-│   │   └── .bashrc
 │   └── vim
 │       └── vimrc.local
 └── home
     └── www-adm
         └── www.mysql
-            ├── config.inc.php
-            └── .user.ini
+            └── config.inc.php
 ```
 
 ### What it does
