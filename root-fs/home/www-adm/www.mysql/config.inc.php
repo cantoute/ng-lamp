@@ -15,6 +15,7 @@ declare(strict_types=1);
  */
 $cfg['blowfish_secret'] = ''; /* YOU MUST FILL IN THIS FOR COOKIE AUTH! */
 
+// use syslog for fail2ban to see failed logins
 $cfg['AuthLog'] = 'syslog';
 
 /**
