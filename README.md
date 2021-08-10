@@ -83,7 +83,7 @@ This stack is flexible, solid and works well for wordpress hosting. Getting the 
   - a2enmod proxy_fcgi remoteip senenvif headers expires deflate rewrite env auth_basic auth_digest
 - install nginx mainline
   - run nginx as `www-data` and not `nginx` (this is why it overrides [/etc/nginx/nginx.conf](./root-fs/etc/nginx/nginx.conf))
-  - [/etc/snippets/common-proxy.conf](./root-fs/etc/nginx/snippets/common-proxy.conf) passes IP, Authentication, Schema and other headers to [/etc/apache2/conf-available/ng-lamp.conf](./root-fs/etc/apache2/conf-available/ng-lamp.conf)
+  - [/etc/nginx/snippets/common-proxy.conf](./root-fs/etc/nginx/snippets/common-proxy.conf) passes IP, Authentication, Schema and other headers to [/etc/apache2/conf-available/ng-lamp.conf](./root-fs/etc/apache2/conf-available/ng-lamp.conf)
 - install [Sury PHP](https://deb.sury.org/) FPM alowing multiple php versions. (at this date are available 5.6, 7.0 to 7.4 and 8.0)
 - making sure virtual host `localhost` is only accessible to munin
 - nginx ratelimit to requests made to apache backend. [100 req then slowed to 1/s](./root-fs/etc/nginx/conf.d/wordpress.conf.skel#L61)
