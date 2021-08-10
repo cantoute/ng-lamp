@@ -89,7 +89,8 @@ apt install php7.4-fpm php7.4-cli php-pear php7.4-apcu php7.4-apcu-bc \
   php7.4-opcache php7.4-curl php7.4-imagick php7.4-gnupg php7.4-mysql \
   php7.4-intl php7.4-json php7.4-zip php7.4-xsl php7.4-xmlrpc php7.4-xml \
   php7.4-uuid php7.4-sqlite3 php7.4-mbstring php7.4-bcmath php7.4-bz2 \
-  php7.4-mcrypt php7.4-maxminddb php7.4-imap php7.4-memcache php7.4-memcached
+  php7.4-mcrypt php7.4-maxminddb php7.4-imap php7.4-memcache php7.4-memcached \
+  php7.4-soap
 
 $SCRIPT_PATH/sync.sh /etc/php/7.4/fpm/pool.d
 
@@ -100,7 +101,7 @@ apt install mariadb-client mariadb-server
 mysql_secure_installation
 
 # munin
-apt install munin munin-node munin-plugins-extra libwww-perl
+apt install munin munin-node munin-plugins-extra libwww-perl libcache-{perl,cache-perl} libnet-dns-perl
 a2disconf munin
 systemctl restart apache2
 
@@ -108,6 +109,8 @@ $SCRIPT_PATH/sync.sh /etc/munin/plugin-conf.d
 
 ln -s /usr/share/munin/plugins/apache_* /etc/munin/plugins/
 ln -s /usr/share/munin/plugins/nginx_* /etc/munin/plugins/
+
+munin-node-configure --suggest --shell | sh
 
 service munin-node restart
 
