@@ -100,7 +100,7 @@ clone repo as root (`sudo -s`)
 # screen
 apt update
 apt upgrade
-apt install git
+apt install git rsync
 git clone git@github.com:cantoute/ng-lamp.git
 cd ng-lamp
 ```
