@@ -260,13 +260,20 @@ else
   echo "Full dump done" 
 fi
 
+deleteOldBackups() {
+  echo
+  echo "Deleting old backups"
+
+  if [[ $single = true ]]; then
+      # delete single database backup older than 3 days
+      $DRYRUN $FIND "${outPath}" -type f -name 'mysqldump_*.sql*' -mtime +3 -exec rm {} \;
+  else
+      # delete full backups older then 30 days
+      $DRYRUN $FIND "${outPath}" -type f -name 'mysqldumpall_*.sql*' -mtime +31 -exec rm {} \;
+  fi
+
+  echo "Done"
+}
+deleteOldBackups
+
 echo
-echo "Deleting old backups"
-if [[ $single = true ]]; then
-    # delete single database backup older than 3 days
-    $DRYRUN $FIND "${outPath}" -type f -name 'mysqldump_*.sql*' -mtime +3 -exec rm {} \;
-else
-    # delete full backups older then 30 days
-    $DRYRUN $FIND "${outPath}" -type f -name 'mysqldumpall_*.sql*' -mtime +31 -exec rm {} \;
-fi
-echo "Done"
