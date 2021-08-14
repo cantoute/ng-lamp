@@ -3,6 +3,8 @@ SHELL=/bin/bash
 PATH=/root/bin:/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
 # MAILTO=root
 
-0 0 * * *         root ( backup-mysql.sh )
+backupMysqlArgs="--bz2 --create-dirs --nice --time"
 
-0 4,12,20 * * *   root ( backup-mysql.sh single; backup-rdiff.sh )
+0 0 * * *         root ( backup-mysql.sh $backupMysqlArgs )
+
+0 4,12,20 * * *   root ( backup-mysql.sh --single $backupMysqlArgs; backup-rdiff.sh )

@@ -1,21 +1,13 @@
 #!/bin/bash
 
+umask 027
+LANG="en_US.UTF-8"
+
 # A POSIX variable
 OPTIND=1         # Reset in case getopts has been used previously in the shell.
 
 # Initialize our own variables:
 verbose=false
-
-# More safety, by turning some bugs into errors.
-# Without `errexit` you don’t need ! and can replace
-# PIPESTATUS with a simple $?, but I don’t do that.
-set -o errexit -o pipefail -o noclobber -o nounset
-# set -o pipefail -o noclobber -o nounset
-
-# stop on error - if backup fails old ones aren't deleted
-# set -e
-umask 027
-LANG="en_US.UTF-8"
 
 MYSQLDUMP=$(which mysqldump)
 TIME="$(which time) --portability"
@@ -36,6 +28,17 @@ outPath="/home/backups/mysql-${srcHost}"
 
 fullDumpArgs="-A --events --single-transaction"
 singleDumpArgs="--skip-lock-tables --single-transaction"
+
+# More safety, by turning some bugs into errors.
+# Without `errexit` you don’t need ! and can replace
+# PIPESTATUS with a simple $?, but I don’t do that.
+set -o errexit -o pipefail -o noclobber -o nounset
+# set -o pipefail -o noclobber -o nounset
+
+# stop on error - if backup fails old ones aren't deleted
+# set -e
+
+
 
 # -allow a command to fail with !’s side effect on errexit
 # -use return value from ${PIPESTATUS[0]}, because ! hosed $?
@@ -274,6 +277,7 @@ deleteOldBackups() {
 
   echo "Done"
 }
+
 deleteOldBackups
 
 echo
