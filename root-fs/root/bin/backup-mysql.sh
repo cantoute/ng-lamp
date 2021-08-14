@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# stop on error - if backup fails old one aren't deleted
+# stop on error - if backup fails old ones aren't deleted
 set -e
 
 umask 027
