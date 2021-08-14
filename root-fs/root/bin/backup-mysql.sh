@@ -28,22 +28,22 @@ if [ "$1" = "single" ]
 then
   echo "Doing single database backups..."
 
-	dbList=$(mysql -Br --silent <<< "SHOW databases WHERE \`Database\` NOT IN ('information_schema', 'performance_schema', 'mysql', 'article3_joomla', 'roundcubemail', 'www-stats_prod', 'antony', 'article3_drupal', 'postfixadmin', 'phpmyadmin') AND \`Database\` NOT LIKE 'trash\_%';")
+  dbList=$(mysql -Br --silent <<< "SHOW databases WHERE \`Database\` NOT IN ('information_schema', 'performance_schema', 'mysql', 'article3_joomla', 'roundcubemail', 'www-stats_prod', 'antony', 'article3_drupal', 'postfixadmin', 'phpmyadmin') AND \`Database\` NOT LIKE 'trash\_%';")
 
-	for db in ${dbList}
-	do
-	  printf "Processing '${db}'... "
+  for db in ${dbList}
+  do
+    printf "Processing '${db}'... "
 
-		time $MYSQLDUMP --skip-lock-tables --single-transaction "${db}" | $BZIP > "${backupDestinationDirSingle}/mysqldump_${backupSourceHostname}_${db}_$(date +%F_%H%M).sql.bz2"
+    time $MYSQLDUMP --skip-lock-tables --single-transaction "${db}" | $BZIP > "${backupDestinationDirSingle}/mysqldump_${backupSourceHostname}_${db}_$(date +%F_%H%M).sql.bz2"
 
-		echo "Done."
-	done;
+    echo "Done."
+  done;
 
-	echo "Single database backups done."
+  echo "Single database backups done."
 else
   echo "Doing full dump (all databases)"
-	time $MYSQLDUMP -A --events --single-transaction | $BZIP > ${backupDestinationDir}/mysqldumpall_${backupSourceHostname}_${dateStamp}.sql.bz2
-	echo "Done."
+  time $MYSQLDUMP -A --events --single-transaction | $BZIP > ${backupDestinationDir}/mysqldumpall_${backupSourceHostname}_${dateStamp}.sql.bz2
+  echo "Done."
 fi
 
 echo "Deleting old backups"

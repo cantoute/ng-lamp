@@ -36,25 +36,25 @@ MAIL_ALERT_SEND="mailx -s \"${MAIL_ALERT_SUBJECT}\" -r \"${MAIL_ALERT_FROM}\" -c
 # TODO: smarter to check if pid is still runing
 if test -e $LOCKFILE
 then
-	if test `find $LOCKFILE -mtime 3 -type f`;
-	then
-		echo "${LOCKFILE} older then 3 days!  Deleting it."
-		rm -f $LOCKFILE
-	fi
+  if test `find $LOCKFILE -mtime 3 -type f`;
+  then
+    echo "${LOCKFILE} older then 3 days!  Deleting it."
+    rm -f $LOCKFILE
+  fi
 fi
 
 if test -e $LOCKFILE;
 then
   # todo: send a mail alert #
-	msg="Backup is already running ?"
-	echo $msg
-	echo "If it isn't, remove ${LOCKFILE} and try again."
+  msg="Backup is already running ?"
+  echo $msg
+  echo "If it isn't, remove ${LOCKFILE} and try again."
 
-	echo $msg | $MAIL_ALERT_SEND
-	exit 1
+  echo $msg | $MAIL_ALERT_SEND
+  exit 1
 else
   # put this process id in lockfile
-	echo $$ > $LOCKFILE
+  echo $$ > $LOCKFILE
 fi
 
 # Backing up /root
@@ -170,11 +170,11 @@ $NICECMD $RDIFF $RDIFFRMOLD $DSTBASE$BACKUPDIR
 # Remove lock file and end script
 #
 if test -e $LOCKFILE; then
-	rm -f $LOCKFILE;
+  rm -f $LOCKFILE;
 else
   msg="ERROR Missing lock file ?!"
   echo ""
   echo "###################################"
-	echo $msg
-	echo $msg | $MAIL_ALERT_SEND
+  echo $msg
+  echo $msg | $MAIL_ALERT_SEND
 fi
