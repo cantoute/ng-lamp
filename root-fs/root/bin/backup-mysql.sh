@@ -139,7 +139,7 @@ while true; do
       break
       ;;
     *)
-      echo "Programming error"
+      echo "Error: unhandled argument '$1'"
       exit 3
       ;;
   esac
@@ -174,19 +174,19 @@ else
   fi
 fi
 
-[[ $nice = true ]] && COMPRESS="$NICE $COMPRESS"
+# [[ ($gzip = true || $bz2 = true)  && $nice = true ]] && {
+#   COMPRESS="$NICE $COMPRESS"
+# }
 
-
-[[ $verbose = true ]] && \
+[[ $verbose = true ]] && {
   echo "verbose: $verbose, dryRun: $dryRun, single: $single, outPath: $outPath, createDirs: $createDirs, nice: $nice, gzip: $gzip, bz2: $bz2"
   echo
+}
 
-if [[ $createDirs = true ]]; then
+[[ $createDirs = true ]] && {
   dirs2check=("${outPath}")
   checkDirs "${dirs2check[@]}"
-
-  # checkDirs "${outPath}"
-fi
+}
 
 runBackup() {
   local mysqldumpArgs=$fullDumpArgs
