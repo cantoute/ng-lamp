@@ -13,8 +13,8 @@ This code has not been tested fully.
 - try `init.sh` on a fresh install
 - ~~fail2ban on phpMyAdmin~~ Done
 - ~~munin configuration~~ Done
-- backups (rdiff-backup / mysqldump)
-- install imgopt utility
+- ~~backups (rdiff-backup / mysqldump)~~ Done but can be improved
+- ~~install imgopt utility~~ Done
 - adding varnish
 
 ## Description
@@ -34,6 +34,8 @@ This stack is flexible, solid and works well for wordpress hosting. Getting the 
 │   │       ├── 000-ng-lamp-default.conf
 │   │       ├── localhost.conf
 │   │       └── www.exemple.com.conf.skel
+│   ├── cron.d
+│   │   └── backups
 │   ├── fail2ban
 │   │   └── jail.local
 │   ├── munin
@@ -49,7 +51,7 @@ This stack is flexible, solid and works well for wordpress hosting. Getting the 
 │   │   │   ├── 00_ssl.conf
 │   │   │   ├── 00_upstreams.conf
 │   │   │   ├── 10_default-host.conf
-│   │   │   ├── 11_localhost.conf
+│   │   │   ├── 20_localhost.conf
 │   │   │   ├── munin.conf.skel
 │   │   │   ├── phpmyadmin.conf.skel
 │   │   │   ├── redirect.conf.skel
@@ -71,10 +73,14 @@ This stack is flexible, solid and works well for wordpress hosting. Getting the 
 │   ├── skel
 │   └── vim
 │       └── vimrc.local
-└── home
-    └── www-adm
-        └── www.mysql
-            └── config.inc.php
+├── home
+│   └── www-adm
+│       └── www.mysql
+│           └── config.inc.php
+└── root
+    └── bin
+        ├── backup-mysql.sh
+        └── backup-rdiff.sh
 ```
 
 ### What it does
@@ -84,20 +90,30 @@ This stack is flexible, solid and works well for wordpress hosting. Getting the 
 - install nginx mainline
   - run nginx as `www-data` and not `nginx` (this is why it overrides [/etc/nginx/nginx.conf](./root-fs/etc/nginx/nginx.conf))
   - [/etc/nginx/snippets/common-proxy.conf](./root-fs/etc/nginx/snippets/common-proxy.conf) passes IP, Authentication, Schema and other headers to [/etc/apache2/conf-available/ng-lamp.conf](./root-fs/etc/apache2/conf-available/ng-lamp.conf)
-- install [Sury PHP](https://deb.sury.org/) FPM alowing multiple php versions. (at this date are available 5.6, 7.0 to 7.4 and 8.0)
 - making sure virtual host `localhost` is only accessible to munin
 - nginx ratelimit to requests made to apache backend. [100 req then slowed to 1/s](./root-fs/etc/nginx/conf.d/wordpress.conf.skel#L61)
 - remove fbclid from url (redirect 301) to improve SEO and privacy.
+- install [Sury PHP](https://deb.sury.org/) php-7.4 FPM allowing multiple php versions. (at this date are available 5.6, 7.0~7.4 and 8.0)
+- install php composer
+- install wp-cli + bash-completion
+- install nodejs LTS (currently 14.x)
+- install `imgopt` utility and dependencies. https://github.com/kormoc/imgopt
+- backup script
+  - backup of mysql database : full dump at 0:00 + single database at 4, 12, 20
+  - rdiff-backup : at 4, 12, 20 (keeping 4 weeks of history)
 
 ## Usage
 
 clone repo as root (`sudo -s`)
 
 ```bash
-# screen
+# screen can be your friend specially if using unreliable connection :)
+sudo -s
 apt update
 apt upgrade
 apt install git rsync
+
+cd /root
 git clone git@github.com:cantoute/ng-lamp.git
 cd ng-lamp
 ```

@@ -15,7 +15,7 @@ apt upgrade
 # keep track of /etc
 apt install git etckeeper
 # lets not have letsencrypt ssl keys in git repo
-cat $SCRIPT_PATH/../root-fs/etc/.gitignore.certbot >> /etc/.gitignore
+cat "${SCRIPT_PATH}/../root-fs/etc/.gitignore.certbot" >> /etc/.gitignore
 
 # Don't realy see the point of having this
 apt remove --purge apparmor
@@ -25,10 +25,8 @@ apt install postfix rsync vim zip
 apt install certbot
 
 apt install ntpdate ntp
-apt install telnet bsd-mailx htop apachetop screen
-apt install imagemagick
-apt install graphicsmagick
-apt install webp
+apt install telnet bsd-mailx htop apachetop screen wget curl build-essential
+apt install imagemagick graphicsmagick webp
 apt install pwgen tree
 apt install nload nmap
 apt install memcached
@@ -40,7 +38,7 @@ apt install fail2ban
 apt install apache2 apache2-utils
 a2enmod deflate setenvif headers auth_basic auth_digest expires env proxy_fcgi rewrite alias remoteip
 
-$SCRIPT_PATH/sync.sh /etc/apache2
+${SCRIPT_PATH}/sync.sh /etc/apache2
 
 a2enconf ng-lamp
 
@@ -66,7 +64,7 @@ apt install nginx
 # keep a copy of the distribution nginx.conf
 cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.dist.bak
 
-$SCRIPT_PATH/bin/sync.sh /etc/nginx
+${SCRIPT_PATH}/bin/sync.sh /etc/nginx
 
 cd /etc/nginx/conf.d
 ln -s ../ng-lamp/*.conf ./
@@ -92,9 +90,20 @@ apt install php7.4-fpm php7.4-cli php-pear php7.4-apcu php7.4-apcu-bc \
   php7.4-mcrypt php7.4-maxminddb php7.4-imap php7.4-memcache php7.4-memcached \
   php7.4-soap
 
-$SCRIPT_PATH/sync.sh /etc/php/7.4/fpm/pool.d
+${SCRIPT_PATH}/sync.sh /etc/php/7.4/fpm/pool.d
 
 systemctl restart php7.4-fpm
+
+echo "Installing php composer"
+php -r "readfile('http://getcomposer.org/installer');" | php -- --install-dir=/usr/local/bin/ --filename=composer
+
+echo "Installing wp-cli"
+curl -o /usr/local/bin/wp https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+chmod a+x /usr/local/bin/wp
+
+curl -o /etc/bash_completion.d/wp-completion.bash https://raw.githubusercontent.com/wp-cli/wp-cli/v2.4.0/utils/wp-completion.bash
+
+
 
 ## MySQL
 apt install mariadb-client mariadb-server
@@ -105,7 +114,7 @@ apt install munin munin-node munin-plugins-extra libwww-perl libcache-{perl,cach
 a2disconf munin
 systemctl restart apache2
 
-$SCRIPT_PATH/sync.sh /etc/munin/plugin-conf.d
+${SCRIPT_PATH}/sync.sh /etc/munin/plugin-conf.d
 
 ln -s /usr/share/munin/plugins/apache_* /etc/munin/plugins/
 ln -s /usr/share/munin/plugins/nginx_* /etc/munin/plugins/
@@ -114,15 +123,56 @@ munin-node-configure --suggest --shell | sh
 
 service munin-node restart
 
+# Node
+curl -fsSL https://deb.nodesource.com/setup_lts.x | bash -
+apt-get install nodejs
+
+
+# imgopt
+apt install advancecomp optipng libjpeg-turbo-progs build-essential wget
+
+curl -o /usr/local/bin/imgopt https://raw.githubusercontent.com/kormoc/imgopt/main/imgopt \
+  && chmod a+x /usr/local/bin/imgopt
+
+cd /tmp
+
+curl -o jfifremove.c https://raw.githubusercontent.com/kormoc/imgopt/main/jfifremove.c \
+  && gcc -o jfifremove jfifremove.c \
+  && mv jfifremove /usr/local/bin/
+
+wget http://www.jonof.id.au/files/kenutils/pngout-20200115-linux.tar.gz \
+  && tar xzvf pngout-20200115-linux.tar.gz \
+  && mv pngout-20200115-linux/amd64/pngout /usr/local/bin/ \
+  && mv pngout /usr/local/bin/
+
+cd -
+
+
 # update user skel (.bashrc)
-$SCRIPT_PATH/sync.sh /etc/skel/
+${SCRIPT_PATH}/sync.sh /etc/skel/
 
 # setup fail2ban
 # for phpMyAdmin don't forget to add this: $cfg['AuthLog'] = 'syslog';
 
-$SCRIPT_PATH/sync.sh /etc/fail2ban/
+${SCRIPT_PATH}/sync.sh /etc/fail2ban/
 
 service fail2ban restart
+
+
+# Backups
+apt install rdiff-backup time
+
+mkdir -p "/home/backups/rdiff-$(hostname -s)" \
+  && chmod 700 /home/backups
+
+${SCRIPT_PATH}/sync.sh /root/bin
+${SCRIPT_PATH}/sync.sh /etc/cron.d/backups
+
+
+
+# clear some disk space
+apt autoclean
+apt clean
 
 # create www-adm user (phpmyadmin)
 pwgen
@@ -135,7 +185,6 @@ echo "tar xzf phpMyAdmin-5.1.1-all-languages.tar.gz"
 echo "ln -s phpMyAdmin-5.1.1-all-languages www.mysql"
 echo "exit"
 echo "# Now as root run this to add .user.ini and config.inc.php"
-echo "$SCRIPT_PATH/sync.sh /home/www-adm/www.mysql"
+echo "${SCRIPT_PATH}/sync.sh /home/www-adm/www.mysql"
 echo "chown -R www-adm:www-adm /home/www-adm/www.mysql"
-echo "You still have to add blowfish key"
-
+echo "You still have to add blowfish key if you want to use cookie based auth. (By default we use http auth)"

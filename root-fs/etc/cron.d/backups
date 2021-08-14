@@ -1,0 +1,8 @@
+
+SHELL=/bin/bash
+PATH=/root/bin:/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+# MAILTO=root
+
+0 0 * * *         root ( backup-mysql.sh )
+
+0 4,12,20 * * *   root ( backup-mysql.sh single; backup-rdiff.sh )
