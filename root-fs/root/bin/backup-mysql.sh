@@ -4,7 +4,7 @@
 OPTIND=1         # Reset in case getopts has been used previously in the shell.
 
 # Initialize our own variables:
-verbose=0
+verbose=false
 
 # More safety, by turning some bugs into errors.
 # Without `errexit` you don’t need ! and can replace
@@ -72,15 +72,20 @@ dryrun() {
 checkDirs() {
   local args=("$@")
 
-  for d in "${args[@]}"
-    do
+  # for d in "${args[@]}"
+  #   do
       # if not is a dir
-      [[ ! -d "${d}" ]] \
-        && (
-          $DRYRUN mkdir -p "${d}";
-          $DRYRUN chmod 700 "${d}";
-        );
-    done;
+      d=$1
+      if [[ -d "$d" ]]; then
+        [[ $verbose = true ]] && {
+          echo "$d exists, nothing to do.";
+          echo;
+        }
+      else
+        $DRYRUN mkdir -p "${d}";
+        $DRYRUN chmod 700 "${d}";
+      fi
+    # done;
   
   return 0;
 }
@@ -152,13 +157,6 @@ done
   || outPath="${outPath}/full"
 
 
-if [[ $createDirs = true ]]; then
-  dirs2check=("${outPath}")
-  checkDirs "${dirs2check[@]}"
-
-  # checkDirs "${outPath}"
-fi
-
 [[ $time = true ]] && {
   MYSQLDUMP="$TIME $MYSQLDUMP"
   FIND="$TIME $FIND"
@@ -178,7 +176,14 @@ fi
 
 [[ $verbose = true ]] && \
   echo "verbose: $verbose, dryRun: $dryRun, single: $single, outPath: $outPath, createDirs: $createDirs, nice: $nice, gzip: $gzip, bz2: $bz2"
+  echo
 
+if [[ $createDirs = true ]]; then
+  dirs2check=("${outPath}")
+  checkDirs "${dirs2check[@]}"
+
+  # checkDirs "${outPath}"
+fi
 
 runBackup() {
   local mysqldumpArgs=$fullDumpArgs
@@ -242,6 +247,7 @@ then
     echo Done
   done;
 
+  echo
   echo "Single database backups done"
 else
   echo "Doing full dump (all databases)"
@@ -250,9 +256,11 @@ else
 
   runBackup ${outFile}
 
-  echo "Done" 
+  echo
+  echo "Full dump done" 
 fi
 
+echo
 echo "Deleting old backups"
 if [[ $single = true ]]; then
     # delete single database backup older than 3 days
