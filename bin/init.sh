@@ -1,44 +1,51 @@
 #!/bin/bash
 
 SCRIPT_PATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+SYNC=${SCRIPT_PATH}/sync.sh
 
-y=-y
+Y=-y
 
 # get rid of that f**** useless editor
-apt remove --purge $y joe
+apt remove --purge $Y joe
+
+apt install $Y vim
+
+# set a usable vimrc (no stupid mouse, dark background, etc...)
+$SYNC /etc/vim/vimrc.local
 
 # pick a default editor (nano is novice friendly)
 update-alternatives --config editor
 
+
 # run any pending updates
 apt update
-apt upgrade $y
+apt upgrade $Y
 
 # keep track of /etc
-apt install $y git etckeeper
+apt install $Y git etckeeper
 # lets not have letsencrypt ssl keys in git repo
 cat "${SCRIPT_PATH}/../root-fs/etc/.gitignore.certbot" >> /etc/.gitignore
 
 # Don't realy see the point of having this
 apt remove --purge apparmor
 
-apt install $y postfix
+apt install $Y postfix
 
-apt install $y telnet bsd-mailx htop apachetop screen wget curl build-essential
-apt install $y certbot rsync vim zip unzip ntpdate ntp
-apt install $y imagemagick graphicsmagick webp
-apt install $y pwgen tree
-apt install $y nload nmap
-apt install $y memcached
+apt install $Y telnet bsd-mailx htop apachetop screen wget curl build-essential
+apt install $Y certbot rsync zip unzip ntpdate ntp
+apt install $Y imagemagick graphicsmagick webp
+apt install $Y pwgen tree
+apt install $Y nload nmap
+apt install $Y memcached
 
 echo "if you chose to install the firewall, don't forget to open port 21"
-apt install $y arno-iptables-firewall
-apt install $y fail2ban
+apt install $Y arno-iptables-firewall
+apt install $Y fail2ban
 
-apt install $y apache2 apache2-utils
+apt install $Y apache2 apache2-utils
 a2enmod deflate setenvif headers auth_basic auth_digest expires env proxy_fcgi rewrite alias remoteip
 
-${SCRIPT_PATH}/sync.sh /etc/apache2
+$SYNC /etc/apache2
 
 a2enconf ng-lamp
 
@@ -51,7 +58,7 @@ systemctl restart apache2
 
 
 # nginx (mainline)
-apt install $y curl gnupg2 ca-certificates lsb-release
+apt install $Y curl gnupg2 ca-certificates lsb-release
 
 curl -o /etc/apt/trusted.gpg.d/nginx_signing.asc https://nginx.org/keys/nginx_signing.key
 
@@ -59,7 +66,7 @@ echo "deb http://nginx.org/packages/mainline/debian `lsb_release -cs` nginx" \
     | sudo tee /etc/apt/sources.list.d/nginx.list
 
 apt update
-apt install $y nginx
+apt install $Y nginx
 
 # keep a copy of the distribution nginx.conf
 cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.dist.bak
@@ -78,7 +85,7 @@ mkdir /var/www/letsencrypt
 systemctl restart nginx
 
 # php sury
-apt install $y apt-transport-https lsb-release ca-certificates curl
+apt install $Y apt-transport-https lsb-release ca-certificates curl
 
 wget -O /etc/apt/trusted.gpg.d/php.gpg https://packages.sury.org/php/apt.gpg
 sh -c 'echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/php.list'
@@ -87,7 +94,7 @@ apt update
 
 PHP_VERSION=7.4
 
-apt install $y php-pear php${PHP_VERSION}-fpm php${PHP_VERSION}-cli php${PHP_VERSION}-apcu php${PHP_VERSION}-apcu-bc \
+apt install $Y php-pear php${PHP_VERSION}-fpm php${PHP_VERSION}-cli php${PHP_VERSION}-apcu php${PHP_VERSION}-apcu-bc \
   php${PHP_VERSION}-opcache php${PHP_VERSION}-curl php${PHP_VERSION}-imagick php${PHP_VERSION}-gnupg php${PHP_VERSION}-mysql \
   php${PHP_VERSION}-intl php${PHP_VERSION}-json php${PHP_VERSION}-zip php${PHP_VERSION}-xsl php${PHP_VERSION}-xmlrpc php${PHP_VERSION}-xml \
   php${PHP_VERSION}-uuid php${PHP_VERSION}-sqlite3 php${PHP_VERSION}-mbstring php${PHP_VERSION}-bcmath php${PHP_VERSION}-bz2 \
@@ -95,9 +102,9 @@ apt install $y php-pear php${PHP_VERSION}-fpm php${PHP_VERSION}-cli php${PHP_VER
   php${PHP_VERSION}-soap
 
 # this one doesn't exist in 7.0
-apt install $y php7.4-maxminddb
+apt install $Y php7.4-maxminddb
 
-${SCRIPT_PATH}/sync.sh /etc/php/${PHP_VERSION}/fpm/pool.d
+$SYNC /etc/php/${PHP_VERSION}/fpm/pool.d
 
 systemctl restart php${PHP_VERSION}-fpm
 
@@ -114,15 +121,15 @@ curl -o /etc/bash_completion.d/wp-completion.bash https://raw.githubusercontent.
 echo "Done."
 
 ## MySQL
-apt install $y mariadb-client mariadb-server
+apt install $Y mariadb-client mariadb-server
 mysql_secure_installation
 
 # munin
-apt install $y munin munin-node munin-plugins-extra libwww-perl libcache-{perl,cache-perl} libnet-dns-perl
+apt install $Y munin munin-node munin-plugins-extra libwww-perl libcache-{perl,cache-perl} libnet-dns-perl
 a2disconf munin
 systemctl restart apache2
 
-${SCRIPT_PATH}/sync.sh /etc/munin/plugin-conf.d
+$SYNC /etc/munin/plugin-conf.d
 
 ln -s /usr/share/munin/plugins/apache_* /etc/munin/plugins/
 ln -s /usr/share/munin/plugins/nginx_* /etc/munin/plugins/
@@ -137,7 +144,7 @@ apt-get install nodejs
 
 
 # imgopt
-apt install $y advancecomp optipng libjpeg-turbo-progs build-essential wget
+apt install $Y advancecomp optipng libjpeg-turbo-progs build-essential wget
 
 curl -o /usr/local/bin/imgopt https://raw.githubusercontent.com/kormoc/imgopt/main/imgopt \
   && chmod a+x /usr/local/bin/imgopt
@@ -157,24 +164,24 @@ cd -
 
 
 # update user skel (.bashrc)
-${SCRIPT_PATH}/sync.sh /etc/skel/
+$SYNC /etc/skel/
 
 # setup fail2ban
 # for phpMyAdmin don't forget to add this: $cfg['AuthLog'] = 'syslog';
 
-${SCRIPT_PATH}/sync.sh /etc/fail2ban/
+$SYNC /etc/fail2ban/
 
 service fail2ban restart
 
 
 # Backups
-apt install $y rdiff-backup time
+apt install $Y rdiff-backup time
 
 mkdir -p "/home/backups/rdiff-$(hostname -s)" \
   && chmod 700 /home/backups
 
-${SCRIPT_PATH}/sync.sh /root/bin
-${SCRIPT_PATH}/sync.sh /etc/cron.d/backups
+$SYNC /root/bin
+$SYNC /etc/cron.d/backups
 
 # Finelizing
 
@@ -193,6 +200,6 @@ echo "unzip phpMyAdmin-4.9.7-all-languages.zip"
 echo "ln -s phpMyAdmin-4.9.7-all-languages www.mysql"
 echo "exit"
 echo "# Now as root run this to add .user.ini and config.inc.php"
-echo "${SCRIPT_PATH}/sync.sh /home/www-adm/www.mysql"
+echo "${SYNC} /home/www-adm/www.mysql"
 echo "chown -R www-adm:www-adm /home/www-adm/www.mysql"
 echo "You still have to add blowfish key if you want to use cookie based auth. (By default we use http auth)"
