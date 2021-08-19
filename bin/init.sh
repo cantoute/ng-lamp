@@ -4,7 +4,7 @@ SCRIPT_PATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 
 y=-y
 
-# get rid of that fu*king useless editor
+# get rid of that f**** useless editor
 apt remove --purge $y joe
 
 # pick a default editor (nano is novice friendly)
@@ -85,16 +85,21 @@ sh -c 'echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" > /etc/
 
 apt update
 
-apt install $y php-pear php7.4-fpm php7.4-cli php7.4-apcu php7.4-apcu-bc \
-  php7.4-opcache php7.4-curl php7.4-imagick php7.4-gnupg php7.4-mysql \
-  php7.4-intl php7.4-json php7.4-zip php7.4-xsl php7.4-xmlrpc php7.4-xml \
-  php7.4-uuid php7.4-sqlite3 php7.4-mbstring php7.4-bcmath php7.4-bz2 \
-  php7.4-mcrypt php7.4-maxminddb php7.4-imap php7.4-memcache php7.4-memcached \
-  php7.4-soap
+PHP_VERSION=7.4
 
-${SCRIPT_PATH}/sync.sh /etc/php/7.4/fpm/pool.d
+apt install $y php-pear php${PHP_VERSION}-fpm php${PHP_VERSION}-cli php${PHP_VERSION}-apcu php${PHP_VERSION}-apcu-bc \
+  php${PHP_VERSION}-opcache php${PHP_VERSION}-curl php${PHP_VERSION}-imagick php${PHP_VERSION}-gnupg php${PHP_VERSION}-mysql \
+  php${PHP_VERSION}-intl php${PHP_VERSION}-json php${PHP_VERSION}-zip php${PHP_VERSION}-xsl php${PHP_VERSION}-xmlrpc php${PHP_VERSION}-xml \
+  php${PHP_VERSION}-uuid php${PHP_VERSION}-sqlite3 php${PHP_VERSION}-mbstring php${PHP_VERSION}-bcmath php${PHP_VERSION}-bz2 \
+  php${PHP_VERSION}-mcrypt php${PHP_VERSION}-imap php${PHP_VERSION}-memcache php${PHP_VERSION}-memcached \
+  php${PHP_VERSION}-soap
 
-systemctl restart php7.4-fpm
+# this one doesn't exist in 7.0
+apt install $y php7.4-maxminddb
+
+${SCRIPT_PATH}/sync.sh /etc/php/${PHP_VERSION}/fpm/pool.d
+
+systemctl restart php${PHP_VERSION}-fpm
 
 echo "Installing php composer"
 php -r "readfile('http://getcomposer.org/installer');" | php -- --install-dir=/usr/local/bin/ --filename=composer
@@ -103,9 +108,10 @@ echo "Installing wp-cli"
 curl -o /usr/local/bin/wp https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
 chmod a+x /usr/local/bin/wp
 
+echo "and enable autocompletion"
 curl -o /etc/bash_completion.d/wp-completion.bash https://raw.githubusercontent.com/wp-cli/wp-cli/v2.4.0/utils/wp-completion.bash
 
-
+echo "Done."
 
 ## MySQL
 apt install $y mariadb-client mariadb-server
