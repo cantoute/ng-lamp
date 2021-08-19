@@ -68,6 +68,8 @@ ${SCRIPT_PATH}/bin/sync.sh /etc/nginx
 
 cd /etc/nginx/conf.d
 ln -s ../ng-lamp/*.conf ./
+# this would conflict with cloudflare
+rm -f 00_fastly.conf
 cd -
 
 # required by snippets/letsencrypt-acme-challenge.conf
@@ -83,7 +85,7 @@ sh -c 'echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" > /etc/
 
 apt update
 
-apt install $y php7.4-fpm php7.4-cli php-pear php7.4-apcu php7.4-apcu-bc \
+apt install $y php-pear php7.4-fpm php7.4-cli php7.4-apcu php7.4-apcu-bc \
   php7.4-opcache php7.4-curl php7.4-imagick php7.4-gnupg php7.4-mysql \
   php7.4-intl php7.4-json php7.4-zip php7.4-xsl php7.4-xmlrpc php7.4-xml \
   php7.4-uuid php7.4-sqlite3 php7.4-mbstring php7.4-bcmath php7.4-bz2 \
