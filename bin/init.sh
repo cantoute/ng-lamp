@@ -2,38 +2,40 @@
 
 SCRIPT_PATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 
+y=-y
+
 # get rid of that fu*king useless editor
-apt remove --purge joe
+apt remove --purge $y joe
 
 # pick a default editor (nano is novice friendly)
 update-alternatives --config editor
 
 # run any pending updates
 apt update
-apt upgrade
+apt upgrade $y
 
 # keep track of /etc
-apt install git etckeeper
+apt install $y git etckeeper
 # lets not have letsencrypt ssl keys in git repo
 cat "${SCRIPT_PATH}/../root-fs/etc/.gitignore.certbot" >> /etc/.gitignore
 
 # Don't realy see the point of having this
 apt remove --purge apparmor
 
-apt install postfix
+apt install $y postfix
 
-apt install telnet bsd-mailx htop apachetop screen wget curl build-essential
-apt install certbot rsync vim zip unzip ntpdate ntp
-apt install imagemagick graphicsmagick webp
-apt install pwgen tree
-apt install nload nmap
-apt install memcached
+apt install $y telnet bsd-mailx htop apachetop screen wget curl build-essential
+apt install $y certbot rsync vim zip unzip ntpdate ntp
+apt install $y imagemagick graphicsmagick webp
+apt install $y pwgen tree
+apt install $y nload nmap
+apt install $y memcached
 
 echo "if you chose to install the firewall, don't forget to open port 21"
-apt install arno-iptables-firewall
-apt install fail2ban
+apt install $y arno-iptables-firewall
+apt install $y fail2ban
 
-apt install apache2 apache2-utils
+apt install $y apache2 apache2-utils
 a2enmod deflate setenvif headers auth_basic auth_digest expires env proxy_fcgi rewrite alias remoteip
 
 ${SCRIPT_PATH}/sync.sh /etc/apache2
@@ -49,7 +51,7 @@ systemctl restart apache2
 
 
 # nginx (mainline)
-apt install curl gnupg2 ca-certificates lsb-release
+apt install $y curl gnupg2 ca-certificates lsb-release
 
 curl -o /etc/apt/trusted.gpg.d/nginx_signing.asc https://nginx.org/keys/nginx_signing.key
 
@@ -57,7 +59,7 @@ echo "deb http://nginx.org/packages/mainline/debian `lsb_release -cs` nginx" \
     | sudo tee /etc/apt/sources.list.d/nginx.list
 
 apt update
-apt install nginx
+apt install $y nginx
 
 # keep a copy of the distribution nginx.conf
 cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.dist.bak
@@ -74,14 +76,14 @@ mkdir /var/www/letsencrypt
 systemctl restart nginx
 
 # php sury
-apt install apt-transport-https lsb-release ca-certificates curl
+apt install $y apt-transport-https lsb-release ca-certificates curl
 
 wget -O /etc/apt/trusted.gpg.d/php.gpg https://packages.sury.org/php/apt.gpg
 sh -c 'echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/php.list'
 
 apt update
 
-apt install php7.4-fpm php7.4-cli php-pear php7.4-apcu php7.4-apcu-bc \
+apt install $y php7.4-fpm php7.4-cli php-pear php7.4-apcu php7.4-apcu-bc \
   php7.4-opcache php7.4-curl php7.4-imagick php7.4-gnupg php7.4-mysql \
   php7.4-intl php7.4-json php7.4-zip php7.4-xsl php7.4-xmlrpc php7.4-xml \
   php7.4-uuid php7.4-sqlite3 php7.4-mbstring php7.4-bcmath php7.4-bz2 \
@@ -104,11 +106,11 @@ curl -o /etc/bash_completion.d/wp-completion.bash https://raw.githubusercontent.
 
 
 ## MySQL
-apt install mariadb-client mariadb-server
+apt install $y mariadb-client mariadb-server
 mysql_secure_installation
 
 # munin
-apt install munin munin-node munin-plugins-extra libwww-perl libcache-{perl,cache-perl} libnet-dns-perl
+apt install $y munin munin-node munin-plugins-extra libwww-perl libcache-{perl,cache-perl} libnet-dns-perl
 a2disconf munin
 systemctl restart apache2
 
@@ -127,7 +129,7 @@ apt-get install nodejs
 
 
 # imgopt
-apt install advancecomp optipng libjpeg-turbo-progs build-essential wget
+apt install $y advancecomp optipng libjpeg-turbo-progs build-essential wget
 
 curl -o /usr/local/bin/imgopt https://raw.githubusercontent.com/kormoc/imgopt/main/imgopt \
   && chmod a+x /usr/local/bin/imgopt
@@ -158,7 +160,7 @@ service fail2ban restart
 
 
 # Backups
-apt install rdiff-backup time
+apt install $y rdiff-backup time
 
 mkdir -p "/home/backups/rdiff-$(hostname -s)" \
   && chmod 700 /home/backups
