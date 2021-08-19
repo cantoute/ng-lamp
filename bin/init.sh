@@ -20,7 +20,7 @@ cat "${SCRIPT_PATH}/../root-fs/etc/.gitignore.certbot" >> /etc/.gitignore
 # Don't realy see the point of having this
 apt remove --purge apparmor
 
-apt install postfix rsync vim zip
+apt install postfix rsync vim zip unzip
 
 apt install certbot
 
@@ -168,7 +168,7 @@ mkdir -p "/home/backups/rdiff-$(hostname -s)" \
 ${SCRIPT_PATH}/sync.sh /root/bin
 ${SCRIPT_PATH}/sync.sh /etc/cron.d/backups
 
-
+# Finelizing
 
 # clear some disk space
 apt autoclean
@@ -180,9 +180,9 @@ adduser www-adm
 
 echo "sudo -u www-adm -s"
 echo "cd"
-echo "wget https://files.phpmyadmin.net/phpMyAdmin/5.1.1/phpMyAdmin-5.1.1-all-languages.tar.gz"
-echo "tar xzf phpMyAdmin-5.1.1-all-languages.tar.gz"
-echo "ln -s phpMyAdmin-5.1.1-all-languages www.mysql"
+echo "wget https://files.phpmyadmin.net/phpMyAdmin/4.9.7/phpMyAdmin-4.9.7-all-languages.zip"
+echo "unzip phpMyAdmin-4.9.7-all-languages.zip"
+echo "ln -s phpMyAdmin-4.9.7-all-languages www.mysql"
 echo "exit"
 echo "# Now as root run this to add .user.ini and config.inc.php"
 echo "${SCRIPT_PATH}/sync.sh /home/www-adm/www.mysql"
