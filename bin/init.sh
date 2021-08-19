@@ -20,12 +20,10 @@ cat "${SCRIPT_PATH}/../root-fs/etc/.gitignore.certbot" >> /etc/.gitignore
 # Don't realy see the point of having this
 apt remove --purge apparmor
 
-apt install postfix rsync vim zip unzip
+apt install postfix
 
-apt install certbot
-
-apt install ntpdate ntp
 apt install telnet bsd-mailx htop apachetop screen wget curl build-essential
+apt install certbot rsync vim zip unzip ntpdate ntp
 apt install imagemagick graphicsmagick webp
 apt install pwgen tree
 apt install nload nmap
