@@ -157,8 +157,7 @@ curl -o jfifremove.c https://raw.githubusercontent.com/kormoc/imgopt/main/jfifre
 
 wget http://www.jonof.id.au/files/kenutils/pngout-20200115-linux.tar.gz \
   && tar xzvf pngout-20200115-linux.tar.gz \
-  && mv pngout-20200115-linux/amd64/pngout /usr/local/bin/ \
-  && mv pngout /usr/local/bin/
+  && mv pngout-20200115-linux/amd64/pngout /usr/local/bin/
 
 cd -
 
@@ -167,7 +166,7 @@ cd -
 $SYNC /etc/skel/
 
 # setup fail2ban
-# for phpMyAdmin don't forget to add this: $cfg['AuthLog'] = 'syslog';
+# for phpMyAdmin don't forget to add this in config.inc.php: $cfg['AuthLog'] = 'syslog';
 
 $SYNC /etc/fail2ban/
 
@@ -203,3 +202,10 @@ echo "# Now as root run this to add .user.ini and config.inc.php"
 echo "${SYNC} /home/www-adm/www.mysql"
 echo "chown -R www-adm:www-adm /home/www-adm/www.mysql"
 echo "You still have to add blowfish key if you want to use cookie based auth. (By default we use http auth)"
+
+MYSQL_SUPERUSER=newuser
+MYSQL_SUPERUSER_PASSWORD=password
+echo
+echo "echo \"CREATE USER '${MYSQL_SUPERUSER}'@'localhost' IDENTIFIED BY '${MYSQL_SUPERUSER_PASSWORD}';\" | mysql"
+echo "echo \"GRANT ALL PRIVILEGES ON *.* TO '${MYSQL_SUPERUSER}'@'localhost' WITH GRANT OPTION;\" | mysql"
+echo "echo \"FLUSH PRIVILEGES;\" | mysql"
