@@ -130,7 +130,7 @@ then run [init.sh](./bin/init.sh)
 # update all system settings/files
 ./bin/sync.sh /
 
-# a diriectory (recursiveley)
+# a directory (recursively)
 ./bin/sync.sh /etc/nginx/conf.d
 
 # single file
