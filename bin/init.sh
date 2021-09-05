@@ -71,7 +71,7 @@ apt install $Y nginx
 # keep a copy of the distribution nginx.conf
 cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.dist.bak
 
-${SCRIPT_PATH}/bin/sync.sh /etc/nginx
+$SYNC /etc/nginx
 
 cd /etc/nginx/conf.d
 ln -s ../ng-lamp/*.conf ./
