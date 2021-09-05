@@ -1,8 +1,8 @@
-# remplace %user with your hosting user
+# remplace username with your hosting user
 # and exemple.com with your domain
 
 <IfModule proxy_fcgi_module>
-  <Proxy "unix:/run/php/php7.4-fpm_%user.sock|fcgi://%user_php7.4" enablereuse=Off max=25>
+  <Proxy "unix:/run/php/php7.4-fpm_username.sock|fcgi://username_php7.4" enablereuse=Off max=25>
     ProxySet connectiontimeout=10 acquire=10 timeout=300
   </Proxy>
 </IfModule>
@@ -11,9 +11,9 @@
   ServerName www.exemple.com
 
   ServerAdmin hostmaster@exemple.com
-  DocumentRoot /home/%user/exemple.com/www
+  DocumentRoot /home/username/exemple.com/www
 
-  <Directory /home/%user/exemple.com/www >
+  <Directory /home/username/exemple.com/www >
     Options -Indexes
     AllowOverride all
     Require all granted
@@ -21,7 +21,7 @@
 
   <IfModule proxy_fcgi_module>
     <FilesMatch ".+\.ph(ar|p|tml)$">
-      SetHandler "proxy:fcgi://%user_php7.4"
+      SetHandler "proxy:fcgi://username_php7.4"
     </FilesMatch>
   </IfModule>
 
