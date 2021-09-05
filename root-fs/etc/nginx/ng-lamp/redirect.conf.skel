@@ -3,22 +3,22 @@ server {
   listen 80;
   # listen [::]:80;
 
-  server_name exemple-source.com www.exemple-source.com;
+  server_name example-source.com www.example-source.com;
 
   include snippets/letsencrypt-acme-challenge.conf;
 
   location / {
     # 302 = temp
     # 301 = permanent
-    return 302 https://www.exemple-dest.com$request_uri;
+    return 302 https://www.example-dest.com$request_uri;
   }
 
   # listen 443 ssl http2;
-  # ssl_trusted_certificate /etc/letsencrypt/live/exemple-source.com/chain.pem;
-  # ssl_certificate /etc/letsencrypt/live/exemple-source.com/fullchain.pem;
-  # ssl_certificate_key /etc/letsencrypt/live/exemple-source.com/privkey.pem;
+  # ssl_trusted_certificate /etc/letsencrypt/live/example-source.com/chain.pem;
+  # ssl_certificate /etc/letsencrypt/live/example-source.com/fullchain.pem;
+  # ssl_certificate_key /etc/letsencrypt/live/example-source.com/privkey.pem;
 
   # access_log /var/log/nginx/access.log combined_vhost;
-  # access_log /var/log/nginx/exemple-source.com_access.log;
+  # access_log /var/log/nginx/example-source.com_access.log;
 }
 

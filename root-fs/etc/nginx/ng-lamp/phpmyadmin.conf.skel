@@ -9,18 +9,18 @@ server {
   # listen [::]:80;
   # listen [::]:443 ssl http2;
 
-  server_name mysql.exemple.com www.mysql.exemple.com;
+  server_name mysql.example.com www.mysql.example.com;
 
   root /home/www-adm/www.mysql;
 
   # first run this then uncomment/adjust folowing lines
-  # certbot certonly --webroot --webroot-path /var/www/letsencrypt -d mysql.exemple.com -d www.mysql.exemple.com
+  # certbot certonly --webroot --webroot-path /var/www/letsencrypt -d mysql.example.com -d www.mysql.example.com
 
   # listen 443 ssl http2;
 
-  # ssl_trusted_certificate /etc/letsencrypt/live/mysql.exemple.com/chain.pem;
-  # ssl_certificate /etc/letsencrypt/live/mysql.exemple.com/fullchain.pem;
-  # ssl_certificate_key /etc/letsencrypt/live/mysql.exemple.com/privkey.pem;
+  # ssl_trusted_certificate /etc/letsencrypt/live/mysql.example.com/chain.pem;
+  # ssl_certificate /etc/letsencrypt/live/mysql.example.com/fullchain.pem;
+  # ssl_certificate_key /etc/letsencrypt/live/mysql.example.com/privkey.pem;
 
   ## force https
   # if ( $scheme != https ) {
@@ -40,7 +40,7 @@ server {
     include fastcgi_params;
 
     # Mitigate https://httpoxy.org/ vulnerabilities
-    fastcgi_param HTTP_PROXY "";
+    fastcgi_param HTTP_PROXY '';
 
     fastcgi_split_path_info ^(.+\.php)(/.+)$;
     # NOTE: You should have "cgi.fix_pathinfo = 0;" in php.ini

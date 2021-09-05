@@ -1,12 +1,12 @@
-# certbot certonly --webroot --webroot-path /var/www/letsencrypt -d exemple.com -d www.exemple.com
+# certbot certonly --webroot --webroot-path /var/www/letsencrypt -d example.com -d www.example.com
 
 server {
   listen 80;
   # listen [::]:80;
 
-  server_name www.exemple.com exemple.com;
+  server_name www.example.com example.com;
 
-  root /home/exemple-user/exemple.com/www;
+  root /home/example-user/example.com/www;
 
   client_max_body_size        128m;
 
@@ -27,9 +27,9 @@ server {
   #   return 301 https://$server_name$request_uri;
   # }
 
-  # ssl_trusted_certificate /etc/letsencrypt/live/exemple.com/chain.pem;
-  # ssl_certificate /etc/letsencrypt/live/exemple.com/fullchain.pem;
-  # ssl_certificate_key /etc/letsencrypt/live/exemple.com/privkey.pem;
+  # ssl_trusted_certificate /etc/letsencrypt/live/example.com/chain.pem;
+  # ssl_certificate /etc/letsencrypt/live/example.com/fullchain.pem;
+  # ssl_certificate_key /etc/letsencrypt/live/example.com/privkey.pem;
 
   ## redirect all host aliases to first server_name
   if ( $host != $server_name ) {
@@ -42,7 +42,7 @@ server {
   add_header X-Content-Type-Options nosniff;
   add_header X-XSS-Protection "1; mode=block";
 
-  access_log /var/log/nginx/www.exemple.com_access.log;
+  access_log /var/log/nginx/www.example.com_access.log;
 
   location / {
     try_files /dev/null @backend;

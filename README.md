@@ -33,7 +33,7 @@ This stack is flexible, solid and works well for wordpress hosting. Getting the 
 │   │   └── sites-available
 │   │       ├── 000-ng-lamp-default.conf
 │   │       ├── localhost.conf
-│   │       └── www.exemple.com.conf.skel
+│   │       └── www.example.com.conf.skel
 │   ├── cron.d
 │   │   └── backups
 │   ├── fail2ban
