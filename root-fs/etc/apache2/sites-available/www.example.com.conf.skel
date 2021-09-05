@@ -1,5 +1,5 @@
 # remplace username with your hosting user
-# and exemple.com with your domain
+# and example.com with your domain
 
 <IfModule proxy_fcgi_module>
   <Proxy "unix:/run/php/php7.4-fpm_username.sock|fcgi://username_php7.4" enablereuse=Off max=25>
@@ -8,12 +8,12 @@
 </IfModule>
 
 <VirtualHost * >
-  ServerName www.exemple.com
+  ServerName www.example.com
 
-  ServerAdmin hostmaster@exemple.com
-  DocumentRoot /home/username/exemple.com/www
+  ServerAdmin hostmaster@example.com
+  DocumentRoot /home/username/example.com/www
 
-  <Directory /home/username/exemple.com/www >
+  <Directory /home/username/example.com/www >
     Options -Indexes
     AllowOverride all
     Require all granted
@@ -33,8 +33,8 @@
   </IfModule>
   
   ErrorLog ${APACHE_LOG_DIR}/error.log
-  # ErrorLog ${APACHE_LOG_DIR}/www.exemple.com_error.log
-  # CustomLog ${APACHE_LOG_DIR}/www.exemple.com_access.log combined
+  # ErrorLog ${APACHE_LOG_DIR}/www.example.com_error.log
+  # CustomLog ${APACHE_LOG_DIR}/www.example.com_access.log combined
   # ErrorLog /dev/null
   # BufferedLogs Off
 </VirtualHost>
