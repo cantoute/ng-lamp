@@ -21,6 +21,9 @@ server {
 
   include snippets/wordpress.conf;
 
+  # first run this then uncomment/adjust folowing lines
+  # certbot certonly --webroot --webroot-path /var/www/letsencrypt -d example.com -d www.example.com
+
   # listen 443 ssl http2;
 
   # if ( $scheme != https ) {

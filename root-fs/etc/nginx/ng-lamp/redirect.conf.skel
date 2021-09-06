@@ -13,6 +13,9 @@ server {
     return 302 https://www.example-dest.com$request_uri;
   }
 
+  # first run this then uncomment/adjust folowing lines
+  # certbot certonly --webroot --webroot-path /var/www/letsencrypt -d example-source.com -d www.example-source.com
+
   # listen 443 ssl http2;
   # ssl_trusted_certificate /etc/letsencrypt/live/example-source.com/chain.pem;
   # ssl_certificate /etc/letsencrypt/live/example-source.com/fullchain.pem;

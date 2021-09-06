@@ -10,6 +10,9 @@ server {
 
   root /var/cache/munin/www;
 
+  # first run this then uncomment/adjust folowing lines
+  # certbot certonly --webroot --webroot-path /var/www/letsencrypt -d munin.example.com -d www.munin.example.com
+
   # listen 443 ssl http2;
 
   # ssl_trusted_certificate /etc/letsencrypt/live/munin.example.com/chain.pem;
