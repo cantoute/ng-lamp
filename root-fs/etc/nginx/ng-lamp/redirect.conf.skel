@@ -8,6 +8,7 @@ server {
   include snippets/letsencrypt-acme-challenge.conf;
 
   location / {
+    # we want to redirect in a location {} not to brake certbot validation (cert renew)
     # 302 = temp
     # 301 = permanent
     return 302 https://www.example-dest.com$request_uri;
