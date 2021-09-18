@@ -115,18 +115,22 @@ $NICECMD $RDIFF $RDIFFRMOLD $DSTBASE$BACKUPDIR
 
 # Backing up /var/www
 BACKUPDIR=/var/www
-BACKUPARGS="--exclude **/cache/** \
-            --exclude **/.cache** \
+BACKUPARGS="--exclude **/.cache** \
             --exclude **/supercache/** \
-            --exclude **/.tmp \
             --exclude **/tmp \
             --exclude **/*.tmp \
-            --exclude **/log/** \
             --exclude **/*.log \
             --exclude **/smarty/compile/** \
             --exclude **/sessions/sess_* \
             --exclude **/drush-backups/** \
-            --exclude **/*nobackup* "
+            --exclude **/*nobackup* \
+            --exclude **/uploads/*cache* \
+            --exclude **/uploads/*tmp* \
+            --exclude **/uploads/*log* \
+            --exclude **/uploads/*backup* \
+            --exclude **/uploads/backupbuddy_backups \
+            --exclude **/uploads/pb_backupbuddy \
+            "
 
             # --exclude **/sites/default/*settings.php \
 
