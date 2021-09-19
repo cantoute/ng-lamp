@@ -75,9 +75,6 @@ $SYNC /etc/nginx
 
 cd /etc/nginx/conf.d
 ln -s ../ng-lamp/*.conf ./
-# this would conflict with cloudflare
-rm -f 00_fastly.conf
-cd -
 
 # required by snippets/letsencrypt-acme-challenge.conf
 mkdir /var/www/letsencrypt
@@ -137,6 +134,17 @@ ln -s /usr/share/munin/plugins/nginx_* /etc/munin/plugins/
 munin-node-configure --suggest --shell | sh
 
 service munin-node restart
+
+# NetData
+apt install netdata netdata-web
+
+$SYNC /etc/netdata/python.d
+
+touch /etc/netdata/htpasswd
+
+pwgen -A
+echo "Set password for user netdata"
+printf "netdata:$(openssl passwd -apr1)" >> /etc/netdata/htpasswd
 
 # Node
 curl -fsSL https://deb.nodesource.com/setup_lts.x | bash -

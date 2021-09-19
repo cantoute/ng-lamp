@@ -1,16 +1,8 @@
 # LAMP behind Nginx reverse proxy
 
-## Work In Progress
-
-This code has not been tested fully.
-
-### init.sh script has never been tried yet
-
-`sync.sh` seems to work fine so far (and makes backup of any replaced file in `/root/_ng-lamp.bak`)
-
 ## TODO:
 
-- try `init.sh` on a fresh install
+- ~~try `init.sh` on a fresh install~~ Done
 - ~~fail2ban on phpMyAdmin~~ Done
 - ~~munin configuration~~ Done
 - ~~backups (rdiff-backup / mysqldump)~~ Done but can be improved
@@ -42,10 +34,14 @@ This stack is flexible, solid and works well for wordpress hosting. Getting the 
 │   │   └── plugin-conf.d
 │   │       ├── apache
 │   │       └── nginx
+│   ├── netdata
+│   │   └── python.d
+│   │       └── nginx.conf
 │   ├── nginx
 │   │   ├── nginx.conf
 │   │   ├── ng-lamp
 │   │   │   ├── 00_cloudflare.conf
+│   │   │   ├── 00_fastly.conf.skel
 │   │   │   ├── 00_limit.conf
 │   │   │   ├── 00_misc.conf
 │   │   │   ├── 00_ssl.conf
@@ -53,6 +49,7 @@ This stack is flexible, solid and works well for wordpress hosting. Getting the 
 │   │   │   ├── 10_default-host.conf
 │   │   │   ├── 20_localhost.conf
 │   │   │   ├── munin.conf.skel
+│   │   │   ├── netdata.conf.skel
 │   │   │   ├── phpmyadmin.conf.skel
 │   │   │   ├── redirect.conf.skel
 │   │   │   └── wordpress.conf.skel
@@ -90,6 +87,7 @@ This stack is flexible, solid and works well for wordpress hosting. Getting the 
 - install nginx mainline
   - run nginx as `www-data` and not `nginx` (this is why it overrides [/etc/nginx/nginx.conf](./root-fs/etc/nginx/nginx.conf))
   - [/etc/nginx/snippets/common-proxy.conf](./root-fs/etc/nginx/snippets/common-proxy.conf) passes IP, Authentication, Schema and other headers to [/etc/apache2/conf-available/ng-lamp.conf](./root-fs/etc/apache2/conf-available/ng-lamp.conf)
+- installs munin and netdata monitoring
 - making sure virtual host `localhost` is only accessible to munin
 - nginx ratelimit to requests made to apache backend. [100 req then slowed to 1/s](./root-fs/etc/nginx/conf.d/wordpress.conf.skel#L61)
 - remove fbclid from url (redirect 301) to improve SEO and privacy.
