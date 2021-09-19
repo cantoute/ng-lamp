@@ -115,21 +115,25 @@ $NICECMD $RDIFF $RDIFFRMOLD $DSTBASE$BACKUPDIR
 
 # Backing up /var/www
 BACKUPDIR=/var/www
-BACKUPARGS="--exclude **/.cache** \
-            --exclude **/supercache/** \
-            --exclude **/tmp \
-            --exclude **/*.tmp \
-            --exclude **/*.log \
-            --exclude **/smarty/compile/** \
-            --exclude **/sessions/sess_* \
-            --exclude **/drush-backups/** \
-            --exclude **/*nobackup* \
-            --exclude **/uploads/*cache* \
-            --exclude **/uploads/*tmp* \
-            --exclude **/uploads/*log* \
-            --exclude **/uploads/*backup* \
-            --exclude **/uploads/backupbuddy_backups \
-            --exclude **/uploads/pb_backupbuddy \
+BACKUPARGS="--exclude '**/.cache*' \
+            --exclude '**/supercache/**' \
+            --exclude '**/tmp/**' \
+            --exclude '**/*.tmp' \
+            --exclude '**/*.log' \
+            --exclude '**/smarty/compile/**' \
+            --exclude '**/sessions/sess_*' \
+            --exclude '**/drush-backups/**' \
+            --exclude '**/*nobackup*' \
+            --exclude '**/uploads/*cache*' \
+            --exclude '**/uploads/*tmp*' \
+            --exclude '**/uploads/*log*' \
+            --exclude '**/uploads/*backup*' \
+            --exclude '**/uploads/backupbuddy_backups' \
+            --exclude '**/uploads/pb_backupbuddy' \
+            --exclude '**/wp-content/wflogs' \
+            --exclude '**/wp-content/updraft' \
+            --exclude '**/wp-content/sauvegarde' \
+
             "
 
             # --exclude **/sites/default/*settings.php \
