@@ -122,7 +122,7 @@ apt install $Y mariadb-client mariadb-server
 mysql_secure_installation
 
 # munin
-apt install $Y munin munin-node munin-plugins-extra libwww-perl libcache-{perl,cache-perl} libnet-dns-perl
+apt install $Y munin munin-node munin-plugins-extra libwww-perl libcache-{perl,cache-perl} libnet-dns-perl libfcgi-client-perl
 a2disconf munin
 systemctl restart apache2
 
@@ -132,6 +132,15 @@ ln -s /usr/share/munin/plugins/apache_* /etc/munin/plugins/
 ln -s /usr/share/munin/plugins/nginx_* /etc/munin/plugins/
 
 munin-node-configure --suggest --shell | sh
+
+# install https://github.com/MorbZ/munin-php-fpm
+wget -O /usr/share/munin/plugins/php-fpm https://raw.github.com/MorbZ/munin-php-fpm/master/php-fpm.php
+chmod +x /usr/share/munin/plugins/php-fpm
+ln -s /usr/share/munin/plugins/php-fpm /etc/munin/plugins/php-fpm-memory
+ln -s /usr/share/munin/plugins/php-fpm /etc/munin/plugins/php-fpm-cpu
+ln -s /usr/share/munin/plugins/php-fpm /etc/munin/plugins/php-fpm-count
+ln -s /usr/share/munin/plugins/php-fpm /etc/munin/plugins/php-fpm-time
+
 
 service munin-node restart
 
