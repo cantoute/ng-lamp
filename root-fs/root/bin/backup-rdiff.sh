@@ -31,6 +31,12 @@ MAIL_ALERT_SEND="mailx -s \"${MAIL_ALERT_SUBJECT}\" -r \"${MAIL_ALERT_FROM}\" -c
 # load local settings
 [[ -f "$LOCAL_CONF" ]] && source "$LOCAL_CONF"
 
+[[ -d "$DSTBASE" ]] || {
+  mkdir -p "$DSTBASE" || {
+    echo $msg | $MAIL_ALERT_SEND
+    exit 1
+  }
+}
 
 # remove lock file if older then 3 days
 # TODO: smarter to check if pid is still runing
