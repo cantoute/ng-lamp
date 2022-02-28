@@ -48,6 +48,7 @@ a2enmod deflate setenvif headers auth_basic auth_digest expires env proxy_fcgi r
 $SYNC /etc/apache2
 
 a2enconf ng-lamp
+a2enconf dont-cache-robots-txt
 
 a2dissite 000-default
 
