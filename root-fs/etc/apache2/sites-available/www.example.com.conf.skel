@@ -37,5 +37,15 @@
   # CustomLog ${APACHE_LOG_DIR}/www.example.com_access.log combined
   # ErrorLog /dev/null
   # BufferedLogs Off
+
+  # To enable proxy to https
+  # a2enmod ssl proxy_http
+  <IfModule proxy_http_module>
+    <IfModule ssl_module>
+      SSLProxyEngine On
+      #SSLProxyCheckPeerCN on
+      #SSLProxyCheckPeerExpire on
+    </IfModule>
+  </IfModule>
 </VirtualHost>
 
