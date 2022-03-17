@@ -26,10 +26,23 @@ apt install $Y git etckeeper
 # lets not have letsencrypt ssl keys in git repo
 cat "${SCRIPT_PATH}/../root-fs/etc/.gitignore.certbot" >> /etc/.gitignore
 
+echo "** adding etckeeper diff **"
+$SYNC /etc/etckeeper
+
+echo "If you plan to run wordpress or php sites, apparmor isn't of much help."
 # Don't realy see the point of having this
 apt remove --purge apparmor
 
-apt install $Y postfix
+echo "if you chose to install the firewall from over ssh, don't forget to open port 21 or skip apply rules at the end."
+apt install arno-iptables-firewall
+
+apt install postfix
+
+echo "if you need plain ftp access"
+echo "TODO: conf for limiting to a ftp-access group + chroot + fail2ban"
+apt install proftpd-basic
+
+apt install $Y fail2ban
 
 apt install $Y telnet bsd-mailx htop apachetop screen wget curl build-essential
 apt install $Y certbot rsync zip unzip ntpdate ntp
@@ -38,12 +51,9 @@ apt install $Y pwgen tree
 apt install $Y nload nmap
 apt install $Y memcached
 
-echo "if you chose to install the firewall, don't forget to open port 21"
-apt install $Y arno-iptables-firewall
-apt install $Y fail2ban
-
 apt install $Y apache2 apache2-utils
-a2enmod deflate setenvif headers auth_basic auth_digest expires env proxy_fcgi rewrite alias remoteip
+a2enmod deflate setenvif headers auth_basic auth_digest expires env \
+  proxy_fcgi rewrite alias remoteip
 
 $SYNC /etc/apache2
 
