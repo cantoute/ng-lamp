@@ -39,7 +39,7 @@
   # BufferedLogs Off
 
   # To enable proxy to https
-  # a2enmod ssl proxy_http
+  # sudo a2enmod ssl proxy_http
   <IfModule proxy_http_module>
     <IfModule ssl_module>
       SSLProxyEngine On
