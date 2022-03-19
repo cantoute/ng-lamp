@@ -3,4 +3,4 @@ letsencrypt/keys
 letsencrypt/archive
 letsencrypt/live
 letsencrypt/csr
-
+letsencrypt/.certbot.lock
