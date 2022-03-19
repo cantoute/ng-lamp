@@ -1,6 +1,9 @@
 
+# Begin Inserted by ng-lamp init.sh
 letsencrypt/keys
 letsencrypt/archive
 letsencrypt/live
 letsencrypt/csr
 letsencrypt/.certbot.lock
+
+# End Inserted by ng-lamp init.sh
