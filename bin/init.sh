@@ -132,6 +132,28 @@ echo "Done."
 apt install $Y mariadb-client mariadb-server
 mysql_secure_installation
 
+
+# update user skel (.bashrc)
+$SYNC /etc/skel/
+
+# setup fail2ban
+# for phpMyAdmin don't forget to add this in config.inc.php: $cfg['AuthLog'] = 'syslog';
+
+$SYNC /etc/fail2ban/
+
+service fail2ban restart
+
+
+# Backups
+apt install $Y rdiff-backup time
+
+mkdir -p "/home/backups/rdiff-$(hostname -s)" \
+  && chmod 700 /home/backups
+
+$SYNC /root/bin
+$SYNC /etc/cron.d/backups
+
+
 ## Munin
 initMunin() {
   apt install $Y munin munin-node munin-plugins-extra libwww-perl libcache-{perl,cache-perl} libnet-dns-perl libfcgi-client-perl
@@ -160,64 +182,7 @@ initMunin() {
   cd -
   service munin-node restart
 }
-
 initMunin
-
-# NetData
-apt install netdata netdata-web
-
-$SYNC /etc/netdata/python.d
-
-touch /etc/netdata/htpasswd
-
-pwgen -A
-echo "Set password for user netdata"
-printf "netdata:$(openssl passwd -apr1)" >> /etc/netdata/htpasswd
-
-# Node
-curl -fsSL https://deb.nodesource.com/setup_lts.x | bash -
-apt-get install nodejs
-
-
-# imgopt
-apt install $Y advancecomp optipng libjpeg-turbo-progs build-essential wget
-
-curl -o /usr/local/bin/imgopt https://raw.githubusercontent.com/kormoc/imgopt/main/imgopt \
-  && chmod a+x /usr/local/bin/imgopt
-
-cd /tmp
-
-curl -o jfifremove.c https://raw.githubusercontent.com/kormoc/imgopt/main/jfifremove.c \
-  && gcc -o jfifremove jfifremove.c \
-  && mv jfifremove /usr/local/bin/
-
-wget http://www.jonof.id.au/files/kenutils/pngout-20200115-linux.tar.gz \
-  && tar xzvf pngout-20200115-linux.tar.gz \
-  && mv pngout-20200115-linux/amd64/pngout /usr/local/bin/
-
-cd -
-
-
-# update user skel (.bashrc)
-$SYNC /etc/skel/
-
-# setup fail2ban
-# for phpMyAdmin don't forget to add this in config.inc.php: $cfg['AuthLog'] = 'syslog';
-
-$SYNC /etc/fail2ban/
-
-service fail2ban restart
-
-
-# Backups
-apt install $Y rdiff-backup time
-
-mkdir -p "/home/backups/rdiff-$(hostname -s)" \
-  && chmod 700 /home/backups
-
-$SYNC /root/bin
-$SYNC /etc/cron.d/backups
-
 
 # Varnish
 initVarnish() {
@@ -229,6 +194,13 @@ initVarnish() {
 
   apt install varnish
 
+  # add group varnish to munin
+  adduser munin varnish
+
+  # listen to port localhost:6081 and localhost:6091
+  # restrict to localhost
+  # adjust cache size to your needs
+  # TODO: cache on tmpfs
   systemctl edit --full varnish
 
   # varnish-modules
@@ -251,13 +223,57 @@ initVarnish() {
 
 read -p "Install Varnish 7.0 [Y/n]?" installVarnish
 if [[ $installVarnish =~ ^(Y|y| ) ]] || [[ -z $installVarnish ]]; then
-    initVarnish
+  initVarnish
 fi
 # case "$installVarnish" in 
 #   y|Y ) initVarnish;;
 #   n|N ) ;;
 #   * ) initVarnish;;
 # esac
+
+
+# NetData
+initNetData() {
+  apt install netdata netdata-web
+
+  $SYNC /etc/netdata/python.d
+
+  touch /etc/netdata/htpasswd
+
+  pwgen -A
+  echo "Set password for user netdata"
+  printf "netdata:$(openssl passwd -apr1)" >> /etc/netdata/htpasswd
+
+  # Node
+  curl -fsSL https://deb.nodesource.com/setup_lts.x | bash -
+  apt-get install nodejs
+
+
+  # imgopt
+  apt install $Y advancecomp optipng libjpeg-turbo-progs build-essential wget
+
+  curl -o /usr/local/bin/imgopt https://raw.githubusercontent.com/kormoc/imgopt/main/imgopt \
+    && chmod a+x /usr/local/bin/imgopt
+
+  cd /tmp
+
+  curl -o jfifremove.c https://raw.githubusercontent.com/kormoc/imgopt/main/jfifremove.c \
+    && gcc -o jfifremove jfifremove.c \
+    && mv jfifremove /usr/local/bin/
+
+  wget http://www.jonof.id.au/files/kenutils/pngout-20200115-linux.tar.gz \
+    && tar xzvf pngout-20200115-linux.tar.gz \
+    && mv pngout-20200115-linux/amd64/pngout /usr/local/bin/
+
+  cd -
+}
+initNetData
+
+read -p "Install NetData [Y/n]?" installNetData
+if [[ $installNetData =~ ^(Y|y| ) ]] || [[ -z $installNetData ]]; then
+  initNetData
+fi
+
 
 # Finelizing
 
