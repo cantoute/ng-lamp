@@ -196,6 +196,7 @@ initVarnish() {
 
   # add group varnish to munin
   adduser munin varnish
+  service munin-node restart
 
   # listen to port localhost:6081 and localhost:6091
   # restrict to localhost
