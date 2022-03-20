@@ -244,13 +244,17 @@ initNetData() {
   pwgen -A
   echo "Set password for user netdata"
   printf "netdata:$(openssl passwd -apr1)" >> /etc/netdata/htpasswd
-
-  # Node
-  curl -fsSL https://deb.nodesource.com/setup_lts.x | bash -
-  apt-get install nodejs
+}
+initNetData
 
 
-  # imgopt
+# Node
+curl -fsSL https://deb.nodesource.com/setup_lts.x | bash -
+apt-get install nodejs
+
+
+# imgopt
+initImgopt() {
   apt install $Y advancecomp optipng libjpeg-turbo-progs build-essential wget
 
   curl -o /usr/local/bin/imgopt https://raw.githubusercontent.com/kormoc/imgopt/main/imgopt \
@@ -268,7 +272,7 @@ initNetData() {
 
   cd -
 }
-initNetData
+initImgopt
 
 read -p "Install NetData [Y/n]?" installNetData
 if [[ $installNetData =~ ^(Y|y| ) ]] || [[ -z $installNetData ]]; then
