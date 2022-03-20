@@ -132,28 +132,36 @@ echo "Done."
 apt install $Y mariadb-client mariadb-server
 mysql_secure_installation
 
-# munin
-apt install $Y munin munin-node munin-plugins-extra libwww-perl libcache-{perl,cache-perl} libnet-dns-perl libfcgi-client-perl
-a2disconf munin
-systemctl restart apache2
+## Munin
+initMunin() {
+  apt install $Y munin munin-node munin-plugins-extra libwww-perl libcache-{perl,cache-perl} libnet-dns-perl libfcgi-client-perl
 
-$SYNC /etc/munin/plugin-conf.d
+  # we don't want to expose /munin/ on all virtual hosts
+  a2disconf munin
+  systemctl reload apache2
 
-ln -s /usr/share/munin/plugins/apache_* /etc/munin/plugins/
-ln -s /usr/share/munin/plugins/nginx_* /etc/munin/plugins/
+  $SYNC /etc/munin
 
-munin-node-configure --suggest --shell | sh
+  cd /etc/munin/plugins
 
-# install https://github.com/MorbZ/munin-php-fpm
-wget -O /usr/share/munin/plugins/php-fpm https://raw.github.com/MorbZ/munin-php-fpm/master/php-fpm.php
-chmod +x /usr/share/munin/plugins/php-fpm
-ln -s /usr/share/munin/plugins/php-fpm /etc/munin/plugins/php-fpm-memory
-ln -s /usr/share/munin/plugins/php-fpm /etc/munin/plugins/php-fpm-cpu
-ln -s /usr/share/munin/plugins/php-fpm /etc/munin/plugins/php-fpm-count
-ln -s /usr/share/munin/plugins/php-fpm /etc/munin/plugins/php-fpm-time
+  ln -s /usr/share/munin/plugins/apache_* ./
+  ln -s /usr/share/munin/plugins/nginx_* ./
 
+  munin-node-configure --suggest --shell | sh
 
-service munin-node restart
+  # install https://github.com/MorbZ/munin-php-fpm
+  wget -O php-fpm https://raw.github.com/MorbZ/munin-php-fpm/master/php-fpm.php
+  chmod a+x php-fpm 
+  ln -s php-fpm php-fpm-memory
+  ln -s php-fpm  php-fpm-cpu
+  ln -s php-fpm  php-fpm-count
+  ln -s php-fpm  php-fpm-time
+
+  cd -
+  service munin-node restart
+}
+
+initMunin
 
 # NetData
 apt install netdata netdata-web
@@ -209,6 +217,47 @@ mkdir -p "/home/backups/rdiff-$(hostname -s)" \
 
 $SYNC /root/bin
 $SYNC /etc/cron.d/backups
+
+
+# Varnish
+initVarnish() {
+  # https://packagecloud.io/varnishcache/varnish70/
+
+  curl -s https://packagecloud.io/install/repositories/varnishcache/varnish70/script.deb.sh | sudo bash
+
+  # script does an apt update
+
+  apt install varnish
+
+  systemctl edit --full varnish
+
+  # varnish-modules
+  apt install varnish-dev python-sphinx make automake libtool
+
+  git clone https://github.com/varnish/varnish-modules.git /root/varnish-modules
+  cd /root/varnish-modules
+  git checkout 7.0
+
+  ./bootstrap
+  ./configure   # run "configure -h" first to list options
+  make
+  #make check    # optional (tests)
+  # Note: a building from source you need to run make rst-docs before being able to install.
+  make rst-docs # optional (docs)
+  make install  # optional (installation), run as root
+
+  cd -
+}
+
+read -p "Install Varnish 7.0 [Y/n]?" installVarnish
+if [[ $installVarnish =~ ^(Y|y| ) ]] || [[ -z $installVarnish ]]; then
+    initVarnish
+fi
+# case "$installVarnish" in 
+#   y|Y ) initVarnish;;
+#   n|N ) ;;
+#   * ) initVarnish;;
+# esac
 
 # Finelizing
 

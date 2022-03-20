@@ -1,0 +1,3 @@
+[varnish*]
+group varnish
+env.varnishstat varnishstat
