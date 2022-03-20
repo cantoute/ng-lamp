@@ -1,0 +1,16 @@
+#!/bin/bash
+
+Y=-y
+
+initNetData() {
+  apt install netdata netdata-web
+
+  $SYNC /etc/netdata/python.d
+
+  touch /etc/netdata/htpasswd
+
+  pwgen -A
+  echo "Set password for user netdata"
+  printf "netdata:$(openssl passwd -apr1)" >> /etc/netdata/htpasswd
+}
+initNetData

@@ -1,0 +1,24 @@
+#!/bin/bash
+
+Y=-y
+
+# imgopt
+initImgopt() {
+  apt install $Y advancecomp optipng libjpeg-turbo-progs build-essential wget
+
+  curl -o /usr/local/bin/imgopt https://raw.githubusercontent.com/kormoc/imgopt/main/imgopt \
+    && chmod a+x /usr/local/bin/imgopt
+
+  cd /tmp
+
+  curl -o jfifremove.c https://raw.githubusercontent.com/kormoc/imgopt/main/jfifremove.c \
+    && gcc -o jfifremove jfifremove.c \
+    && mv jfifremove /usr/local/bin/
+
+  wget http://www.jonof.id.au/files/kenutils/pngout-20200115-linux.tar.gz \
+    && tar xzvf pngout-20200115-linux.tar.gz \
+    && mv pngout-20200115-linux/amd64/pngout /usr/local/bin/
+
+  cd -
+}
+initImgopt

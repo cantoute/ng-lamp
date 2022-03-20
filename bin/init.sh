@@ -5,7 +5,11 @@ SYNC=${SCRIPT_PATH}/sync.sh
 
 Y=-y
 
-# get rid of that f**** useless editor
+read -p "Install Varnish 7.0 [Y/n]?" installVarnish
+
+read -p "Install NetData [Y/n]?" installNetData
+
+# get rid of that useless editor
 apt remove --purge $Y joe
 
 apt install $Y vim
@@ -38,9 +42,8 @@ apt install arno-iptables-firewall
 
 apt install postfix
 
-echo "if you need plain ftp access"
-echo "TODO: conf for limiting to a ftp-access group + chroot + fail2ban"
-apt install proftpd-basic
+# Install ProFtpd
+. ${SCRIPT_PATH}/init.d/proftpd
 
 apt install $Y fail2ban
 
@@ -92,41 +95,8 @@ mkdir /var/www/letsencrypt
 
 systemctl restart nginx
 
-# php sury
-apt install $Y apt-transport-https lsb-release ca-certificates curl
-
-wget -O /etc/apt/trusted.gpg.d/php.gpg https://packages.sury.org/php/apt.gpg
-sh -c 'echo "deb https://packages.sury.org/php/ $(lsb_release -sc) main" > /etc/apt/sources.list.d/php.list'
-
-apt update
-
-PHP_VERSION=7.4
-
-apt install $Y php-pear php${PHP_VERSION}-fpm php${PHP_VERSION}-cli php${PHP_VERSION}-apcu php${PHP_VERSION}-apcu-bc \
-  php${PHP_VERSION}-opcache php${PHP_VERSION}-curl php${PHP_VERSION}-imagick php${PHP_VERSION}-gnupg php${PHP_VERSION}-mysql \
-  php${PHP_VERSION}-intl php${PHP_VERSION}-json php${PHP_VERSION}-zip php${PHP_VERSION}-xsl php${PHP_VERSION}-xmlrpc php${PHP_VERSION}-xml \
-  php${PHP_VERSION}-uuid php${PHP_VERSION}-sqlite3 php${PHP_VERSION}-mbstring php${PHP_VERSION}-bcmath php${PHP_VERSION}-bz2 \
-  php${PHP_VERSION}-mcrypt php${PHP_VERSION}-imap php${PHP_VERSION}-memcache php${PHP_VERSION}-memcached \
-  php${PHP_VERSION}-soap
-
-# this one doesn't exist in 7.0
-apt install $Y php7.4-maxminddb
-
-$SYNC /etc/php/${PHP_VERSION}/fpm/pool.d
-
-systemctl restart php${PHP_VERSION}-fpm
-
-echo "Installing php composer"
-php -r "readfile('http://getcomposer.org/installer');" | php -- --install-dir=/usr/local/bin/ --filename=composer
-
-echo "Installing wp-cli"
-curl -o /usr/local/bin/wp https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
-chmod a+x /usr/local/bin/wp
-
-echo "and enable autocompletion"
-curl -o /etc/bash_completion.d/wp-completion.bash https://raw.githubusercontent.com/wp-cli/wp-cli/v2.4.0/utils/wp-completion.bash
-
-echo "Done."
+# Install php fpm from sury.org
+. ${SCRIPT_PATH}/init.d/php-sury
 
 ## MySQL
 apt install $Y mariadb-client mariadb-server
@@ -153,78 +123,12 @@ mkdir -p "/home/backups/rdiff-$(hostname -s)" \
 $SYNC /root/bin
 $SYNC /etc/cron.d/backups
 
+# Install Munin
+. ${SCRIPT_PATH}/init.d/munin
 
-## Munin
-initMunin() {
-  apt install $Y munin munin-node munin-plugins-extra libwww-perl libcache-{perl,cache-perl} libnet-dns-perl libfcgi-client-perl
-
-  # we don't want to expose /munin/ on all virtual hosts
-  a2disconf munin
-  systemctl reload apache2
-
-  $SYNC /etc/munin
-
-  cd /etc/munin/plugins
-
-  ln -s /usr/share/munin/plugins/apache_* ./
-  ln -s /usr/share/munin/plugins/nginx_* ./
-
-  munin-node-configure --suggest --shell | sh
-
-  # install https://github.com/MorbZ/munin-php-fpm
-  wget -O php-fpm https://raw.github.com/MorbZ/munin-php-fpm/master/php-fpm.php
-  chmod a+x php-fpm 
-  ln -s php-fpm php-fpm-memory
-  ln -s php-fpm  php-fpm-cpu
-  ln -s php-fpm  php-fpm-count
-  ln -s php-fpm  php-fpm-time
-
-  cd -
-  service munin-node restart
-}
-initMunin
-
-# Varnish
-initVarnish() {
-  # https://packagecloud.io/varnishcache/varnish70/
-
-  curl -s https://packagecloud.io/install/repositories/varnishcache/varnish70/script.deb.sh | sudo bash
-
-  # script does an apt update
-
-  apt install varnish
-
-  # add group varnish to munin
-  adduser munin varnish
-  service munin-node restart
-
-  # listen to port localhost:6081 and localhost:6091
-  # restrict to localhost
-  # adjust cache size to your needs
-  # TODO: cache on tmpfs
-  systemctl edit --full varnish
-
-  # varnish-modules
-  apt install varnish-dev python-sphinx make automake libtool
-
-  git clone https://github.com/varnish/varnish-modules.git /root/varnish-modules
-  cd /root/varnish-modules
-  git checkout 7.0
-
-  ./bootstrap
-  ./configure   # run "configure -h" first to list options
-  make
-  #make check    # optional (tests)
-  # Note: a building from source you need to run make rst-docs before being able to install.
-  make rst-docs # optional (docs)
-  make install  # optional (installation), run as root
-
-  cd -
-}
-
-read -p "Install Varnish 7.0 [Y/n]?" installVarnish
+# Install Varnish
 if [[ $installVarnish =~ ^(Y|y| ) ]] || [[ -z $installVarnish ]]; then
-  initVarnish
+  . ${SCRIPT_PATH}/init.d/varnish
 fi
 # case "$installVarnish" in 
 #   y|Y ) initVarnish;;
@@ -233,52 +137,10 @@ fi
 # esac
 
 
-# NetData
-initNetData() {
-  apt install netdata netdata-web
-
-  $SYNC /etc/netdata/python.d
-
-  touch /etc/netdata/htpasswd
-
-  pwgen -A
-  echo "Set password for user netdata"
-  printf "netdata:$(openssl passwd -apr1)" >> /etc/netdata/htpasswd
-}
-initNetData
-
-
-# Node
-curl -fsSL https://deb.nodesource.com/setup_lts.x | bash -
-apt-get install nodejs
-
-
-# imgopt
-initImgopt() {
-  apt install $Y advancecomp optipng libjpeg-turbo-progs build-essential wget
-
-  curl -o /usr/local/bin/imgopt https://raw.githubusercontent.com/kormoc/imgopt/main/imgopt \
-    && chmod a+x /usr/local/bin/imgopt
-
-  cd /tmp
-
-  curl -o jfifremove.c https://raw.githubusercontent.com/kormoc/imgopt/main/jfifremove.c \
-    && gcc -o jfifremove jfifremove.c \
-    && mv jfifremove /usr/local/bin/
-
-  wget http://www.jonof.id.au/files/kenutils/pngout-20200115-linux.tar.gz \
-    && tar xzvf pngout-20200115-linux.tar.gz \
-    && mv pngout-20200115-linux/amd64/pngout /usr/local/bin/
-
-  cd -
-}
-initImgopt
-
-read -p "Install NetData [Y/n]?" installNetData
+# Install NetData
 if [[ $installNetData =~ ^(Y|y| ) ]] || [[ -z $installNetData ]]; then
-  initNetData
+  . ${SCRIPT_PATH}/init.d/netdata
 fi
-
 
 # Finelizing
 

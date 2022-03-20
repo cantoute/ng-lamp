@@ -1,0 +1,34 @@
+#!/bin/bash
+
+Y=-y
+
+## Munin
+initMunin() {
+  apt install $Y munin munin-node munin-plugins-extra libwww-perl libcache-{perl,cache-perl} libnet-dns-perl libfcgi-client-perl
+
+  # we don't want to expose /munin/ on all virtual hosts
+  a2disconf munin
+  systemctl reload apache2
+
+  $SYNC /etc/munin
+
+  cd /etc/munin/plugins
+
+  ln -s /usr/share/munin/plugins/apache_* ./
+  ln -s /usr/share/munin/plugins/nginx_* ./
+
+  munin-node-configure --suggest --shell | sh
+
+  # install https://github.com/MorbZ/munin-php-fpm
+  wget -O php-fpm https://raw.github.com/MorbZ/munin-php-fpm/master/php-fpm.php
+  chmod a+x php-fpm 
+  ln -s php-fpm php-fpm-memory
+  ln -s php-fpm  php-fpm-cpu
+  ln -s php-fpm  php-fpm-count
+  ln -s php-fpm  php-fpm-time
+
+  cd -
+  service munin-node restart
+}
+
+initMunin
