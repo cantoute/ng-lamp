@@ -773,7 +773,6 @@ my %ASPECTS = (
 			},
 			'sess_pipe_overflow' => {
 				'type' => 'DERIVE'
-
 			}
 		}
 	},
