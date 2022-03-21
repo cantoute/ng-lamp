@@ -1,3 +1,4 @@
 [varnish*]
 group varnish
 env.varnishstat varnishstat
+#env.name
