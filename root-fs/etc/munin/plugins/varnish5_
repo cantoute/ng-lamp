@@ -199,7 +199,7 @@ my %ASPECTS = (
 			'cache_miss' => {
 				'type' => 'DERIVE',
 				'colour' => 'FF0000',
-				'draw' => 'AREA',
+				'draw' => 'STACK',
 				'min' => '0'
 			},
 			'cache_hitmiss' => {
@@ -215,7 +215,7 @@ my %ASPECTS = (
 			},
 			'cache_hit' => {
 				'type' => 'DERIVE',
-				'draw' => 'STACK',
+				'draw' => 'AREA',
 				'colour' => '00FF00',
 				'min' => '0'
 			},
