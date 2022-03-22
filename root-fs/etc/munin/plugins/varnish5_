@@ -185,6 +185,18 @@ my %ASPECTS = (
 				'colour' => '111111',
 				'min' => '0'
 			},
+			'cache_miss' => {
+				'type' => 'DERIVE',
+				'colour' => 'FF0000',
+				'draw' => 'AREA',
+				'min' => '0'
+			},
+			'cache_hit' => {
+				'type' => 'DERIVE',
+				'draw' => 'AREA',
+				'colour' => '00FF00',
+				'min' => '0'
+			},
 			'cache_hitpass' => {
 				'info' => 'Hitpass are cached passes: An '
 					. 'entry in the cache instructing '
@@ -194,18 +206,6 @@ my %ASPECTS = (
 				'type' => 'DERIVE',
 				'draw' => 'STACK',
 				'colour' => 'FFFF00',
-				'min' => '0'
-			},
-			'cache_miss' => {
-				'type' => 'DERIVE',
-				'colour' => 'FF0000',
-				'draw' => 'AREA',
-				'min' => '0'
-			},
-			'cache_hit' => {
-				'type' => 'DERIVE',
-				'draw' => 'STACK',
-				'colour' => '00FF00',
 				'min' => '0'
 			},
 			'cache_hitmiss' => {
