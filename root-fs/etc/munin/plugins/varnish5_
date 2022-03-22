@@ -202,6 +202,12 @@ my %ASPECTS = (
 				'draw' => 'AREA',
 				'min' => '0'
 			},
+			'cache_hit' => {
+				'type' => 'DERIVE',
+				'draw' => 'AREA',
+				'colour' => '00FF00',
+				'min' => '0'
+			},
 			'cache_hitmiss' => {
 				'info' => 'Hitmiss are cached missing: An '
 					. 'entry in the cache instructing '
@@ -211,12 +217,6 @@ my %ASPECTS = (
 				'type' => 'DERIVE',
 				'draw' => 'STACK',
 				'colour' => 'FFFF00',
-				'min' => '0'
-			},
-			'cache_hit' => {
-				'type' => 'DERIVE',
-				'draw' => 'AREA',
-				'colour' => '00FF00',
 				'min' => '0'
 			},
 			'backend_conn' => {
