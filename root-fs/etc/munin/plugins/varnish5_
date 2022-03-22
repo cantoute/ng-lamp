@@ -170,7 +170,7 @@ my %data;
 my %ASPECTS = (
 	'request_rate' => {
 		'title' => 'Request rates',
-		'order' => 'cache_miss cache_hit cache_hitpass cache_hitmiss'
+		'order' => 'cache_miss cache_hit cache_hitpass  cache_hitmiss'
 			 . 'backend_conn backend_unhealthy '
 			 . 'client_req client_conn' ,
 		'values' => {
@@ -185,18 +185,6 @@ my %ASPECTS = (
 				'colour' => '111111',
 				'min' => '0'
 			},
-			'cache_miss' => {
-				'type' => 'DERIVE',
-				'colour' => 'FF0000',
-				'draw' => 'AREA',
-				'min' => '0'
-			},
-			'cache_hit' => {
-				'type' => 'DERIVE',
-				'draw' => 'AREA',
-				'colour' => '00FF00',
-				'min' => '0'
-			},
 			'cache_hitpass' => {
 				'info' => 'Hitpass are cached passes: An '
 					. 'entry in the cache instructing '
@@ -208,6 +196,12 @@ my %ASPECTS = (
 				'colour' => 'FFFF00',
 				'min' => '0'
 			},
+			'cache_miss' => {
+				'type' => 'DERIVE',
+				'colour' => 'FF0000',
+				'draw' => 'AREA',
+				'min' => '0'
+			},
 			'cache_hitmiss' => {
 				'info' => 'Hitmiss are cached missing: An '
 					. 'entry in the cache instructing '
@@ -217,6 +211,12 @@ my %ASPECTS = (
 				'type' => 'DERIVE',
 				'draw' => 'STACK',
 				'colour' => 'FFFF00',
+				'min' => '0'
+			},
+			'cache_hit' => {
+				'type' => 'DERIVE',
+				'draw' => 'STACK',
+				'colour' => '00FF00',
 				'min' => '0'
 			},
 			'backend_conn' => {
