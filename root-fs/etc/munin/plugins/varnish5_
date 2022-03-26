@@ -234,10 +234,11 @@ my %ASPECTS = (
 				'min' => '0',
 				'colour' => '785d0d',
 				'graph' => 'NO'
-			}
+			},
 			's_pass_negative' => {
 				'colour' => '1d2bdf',
 				'draw' => 'AREA',
+				'max' => 0,
 				'negative' => 's_pass'
 			},
 			's_pipe' => {
@@ -249,8 +250,9 @@ my %ASPECTS = (
 			's_pipe_negative' => {
 				'colour' => '1d2bdf',
 				'draw' => 'STACK',
+				'max' => 0,
 				'negative' => 's_pipe'
-			},
+			}
 		}
 	},
 	'hit_rate' => {
