@@ -346,14 +346,14 @@ my %ASPECTS = (
 	},
 	'transfer_rates' => {
 		'title' => 'Transfer rates',
-		'order' => 's_resp_bodybytes s_resp_hdrbytes',
+		'order' => 's_resp_hdrbytes s_resp_bodybytes',
 		'args' => '-l 0',
 		'vlabel' => 'bit/s',
 		'values' => {
 			's_resp_hdrbytes' => {
 				'type' => 'DERIVE',
 				'label' => 'Header traffic',
-				'draw' => 'STACK',
+				'draw' => 'AREA',
 				'min' => '0',
 				'info' => 'HTTP Header traffic. TCP/IP '
 					. 'overhead is not included.',
@@ -361,7 +361,7 @@ my %ASPECTS = (
 			},
 			's_resp_bodybytes' => {
 				'type' => 'DERIVE',
-				'draw' => 'AREA',
+				'draw' => 'STACK',
 				'label' => 'Body traffic',
 				'min' => '0',
 				'cdef' => 's_resp_bodybytes,8,*'
