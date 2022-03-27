@@ -242,6 +242,12 @@ my %ASPECTS = (
 				'min' => '0',
 				'graph' => 'OFF'
 			}
+			's_pass_neg' => {
+				'draw' => 'AREA',
+				'colour' => '22ff22',
+				'neagtive' => 's_pass',
+				'graph' => 'ON'
+			},
 		}
 	},
 	'hit_rate' => {
