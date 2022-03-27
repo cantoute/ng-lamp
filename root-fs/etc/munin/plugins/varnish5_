@@ -241,7 +241,7 @@ my %ASPECTS = (
 				'colour' => '111111',
 				'min' => '0',
 				'graph' => 'OFF'
-			}
+			},
 			's_pass_neg' => {
 				'draw' => 'AREA',
 				'colour' => '22ff22',
