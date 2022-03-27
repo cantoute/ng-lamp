@@ -170,14 +170,26 @@ my %data;
 my %ASPECTS = (
 	'request_rate' => {
 		'title' => 'Request rates',
-		'order' => 'cache_miss cache_hitmiss cache_hitpass cache_hit s_pass s_pipe s_pass_neg'
+		'order' => 's_pass s_pipe cache_miss cache_hitmiss cache_hitpass cache_hit'
 			 . ' backend_conn backend_unhealthy'
 			 . ' client_conn client_req' ,
 		'values' => {
+			's_pipe' => {
+				'type' => 'DERIVE',
+				'draw' => 'AREA',
+				'min' => '0',
+				'colour' => '1d2bdf'
+			},
+			's_pass' => {
+				'type' => 'DERIVE',
+				'draw' => 'STACK',
+				'min' => '0',
+				'colour' => '785d0d'
+			},
 			'cache_miss' => {
 				'type' => 'DERIVE',
 				'colour' => 'FF0000',
-				'draw' => 'AREA',
+				'draw' => 'STACK',
 				'min' => '0'
 			},
 			'cache_hitmiss' => {
@@ -207,24 +219,6 @@ my %ASPECTS = (
 				'draw' => 'STACK',
 				'colour' => '00FF00',
 				'min' => '0'
-			},
-			's_pass' => {
-				'type' => 'DERIVE',
-				'draw' => 'STACK',
-				'min' => '0',
-				'colour' => '785d0d'
-			},
-			's_pipe' => {
-				'type' => 'DERIVE',
-				'draw' => 'STACK',
-				'min' => '0',
-				'colour' => '1d2bdf'
-			},
-			's_pass_neg' => {
-				'type' => 'DERIVE',
-				'draw' => 'AREA',
-				'colour' => '785d0d',
-				'negative' => 's_pass'
 			},
 			'backend_conn' => {
 				'type' => 'DERIVE',
