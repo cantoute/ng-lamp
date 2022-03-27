@@ -170,9 +170,22 @@ my %data;
 my %ASPECTS = (
 	'request_rate' => {
 		'title' => 'Request rates',
-		'order' => 's_pipe s_pass cache_miss cache_hitmiss cache_hitpass cache_hit'
-			 . ' client_req client_conn sess_conn backend_conn backend_unhealthy',
+		'order' => ' client_req client_conn s_pipe s_pass cache_miss cache_hitmiss cache_hitpass cache_hit'
+			 . ' backend_conn backend_unhealthy',
 		'values' => {
+			'sess_conn' => {
+				'type' => 'DERIVE',
+				'draw' => 'AREA',
+				'min' => '0',
+				'colour' => '444444',
+				'graph' => 'ON'
+			},
+			'client_req' => {
+				'type' => 'DERIVE',
+				'draw' => 'AREA',
+				'colour' => '777777',
+				'min' => '0',
+			},
 			's_pipe' => {
 				'type' => 'DERIVE',
 				'draw' => 'AREA',
@@ -228,17 +241,6 @@ my %ASPECTS = (
 				'type' => 'DERIVE',
 				'min' => '0',
 				'colour' => 'FF55FF'
-			},
-			'client_req' => {
-				'type' => 'DERIVE',
-				'colour' => '777777',
-				'min' => '0',
-			},
-			'sess_conn' => {
-				'type' => 'DERIVE',
-				'min' => '0',
-				'colour' => '444444',
-				'graph' => 'OFF'
 			}
 		}
 	},
