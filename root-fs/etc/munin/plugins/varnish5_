@@ -230,7 +230,7 @@ my %ASPECTS = (
 				'min' => '0',
 				'colour' => 'FF55FF'
 			},
-			'sess_conn' => {
+			'client_conn' => {
 				'type' => 'DERIVE',
 				'min' => '0',
 				'colour' => '444444',
@@ -239,7 +239,8 @@ my %ASPECTS = (
 			'client_req' => {
 				'type' => 'DERIVE',
 				'colour' => '111111',
-				'min' => '0'
+				'min' => '0',
+				'graph' => 'OFF'
 			}
 		}
 	},
