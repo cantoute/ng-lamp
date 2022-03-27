@@ -218,7 +218,7 @@ my %ASPECTS = (
 				'type' => 'DERIVE',
 				'draw' => 'STACK',
 				'min' => '0',
-				'colour' => '443DCA'
+				'colour' => 'A9A5FF'
 			},
 			's_pipe' => {
 				'type' => 'DERIVE',
