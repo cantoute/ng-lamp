@@ -218,7 +218,7 @@ my %ASPECTS = (
 				'type' => 'DERIVE',
 				'draw' => 'STACK',
 				'min' => '0',
-				'colour' => 'D8B8FD'
+				'colour' => '7ABEFF'
 			},
 			'cache_hit' => {
 				'type' => 'DERIVE',
