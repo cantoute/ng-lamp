@@ -177,7 +177,7 @@ my %ASPECTS = (
 				'type' => 'DERIVE',
 				'draw' => 'AREA',
 				'min' => '0',
-				'colour' => '440000',
+				'colour' => 'EA4615',
 				'graph' => 'ON'
 			},
 			'client_req' => {
@@ -185,22 +185,10 @@ my %ASPECTS = (
 				'colour' => '777777',
 				'min' => '0',
 			},
-			's_pipe' => {
-				'type' => 'DERIVE',
-				'draw' => 'AREA',
-				'min' => '0',
-				'colour' => '1d2bdf'
-			},
-			's_pass' => {
-				'type' => 'DERIVE',
-				'draw' => 'STACK',
-				'min' => '0',
-				'colour' => '785d0d'
-			},
 			'cache_miss' => {
 				'type' => 'DERIVE',
 				'colour' => 'FF0000',
-				'draw' => 'STACK',
+				'draw' => 'AREA',
 				'min' => '0'
 			},
 			'cache_hitmiss' => {
@@ -224,6 +212,18 @@ my %ASPECTS = (
 				'draw' => 'STACK',
 				'colour' => 'FFFF00',
 				'min' => '0'
+			},
+			's_pipe' => {
+				'type' => 'DERIVE',
+				'draw' => 'STACK',
+				'min' => '0',
+				'colour' => '1d2bdf'
+			},
+			's_pass' => {
+				'type' => 'DERIVE',
+				'draw' => 'STACK',
+				'min' => '0',
+				'colour' => '785d0d'
 			},
 			'cache_hit' => {
 				'type' => 'DERIVE',
