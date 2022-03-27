@@ -174,19 +174,14 @@ my %ASPECTS = (
 			 . ' backend_conn backend_unhealthy'
 			 . ' client_conn client_req' ,
 		'values' => {
-			'sess_conn' => {
+			'cache_miss' => {
 				'type' => 'DERIVE',
-				'min' => '0',
-				'colour' => '444444',
-				'graph' => 'ON'
-			},
-			'client_req' => {
-				'type' => 'DERIVE',
-				'colour' => '111111',
+				'colour' => 'FF0000',
+				'draw' => 'AREA',
 				'min' => '0'
 			},
-			'cache_hitpass' => {
-				'info' => 'Hitpass are cached passes: An '
+			'cache_hitmiss' => {
+				'info' => 'Hitmiss are cached missing: An '
 					. 'entry in the cache instructing '
 					. 'Varnish to pass. Typically '
 					. 'achieved after a pass in '
@@ -196,14 +191,8 @@ my %ASPECTS = (
 				'colour' => 'FFFF00',
 				'min' => '0'
 			},
-			'cache_miss' => {
-				'type' => 'DERIVE',
-				'colour' => 'FF0000',
-				'draw' => 'AREA',
-				'min' => '0'
-			},
-			'cache_hitmiss' => {
-				'info' => 'Hitmiss are cached missing: An '
+			'cache_hitpass' => {
+				'info' => 'Hitpass are cached passes: An '
 					. 'entry in the cache instructing '
 					. 'Varnish to pass. Typically '
 					. 'achieved after a pass in '
@@ -223,13 +212,13 @@ my %ASPECTS = (
 				'type' => 'DERIVE',
 				'draw' => 'STACK',
 				'min' => '0',
-				'colour' => '1d2bdf'
+				'colour' => '785d0d'
 			},
 			's_pipe' => {
 				'type' => 'DERIVE',
 				'draw' => 'STACK',
 				'min' => '0',
-				'colour' => '785d0d'
+				'colour' => '1d2bdf'
 			},
 			'backend_conn' => {
 				'type' => 'DERIVE',
@@ -240,6 +229,17 @@ my %ASPECTS = (
 				'type' => 'DERIVE',
 				'min' => '0',
 				'colour' => 'FF55FF'
+			},
+			'sess_conn' => {
+				'type' => 'DERIVE',
+				'min' => '0',
+				'colour' => '444444',
+				'graph' => 'ON'
+			},
+			'client_req' => {
+				'type' => 'DERIVE',
+				'colour' => '111111',
+				'min' => '0'
 			}
 		}
 	},
