@@ -170,8 +170,8 @@ my %data;
 my %ASPECTS = (
 	'request_rate' => {
 		'title' => 'Request rates',
-		'order' => 'client_req client_conn s_pipe s_pass cache_miss cache_hitmiss cache_hitpass cache_hit'
-			 . ' backend_conn backend_unhealthy',
+		'order' => 's_pipe s_pass cache_miss cache_hitmiss cache_hitpass cache_hit'
+			 . ' client_req client_conn backend_conn backend_unhealthy',
 		'values' => {
 			's_pipe' => {
 				'type' => 'DERIVE',
