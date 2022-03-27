@@ -32,7 +32,7 @@ server {
     return 302 $scheme://$server_name$request_uri;
   }
 
-  client_max_body_size  128m;
+  client_max_body_size 128m;
 
   index index.php index.html index.htm;
 
@@ -55,4 +55,3 @@ server {
     try_files $uri $uri/ =404;
   }
 }
-

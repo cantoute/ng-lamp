@@ -10,7 +10,7 @@ server {
 
   root /var/cache/munin/www;
 
-  # first run this then uncomment/adjust folowing lines
+  # first run this then uncomment/adjust following lines
   # certbot certonly --webroot --webroot-path /var/www/letsencrypt -d munin.example.com -d www.munin.example.com
 
   # listen 443 ssl http2;
@@ -27,5 +27,45 @@ server {
   ## redirect all host aliases to first server_name
   if ( $host != $server_name ) {
     return 302 $scheme://$server_name$request_uri;
+  }
+
+  # Source https://guide.munin-monitoring.org/en/stable-2.0/example/webserver/nginx.html
+
+  # Here, the whole vhost has auth requirements.
+  # You can duplicate it to the graph and html locations if you have
+  # something else that doesn't need auth.
+  auth_basic "Restricted stats";
+  auth_basic_user_file /some/path/to/.htpasswd;
+
+  location ^~ /cgi-bin/munin-cgi-graph/ {
+    # not authenticated => no rewrite (back to auth)
+    if ($remote_user ~ ^$) {
+      break;
+    }
+
+    # is on the right subtree ?
+    set $ok "no";
+    # admin can see it all
+    if ($remote_user = 'admin' ) {
+      set $ok "yes";
+    }
+    # only allow given path
+    if ($uri ~ /cgi-bin/munin-cgi-graph/([^/]*)) {
+      set $path $1;
+    }
+    if ($path = $remote_user) {
+      set $ok "yes";
+    }
+
+    # not allowed here ? redirect them where they should land
+    if ($ok != "yes" ) {
+      # redirect to where they should be
+      rewrite / /cgi-bin/munin-cgi-graph/$remote_user/ redirect;
+    }
+
+    fastcgi_split_path_info ^(/cgi-bin/munin-cgi-graph)(.*);
+    fastcgi_param PATH_INFO $fastcgi_path_info;
+    fastcgi_pass unix:/run/munin/fastcgi-graph.sock;
+    include fastcgi_params;
   }
 }

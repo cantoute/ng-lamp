@@ -14,6 +14,11 @@ server {
     return 302 https://www.example-dest.com$request_uri;
   }
 
+
+
+
+
+
   # first run this then uncomment/adjust folowing lines
   # certbot certonly --webroot --webroot-path /var/www/letsencrypt -d example-source.com -d www.example-source.com
 
@@ -25,4 +30,3 @@ server {
   # access_log /var/log/nginx/access.log combined_vhost;
   # access_log /var/log/nginx/example-source.com_access.log;
 }
-

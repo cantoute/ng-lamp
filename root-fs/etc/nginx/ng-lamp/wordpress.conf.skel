@@ -8,7 +8,7 @@ server {
 
   root /home/example-user/example.com/www;
 
-  client_max_body_size        128m;
+  client_max_body_size 128m;
 
   include snippets/letsencrypt-acme-challenge.conf;
   include snippets/common-vhost.conf;
@@ -41,10 +41,11 @@ server {
 
   # remove the hsts header if it's present in the response
   proxy_hide_header Strict-Transport-Security;
-  add_header Strict-Transport-Security "max-age=15768000; includeSubDomains; preload";
+  add_header Strict-Transport-Security
+    "max-age=15768000; includeSubDomains; preload";
   add_header X-Content-Type-Options nosniff;
   add_header X-XSS-Protection "1; mode=block";
-  
+
   add_header X-Frame-Options SAMEORIGIN;
 
   access_log /var/log/nginx/www.example.com_access.log;
@@ -54,22 +55,21 @@ server {
   }
 
   location @backend {
-    proxy_pass  http://apache_upstream;
-    
+    proxy_pass http://apache_upstream;
+
     include snippets/common-proxy.conf;
     include snippets/common-proxy-buffer.conf;
     include snippets/common-proxy-timeout.conf;
-    
+
     # avoid client closing connection to backend
     proxy_set_header Connection '';
 
-     # 100 req not delayed, then 1r/s up to 200 req then return 429
+    # 100 req not delayed, then 1r/s up to 200 req then return 429
     limit_req zone=per_ip burst=200 delay=100;
 
     # proxy_set_header Accept-Encoding "gzip";
- 
+
     ## logging (we only log what actually reaches backend)
     access_log /var/log/nginx/access.log combined_vhost;
   }
 }
-

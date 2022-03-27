@@ -39,5 +39,7 @@
     "yml",
     "sh",
     "bash"
-  ]
+  ],
+  "cSpell.words": ["certbot", "letsencrypt", "munin"],
+  "nginx-conf-hint.format.align": true
 }

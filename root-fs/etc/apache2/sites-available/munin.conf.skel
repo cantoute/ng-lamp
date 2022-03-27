@@ -1,0 +1,42 @@
+
+<VirtualHost * >
+  ServerName munin.example.com
+
+  ServerAdmin hostmaster@example.com
+  DocumentRoot /var/cache/munin/www
+
+  <Directory /var/cache/munin/www >
+    Options -Indexes
+    AllowOverride all
+    Require all granted
+  </Directory>
+
+  ScriptAlias /munin-cgi/munin-cgi-graph /usr/lib/munin/cgi/munin-cgi-graph
+
+  <Location /munin-cgi/munin-cgi-graph>
+    # Require local
+    #probably easier to handle auth in nginx
+    Require all granted
+
+    <IfModule mod_fcgid.c>
+      SetHandler fcgid-script
+    </IfModule>
+    <IfModule !mod_fcgid.c>
+      <IfModule mod_cgi.c>
+        SetHandler cgi-script
+      </IfModule>
+
+      <IfModule !mod_cgi.c>
+        Require all denied
+      </IfModule>
+    </IfModule>
+  </Location>
+
+  
+  ErrorLog ${APACHE_LOG_DIR}/error.log
+  # ErrorLog ${APACHE_LOG_DIR}/www.example.com_error.log
+  # ErrorLog /dev/null
+
+  # CustomLog ${APACHE_LOG_DIR}/www.example.com_access.log combined
+  # BufferedLogs Off
+</VirtualHost>
