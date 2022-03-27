@@ -238,9 +238,8 @@ my %ASPECTS = (
 			},
 			'client_req' => {
 				'type' => 'DERIVE',
-				'colour' => '111111',
+				'colour' => '777777',
 				'min' => '0',
-				'graph' => 'OFF'
 			},
 			's_pass_neg' => {
 				'draw' => 'AREA',
