@@ -126,7 +126,7 @@ my @graph_parameters = ('title','total','order','scale','vlabel','args');
 # 'label' is hardcoded as it defaults to a varnishstat-description if not
 # set.
 my @field_parameters = ('graph', 'min', 'max', 'draw', 'cdef', 'warning',
-			'colour', 'info', 'type');
+			'colour', 'info', 'type', 'negative');
 
 # Varnishstat data is stored here. Example
 # ('n_vbe' => { 'value' => '124', 'description'=>...,'flag'=>... }, SMA =>
@@ -219,6 +219,13 @@ my %ASPECTS = (
 				'draw' => 'STACK',
 				'min' => '0',
 				'colour' => '1d2bdf'
+			},
+			's_pass_neg' => {
+				'type' => 'DERIVE',
+				'draw' => 'AREA',
+				'max' => '0',
+				'colour' => '785d0d',
+				'negative' => 's_pass'
 			},
 			'backend_conn' => {
 				'type' => 'DERIVE',
