@@ -175,8 +175,9 @@ my %ASPECTS = (
 		'values' => {
 			'sess_conn' => {
 				'type' => 'DERIVE',
+				'draw' => 'AREA',
 				'min' => '0',
-				'colour' => '444444',
+				'colour' => '440000',
 				'graph' => 'ON'
 			},
 			'client_req' => {
