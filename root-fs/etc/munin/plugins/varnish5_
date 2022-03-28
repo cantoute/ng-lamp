@@ -667,11 +667,12 @@ my %ASPECTS = (
 			},
 			'bans_obj_killed' => {
 				'type' => 'DERIVE',
-        'min' => '0'
+        		'min' => '0'
 			},
 			'bans_tests_tested' => {
 				'type' => 'DERIVE',
-        'min' => '0'
+        		'min' => '0',
+				'graph' => 'ON'
 			},
 			'bans_dups' => {
 				'type' => 'GAUGE'
