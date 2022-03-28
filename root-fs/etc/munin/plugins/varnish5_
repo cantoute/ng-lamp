@@ -189,7 +189,7 @@ my %ASPECTS = (
 				'type' => 'DERIVE',
 				'draw' => 'AREA',
 				'min' => '0',
-				'colour' => '712900'
+				'colour' => 'A03A00'
 			},
 			'cache_miss' => {
 				'type' => 'DERIVE',
