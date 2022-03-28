@@ -631,7 +631,9 @@ my %ASPECTS = (
 	},
 	'bans' => {
 		'title' => 'Bans',
-		'DEBUG' => 'yes',
+		'order' => 'bans bans_added bans_deleted bans_completed bans_obj bans_req bans_tested bans_obj_killed'
+			+ ' bans_tests_tested bans_dups bans_persisted_bytes bans_persisted_fragmentation',
+		'DEBUG' => 'no',
 		'values' => {
 			'bans' => {
 				'type' => 'GAUGE'
