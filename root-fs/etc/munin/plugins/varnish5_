@@ -233,7 +233,7 @@ my %ASPECTS = (
 			},
 			'backend_conn' => {
 				'type' => 'DERIVE',
-				'colour' => 'AAAAAA',
+				'colour' => 'EEEEEE',
 				'min' => '0'
 			},
 			'backend_unhealthy' => {
