@@ -648,7 +648,7 @@ my %ASPECTS = (
 			},
 			'bans_completed' => {
 				'type' => 'GAUGE',
-				'DRAW' => 'AREA',
+				'draw' => 'AREA',
 				'min' => '0',
 				'graph' => 'ON'
 			},
