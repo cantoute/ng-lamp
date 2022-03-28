@@ -177,19 +177,19 @@ my %ASPECTS = (
 				'type' => 'DERIVE',
 				'draw' => 'AREA',
 				'min' => '0',
-				'colour' => '555555',
+				'colour' => 'FF5D00',
 				'graph' => 'ON'
 			},
 			'client_req' => {
 				'type' => 'DERIVE',
-				'colour' => '888888',
+				'colour' => '777777',
 				'min' => '0',
 			},
 			's_pass' => {
 				'type' => 'DERIVE',
 				'draw' => 'AREA',
 				'min' => '0',
-				'colour' => 'FFFFFF'
+				'colour' => 'FFB747'
 			},
 			'cache_miss' => {
 				'type' => 'DERIVE',
@@ -233,7 +233,7 @@ my %ASPECTS = (
 			},
 			'backend_conn' => {
 				'type' => 'DERIVE',
-				'colour' => '333333',
+				'colour' => '888888',
 				'min' => '0'
 			},
 			'backend_unhealthy' => {
