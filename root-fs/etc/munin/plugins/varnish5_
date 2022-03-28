@@ -647,6 +647,7 @@ my %ASPECTS = (
 			'bans_completed' => {
 				'type' => 'GAUGE',
 				'DRAW' => 'AREA',
+				'min' => '0',
 				'graph' => 'ON'
 			},
 			'bans_obj' => {
@@ -657,7 +658,10 @@ my %ASPECTS = (
 			},
 			'bans_tested' => {
 				'type' => 'DERIVE',
-        'min' => '0'
+        'min' => '0',
+				'draw' => 'AREA',
+				'min' => '0',
+				'graph' => 'ON'
 			},
 			'bans_obj_killed' => {
 				'type' => 'DERIVE',
