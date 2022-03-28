@@ -651,7 +651,7 @@ my %ASPECTS = (
 				'draw' => 'AREA',
 				'min' => '0',
 				'graph' => 'ON',
-				'colour' => 'ff8000'
+				'colour' => 'ff0000'
 			},
 			'bans_obj' => {
 				'type' => 'GAUGE'
