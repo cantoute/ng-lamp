@@ -227,7 +227,7 @@ my %ASPECTS = (
 			},
 			'client_req' => {
 				'type' => 'DERIVE',
-				'colour' => '777777',
+				'colour' => '888888',
 				'min' => '0',
 			},
 			'backend_conn' => {
