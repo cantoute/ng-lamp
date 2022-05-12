@@ -4,7 +4,7 @@
 # set -e
 
 LOCKFILE=/var/run/backup-rdiff.pid
-LOCAL_CONF=/root/backup-rdiff-local
+LOCAL_CONF=/root/backup-rdiff-local.conf
 
 GLOBIGNORE=*:?
 

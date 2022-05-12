@@ -7,4 +7,7 @@ backupMysqlArgs="--bz2 --create-dirs --nice --time"
 
 0 0 * * *         root ( backup-mysql.sh $backupMysqlArgs )
 
-0 4,12,20 * * *   root ( backup-mysql.sh --single $backupMysqlArgs; nice backup-rdiff.sh )
+0 4,12,20 * * *   root ( \
+                          /root/bin/backup-mysql.sh --single $backupMysqlArgs; \
+                          /root/bin/backup-rdiff.sh \
+                        )
