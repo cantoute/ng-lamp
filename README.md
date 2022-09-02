@@ -112,8 +112,10 @@ apt upgrade
 apt install git rsync
 
 cd /root
-git clone git@github.com:cantoute/ng-lamp.git
+git clone https://github.com/cantoute/ng-lamp.git
 cd ng-lamp
+
+# git clone git@github.com:cantoute/ng-lamp.git
 ```
 
 then run [init.sh](./bin/init.sh)
