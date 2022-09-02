@@ -25,6 +25,8 @@ update-alternatives --config editor
 apt update
 apt upgrade $Y
 
+apt install $Y locales-all
+
 # keep track of /etc
 apt install $Y git etckeeper
 # lets not have letsencrypt ssl keys in git repo
