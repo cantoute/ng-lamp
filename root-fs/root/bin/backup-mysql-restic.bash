@@ -53,24 +53,25 @@ bucket="."
 
 nice=""
 
+trapSig() {
+  echo "signal"
+}
+
 
 trapError() {
   local status=$?
 
   [ $status -eq 0 ] || {
-  echo "Error!!! $status"
-  exit $status
+    echo "Error!!! $status"
+    exit $status
   }
 }
 
-trap '[ "$?" -eq 0 ] || echo hi' EXIT
+# trap '[ "$?" -eq 0 ] || echo hi' EXIT
 
-trap trapError ERR EXIT
+trap trapError ERR  SIGINT
+# trap trapSig SIGINT
 
-
-
-
-# while [ "$1" != " " ]
 # while true
 for arg in "$@"
 do
@@ -128,25 +129,30 @@ done
 
 # Ex: compress gzip mysqldump
 compress() {
+  local cmp="$1"
+  # cmp="none"
 
-  case "$1" in
+  case "$cmp" in
     gzip|--gzip)
       shift;
-      "$@" | $nice $GZIP -c
+      $nice $GZIP -c
       ;;
     bz2|--bz2)
       shift;
-      "$@" | $nice $BZ2 -z
+      $nice $BZ2 -z
       ;;
     --|none|--none)
       shift;
-      "$@"
+      ;;
+    "")
       ;;
     *)
+      shift;
       # echo "Warning: unhandled compress argument '$1'. Not compressing."
-      "$@"
+      # cat -
       ;;
   esac
+  # cat -
 }
 
 storeRestic() {
@@ -156,7 +162,7 @@ storeRestic() {
   echo "saving to restic ${endPoint}"
   
   (
-    "$@" > /dev/null
+    cat - > /dev/null
   ) || {
     local error=$?
     echo "Error: Failed to send to restic"
@@ -232,39 +238,45 @@ main() {
       # local tmp=$(mktemp --tmpdir="${tmpdir}" "mysqldump-${hostName}-${timestamp}${fileExt}.XXXXXX")
       # tmpFiles+=( "${tmp}" )
 
-      local compress
-      [$compression -eq 'none '] || {
-        compress="compress ${compression}"
-      }
+      # local compress
+      # [$compression -eq 'none '] || {
+      #   compress="compress ${compression}"
+      # }
 
-      (
-        backup "${bucket}/${fileName}${fileExt}" \
-          $compress \
-          $nice $MYSQLDUMP $dumpArgs $fullDumpArgs
-      ) && {
+      local args="${dumpArgs} ${fullDumpArgs}"
 
-        # for tmp in ${tmpFiles[@]}; do
-        #   echo "deleting temp file ${tmp}"
-        #   rm -f "$tmp"
-        # done
+      $nice $MYSQLDUMP $args \
+        | compress "${compression}" \
+        | backup "${bucket}/${fileName}${fileExt}"
 
-        echo Success
-      } || {
-        ######
-        # Backup somehow failed
-        ######
-        error=$?
+      # (
+      #   backup "${bucket}/${fileName}${fileExt}" \
+      #     $compress \
+      #     $nice $MYSQLDUMP $dumpArgs $fullDumpArgs
+      # ) && {
 
-        echo "Error: backup failed with status ${error}"
+      #   # for tmp in ${tmpFiles[@]}; do
+      #   #   echo "deleting temp file ${tmp}"
+      #   #   rm -f "$tmp"
+      #   # done
 
-        # echo "Temp files where not deleted"
+      #   echo Success
+      # } || {
+      #   ######
+      #   # Backup somehow failed
+      #   ######
+      #   error=$?
 
-        # for t in ${tmpFiles[@]}; do
-        #   echo "tmp: ${t}"
-        # done
+      #   echo "Error: backup failed with status ${error}"
+
+      #   # echo "Temp files where not deleted"
+
+      #   # for t in ${tmpFiles[@]}; do
+      #   #   echo "tmp: ${t}"
+      #   # done
         
-        exit $error;
-      }
+      #   exit $error;
+      # }
       
       ;;
     single)
