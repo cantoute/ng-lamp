@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
 
 # set -o errexit -o pipefail -o noclobber -o nounset
+set -u
+set -eE
+
 set -o errexit
-# set -o pipefail
+set -o pipefail
 
 
 # set -o nounset
@@ -31,7 +34,9 @@ RESTIC="echo restic"
 # TMPDIR="$TMPDIR"
 
 # Initialize our own variables:
-tmpdir="$TMPDIR"
+tmpdir="/tmp"
+tmpFiles=("init")
+
 verbose=0
 hostName=$(hostname -s)
 timestamp=$(date +%F_%H%M)
@@ -48,6 +53,19 @@ bucket="."
 
 nice=""
 
+
+trapError() {
+  local status=$?
+
+  [ $status -eq 0 ] || {
+  echo "Error!!! $status"
+  exit $status
+  }
+}
+
+trap '[ "$?" -eq 0 ] || echo hi' EXIT
+
+trap trapError ERR EXIT
 
 
 
@@ -110,6 +128,7 @@ done
 
 # Ex: compress gzip mysqldump
 compress() {
+
   case "$1" in
     gzip|--gzip)
       shift;
@@ -136,7 +155,14 @@ storeRestic() {
 
   echo "saving to restic ${endPoint}"
   
-  "$@" > /dev/null
+  (
+    "$@" > /dev/null
+  ) || {
+    local error=$?
+    echo "Error: Failed to send to restic"
+    exit $error
+  }
+  
   # "$@" > "$endPoint"
   
   # | $nice $RESTIC backup --stdin --stdin-filename "$1"
@@ -149,55 +175,105 @@ backup() {
   shift;
   
   # Sending to restic the compressed output of dump
-  storeRestic "$endPoint" \
-    compress $compression <<< "$@"
+  storeRestic "$endPoint"  "$@" 
+    # compress $compression "$@"
 }
 
-# tempWrap() {
+tmpWrap() {
+  local tmp="$1"
+  shift;
 
-# #   local tmp=$(mktemp --tmpdir="${tmpdir}" mysqldump-${hostName}-${timestamp}.XXXXXX && {
+  "$@" | tee -a "$tmp";
+  
+  # wait; echo DONE
 
-# #     >&2 echo "tmp $tmp";
 
-# #     # >&2 echo "tmp $tmp";
-# #     # "$@" > /dev/null
-# #   } 
-# # #   || {
-# # # echo yoyo
-# # #     # return $?
-# # #   }
-# #   )
-#   "$@" > /dev/null
-# }
+  # [[ -r "$tmp" ]] && {
 
-case "$dumpType" in
-  full)
-    fileName="${hostName}-full"
-    
-    cmd="$nice $MYSQLDUMP $dumpArgs $fullDumpArgs"
-    echo $cmd;
+  #     2&< echo "dddddkkkkkktmp $tmp";
+  # } || {
+  #     echo "Tmp file '$tmp' is not writable."
+  #     exit 2
+  # }
 
-    backup "${bucket}/${fileName}${fileExt}" \
-      $nice $MYSQLDUMP $dumpArgs $fullDumpArgs \
-      && {
+  # ("$@" >> "$tmp") && {
+  #   cat "$tmp"
+  # }
+  # >2& echo "tee output to $tmp"
+  
+  # "$@" | tee "$tmp"
+
+      # >&2 echo "kkkkkktmp $tmp";
+
+      # >&2 echo "tmp $tmp";
+      # "$@" > /dev/null
+      # echo "tmp: $tmp"
+      # "$@"
+#   || {
+# echo yoyo
+#     # return $?
+#   }
+  
+
+
+
+  # "$@" > /dev/null
+
+}
+
+main() {
+  case "$dumpType" in
+    full)
+      fileName="${hostName}-full"
+      
+      cmd="$nice $MYSQLDUMP $dumpArgs $fullDumpArgs"
+      echo $cmd;
+
+      # local tmp=$(mktemp --tmpdir="${tmpdir}" "mysqldump-${hostName}-${timestamp}${fileExt}.XXXXXX")
+      # tmpFiles+=( "${tmp}" )
+
+      local compress
+      [$compression -eq 'none '] || {
+        compress="compress ${compression}"
+      }
+
+      (
+        backup "${bucket}/${fileName}${fileExt}" \
+          $compress \
+          $nice $MYSQLDUMP $dumpArgs $fullDumpArgs
+      ) && {
+
+        # for tmp in ${tmpFiles[@]}; do
+        #   echo "deleting temp file ${tmp}"
+        #   rm -f "$tmp"
+        # done
+
         echo Success
-      } \
-      || {
+      } || {
         ######
         # Backup somehow failed
         ######
-        errorStatus=$?
+        error=$?
 
-        echo "Error: backup failed with status ${errorStatus}"
+        echo "Error: backup failed with status ${error}"
+
+        # echo "Temp files where not deleted"
+
+        # for t in ${tmpFiles[@]}; do
+        #   echo "tmp: ${t}"
+        # done
         
-        exit $errorStatus;
+        exit $error;
       }
-    
-    ;;
-  single)
+      
+      ;;
+    single)
 
-    ;;
-esac
+      ;;
+  esac
+}
+
+main;
 
 
 # mysqldump ${mysql_args} \
