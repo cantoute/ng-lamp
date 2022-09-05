@@ -1,12 +1,16 @@
 #!/usr/bin/env bash
 
 # set -o errexit -o pipefail -o noclobber -o nounset
-set -o errexit -o pipefail -o nounset
+set -o errexit
+# set -o pipefail
 
-# don't squash files
+
+# set -o nounset
+
+# don't override files
 set  -o noclobber
 
-# set -o xtrace
+set -o xtrace
 
 GLOBIGNORE=*:?
 umask 027
@@ -24,11 +28,13 @@ GZIP="$(which gzip)"
 # RESTIC="$(which restic)"
 RESTIC="echo restic"
 
+# TMPDIR="$TMPDIR"
 
 # Initialize our own variables:
+tmpdir="$TMPDIR"
 verbose=0
 hostName=$(hostname -s)
-dateStamp=$(date +%F_%H%M)
+timestamp=$(date +%F_%H%M)
 
 dumpArgs="--single-transaction --quick --compact --extended-insert --order-by-primary"
 fullDumpArgs="-A --events"
@@ -105,55 +111,88 @@ done
 # Ex: compress gzip mysqldump
 compress() {
   case "$1" in
-    gzip)
+    gzip|--gzip)
       shift;
       "$@" | $nice $GZIP -c
       ;;
-    bz2)
+    bz2|--bz2)
       shift;
       "$@" | $nice $BZ2 -z
       ;;
-    --|none)
+    --|none|--none)
       shift;
       "$@"
       ;;
     *)
-      echo "Warning: unhandled compress argument '$1'. Not compressing."
+      # echo "Warning: unhandled compress argument '$1'. Not compressing."
       "$@"
       ;;
   esac
 }
 
 storeRestic() {
-  local f="$1"
+  local endPoint="$1"
   shift;
 
-  echo "saving to restic $f"
-  "$@" > "$f" # | $nice $RESTIC backup --stdin --stdin-filename "$1"
+  echo "saving to restic ${endPoint}"
+  
+  "$@" > /dev/null
+  # "$@" > "$endPoint"
+  
+  # | $nice $RESTIC backup --stdin --stdin-filename "$1"
 
   # echo "$@"
 }
 
 backup() {
-  local f=$1
+  local endPoint="$1"
   shift;
   
-  storeRestic "$f" \
-    compress $compression "$@"
+  # Sending to restic the compressed output of dump
+  storeRestic "$endPoint" \
+    compress $compression <<< "$@"
 }
 
+# tempWrap() {
+
+# #   local tmp=$(mktemp --tmpdir="${tmpdir}" mysqldump-${hostName}-${timestamp}.XXXXXX && {
+
+# #     >&2 echo "tmp $tmp";
+
+# #     # >&2 echo "tmp $tmp";
+# #     # "$@" > /dev/null
+# #   } 
+# # #   || {
+# # # echo yoyo
+# # #     # return $?
+# # #   }
+# #   )
+#   "$@" > /dev/null
+# }
 
 case "$dumpType" in
   full)
     fileName="${hostName}-full"
-    {
-      backup "${bucket}/${fileName}${fileExt}" \
-        $nice $MYSQLDUMP $dumpArgs $fullDumpArgs
-    } || {
-      status=$?
-      echo "Error: backup failed with status $status"
-      exit $status
-    }
+    
+    cmd="$nice $MYSQLDUMP $dumpArgs $fullDumpArgs"
+    echo $cmd;
+
+    backup "${bucket}/${fileName}${fileExt}" \
+      $nice $MYSQLDUMP $dumpArgs $fullDumpArgs \
+      && {
+        echo Success
+      } \
+      || {
+        ######
+        # Backup somehow failed
+        ######
+        errorStatus=$?
+
+        echo "Error: backup failed with status ${errorStatus}"
+        
+        exit $errorStatus;
+      }
+    
     ;;
   single)
 
