@@ -40,6 +40,15 @@
     "sh",
     "bash"
   ],
-  "cSpell.words": ["certbot", "letsencrypt", "munin"],
-  "nginx-conf-hint.format.align": true
+  "cSpell.words": [
+    "certbot",
+    "letsencrypt",
+    "munin",
+    "mysql",
+    "mysqldump",
+    "MYSQLDUMP",
+    "restic"
+  ],
+  "nginx-conf-hint.format.align": true,
+  "cSpell.enableFiletypes": ["*"]
 }
