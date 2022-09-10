@@ -57,6 +57,8 @@ server {
   location @backend {
     proxy_pass http://apache_upstream;
 
+    proxy_set_header Host $host;
+
     include snippets/common-proxy.conf;
     include snippets/common-proxy-buffer.conf;
     include snippets/common-proxy-timeout.conf;
