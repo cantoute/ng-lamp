@@ -156,9 +156,15 @@ adduser www-adm
 
 echo "sudo -u www-adm -s"
 echo "cd"
+echo "wget https://files.phpmyadmin.net/phpMyAdmin/5.2.0/phpMyAdmin-5.2.0-all-languages.zip"
+echo "unzip phpMyAdmin-5.2.0-all-languages.zip"
+echo "ln -s phpMyAdmin-5.2.0-all-languages www.mysql"
+
+echo "Alternatively you could install older version"
 echo "wget https://files.phpmyadmin.net/phpMyAdmin/4.9.7/phpMyAdmin-4.9.7-all-languages.zip"
 echo "unzip phpMyAdmin-4.9.7-all-languages.zip"
 echo "ln -s phpMyAdmin-4.9.7-all-languages www.mysql"
+
 echo "exit"
 echo "# Now as root run this to add .user.ini and config.inc.php"
 echo "${SYNC} /home/www-adm/www.mysql"
