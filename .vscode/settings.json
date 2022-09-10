@@ -43,11 +43,13 @@
   "cSpell.words": [
     "certbot",
     "letsencrypt",
+    "mktemp",
     "munin",
     "mysql",
     "mysqldump",
     "MYSQLDUMP",
-    "restic"
+    "restic",
+    "tmpdir"
   ],
   "nginx-conf-hint.format.align": true,
   "cSpell.enableFiletypes": ["*"]

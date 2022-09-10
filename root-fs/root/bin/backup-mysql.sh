@@ -35,6 +35,10 @@ singleDumpArgs="--skip-lock-tables --single-transaction"
 set -o errexit -o pipefail -o noclobber -o nounset
 # set -o pipefail -o noclobber -o nounset
 
+set -o errexit -o nounset -o xtrace
+
+GLOBIGNORE=*:?
+
 # stop on error - if backup fails old ones aren't deleted
 # set -e
 
@@ -236,9 +240,18 @@ if [[ $single = true ]];
 then
   echo "Doing single database backups..."
 
-  dbList=$(mysql -Br --silent <<< "SHOW databases WHERE \`Database\` NOT IN ('information_schema', 'performance_schema', 'mysql') AND \`Database\` NOT LIKE 'trash\_%';")
+  dbList=$(mysql -Br --silent <<<
+    "
+      SHOW databases
+      WHERE \`Database\`
+        NOT IN ('information_schema', 'performance_schema', 'mysql')
+        AND \`Database\` NOT LIKE '%trash%'
+        AND \`Database\` NOT LIKE '%nobackup%'
+        ;
+    "
+  )
 
-  for db in ${dbList}
+  for db in $dbList
   do
     echo
     echo "Processing '${db}'... "
@@ -257,7 +270,7 @@ else
 
   outFile="${outPath}/mysqldumpall_${srcHost}_${dateStamp}.sql"
 
-  runBackup ${outFile}
+  runBackup $outFile
 
   echo
   echo "Full dump done" 
