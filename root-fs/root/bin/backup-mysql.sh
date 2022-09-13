@@ -30,8 +30,12 @@ commonArgs="--single-transaction"
 # preserve real utf8
 commonArgs+=" --default-character-set=utf8mb4"
 
-fullDumpArgs="${commonArgs} -A --events"
-singleDumpArgs="${commonArgs} --skip-lock-tables --quick --extended-insert --order-by-primary"
+fullDumpArgs="${commonArgs}"
+fullDumpArgs+=" -A --events"
+
+singleDumpArgs="${commonArgs}"
+singleDumpArgs+=" --quick --extended-insert --order-by-primary"
+singleDumpArgs+=" --skip-lock-tables"
 
 # More safety, by turning some bugs into errors.
 # Without `errexit` you don’t need ! and can replace
