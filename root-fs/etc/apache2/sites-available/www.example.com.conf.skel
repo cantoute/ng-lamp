@@ -2,7 +2,7 @@
 # and example.com with your domain
 
 <IfModule proxy_fcgi_module>
-  <Proxy "unix:/run/php/php7.4-fpm_username.sock|fcgi://username_php7.4" enablereuse=Off max=25>
+  <Proxy "unix:/run/php/php7.4-fpm-username.sock|fcgi://username_php7.4" enablereuse=Off max=25>
     ProxySet connectiontimeout=10 acquire=10 timeout=300
   </Proxy>
 </IfModule>
@@ -22,6 +22,7 @@
   <IfModule proxy_fcgi_module>
     <FilesMatch ".+\.ph(ar|p|tml)$">
       SetHandler "proxy:fcgi://username_php7.4"
+      # CGIPassAuth On
     </FilesMatch>
   </IfModule>
 

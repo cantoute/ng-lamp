@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 echo "if you need plain ftp access"
 echo "TODO: conf for limiting to a ftp-access group + chroot + fail2ban"

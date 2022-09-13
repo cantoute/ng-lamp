@@ -63,6 +63,8 @@ server {
     include snippets/common-proxy-buffer.conf;
     include snippets/common-proxy-timeout.conf;
 
+    proxy_pass_request_headers on;
+
     # avoid client closing connection to backend
     proxy_set_header Connection '';
 

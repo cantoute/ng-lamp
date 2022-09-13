@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 SCRIPT_PATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
 SYNC=${SCRIPT_PATH}/sync.sh
@@ -150,30 +150,4 @@ fi
 apt autoclean
 apt clean
 
-# create www-adm user (phpmyadmin)
-pwgen
-adduser www-adm
-
-echo "sudo -u www-adm -s"
-echo "cd"
-echo "wget https://files.phpmyadmin.net/phpMyAdmin/5.2.0/phpMyAdmin-5.2.0-all-languages.zip"
-echo "unzip phpMyAdmin-5.2.0-all-languages.zip"
-echo "ln -s phpMyAdmin-5.2.0-all-languages www.mysql"
-
-echo "Alternatively you could install older version"
-echo "wget https://files.phpmyadmin.net/phpMyAdmin/4.9.7/phpMyAdmin-4.9.7-all-languages.zip"
-echo "unzip phpMyAdmin-4.9.7-all-languages.zip"
-echo "ln -s phpMyAdmin-4.9.7-all-languages www.mysql"
-
-echo "exit"
-echo "# Now as root run this to add .user.ini and config.inc.php"
-echo "${SYNC} /home/www-adm/www.mysql"
-echo "chown -R www-adm:www-adm /home/www-adm/www.mysql"
-echo "You still have to add blowfish key if you want to use cookie based auth. (By default we use http auth)"
-
-MYSQL_SUPERUSER=newuser
-MYSQL_SUPERUSER_PASSWORD=password
-echo
-echo "echo \"CREATE USER '${MYSQL_SUPERUSER}'@'localhost' IDENTIFIED BY '${MYSQL_SUPERUSER_PASSWORD}';\" | mysql"
-echo "echo \"GRANT ALL PRIVILEGES ON *.* TO '${MYSQL_SUPERUSER}'@'localhost' WITH GRANT OPTION;\" | mysql"
-echo "echo \"FLUSH PRIVILEGES;\" | mysql"
+source init.d/mysql-stuff

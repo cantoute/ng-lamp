@@ -39,6 +39,11 @@ server {
   location ~ \.php$ {
     include fastcgi_params;
 
+    fastcgi_send_timeout 300;
+    fastcgi_read_timeout 1000;
+
+    send_timeout 300;
+
     # Mitigate https://httpoxy.org/ vulnerabilities
     fastcgi_param HTTP_PROXY '';
 
