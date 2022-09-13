@@ -26,16 +26,28 @@ srcHost=$(hostname -s)
 
 outPath="/home/backups/mysql-${srcHost}"
 
-fullDumpArgs="-A --events --single-transaction"
-singleDumpArgs="--skip-lock-tables --single-transaction"
+commonArgs="--single-transaction"
+# preserve real utf8
+commonArgs+=" --default-character-set=utf8mb4"
+
+fullDumpArgs="${commonArgs} -A --events"
+singleDumpArgs="${commonArgs} --skip-lock-tables --quick --extended-insert --order-by-primary"
 
 # More safety, by turning some bugs into errors.
 # Without `errexit` you don’t need ! and can replace
 # PIPESTATUS with a simple $?, but I don’t do that.
-set -o errexit -o pipefail -o noclobber -o nounset
+# set -o errexit -o pipefail -o noclobber -o nounset
 # set -o pipefail -o noclobber -o nounset
 
-set -o errexit -o nounset -o xtrace
+#set -o errexit -o nounset -o xtrace
+
+set -eu
+
+# dont allow override existing files
+set -o noclobber
+
+# debug
+set -o xtrace
 
 GLOBIGNORE=*:?
 
