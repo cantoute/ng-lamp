@@ -345,13 +345,16 @@ backupFull() {
 deleteOldBackups() {
   local exitStatus=
 
-  info "Deleting old backups"
 
   if [[ "$single" = "true" ]]; then
+      info "Deleting single backups older than ${keepSingle} days"
+
       $FIND "${outPath}" -type f -name 'mysqldump_*.sql*' -mtime +$keepSingle
       # delete single database backup older than 3 days
       $DRYRUN $FIND "${outPath}" -type f -name 'mysqldump_*.sql*' -mtime +$keepSingle -exec rm {} \;
   else
+      info "Deleting full backups older than ${keepFull} days"
+
       $FIND "${outPath}" -type f -name 'mysqldumpall_*.sql*' -mtime +$keepFull
 
       # delete full backups older then 3 days
