@@ -371,14 +371,11 @@ deleteOldBackups() {
 
 [[ "$single" == "true" ]] && {
   backupSingle
-
-  backupExit=$?
 } || {
   backupFull
-
-  backupExit=$?
 }
 
+backupExit=$?
 
 [[ $backupExit == 0 ]] && {
   deleteOldBackups
@@ -399,4 +396,5 @@ globalExit=$(( $deleteExit > $backupExit ? $deleteExit : $backupExit ))
 }
 
 globalExit=$(( $globalExit > $checkBackupExit ? $globalExit : $checkBackupExit ))
+
 exit $globalExit
