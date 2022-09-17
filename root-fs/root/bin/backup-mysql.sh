@@ -116,7 +116,7 @@ checkDirs() {
       # if not is a dir
       d=$1
       if [[ -d "$d" ]]; then
-        [[ $verbose = true ]] && {
+        [[ $verbose == true ]] && {
           info "$d exists, nothing to do.";
         }
       else
@@ -186,39 +186,33 @@ done
 #     exit 4
 # fi
 
-[[ $dryRun = true ]] && {
+[[ "$dryRun" == "true" ]] && {
   DRYRUN="dryrun"
 }
 
-[[ $single = true ]] \
+[[ "$single" == "true" ]] \
   && outPath="${backupDir}/single" \
   || outPath="${backupDir}/full"
 
-
-[[ $time = true ]] && {
+[[ "$time" == "true" ]] && {
   MYSQLDUMP="$TIME $MYSQLDUMP"
   FIND="$TIME $FIND"
 }
 
-
-if [[ $gzip = true ]]; then
-  COMPRESS=$GZIP
+if [[ "$gzip" == "true" ]]; then
+  COMPRESS="$GZIP"
 else
-  if [[ $bz2 = true ]]; then
-    COMPRESS=$BZ2
+  if [[ "$bz2" == "true" ]]; then
+    COMPRESS="$BZ2"
   fi
 fi
 
-# [[ ($gzip = true || $bz2 = true)  && $nice = true ]] && {
-#   COMPRESS="$NICE $COMPRESS"
-# }
-
-[[ "$verbose" = "true" ]] && {
+[[ "$verbose" == "true" ]] && {
   echo "verbose: $verbose, dryRun: $dryRun, single: $single, outPath: $outPath, createDirs: $createDirs, nice: $nice, gzip: $gzip, bz2: $bz2"
   echo
 }
 
-[[ "$createDirs" = "true" ]] && {
+[[ "$createDirs" == "true" ]] && {
   dirs2check=("${outPath}")
   checkDirs "${dirs2check[@]}"
 }
@@ -228,21 +222,20 @@ doBackup() {
   local db=
   local exitStatus=
 
-  [[ $1 = '--db' ]] \
-    && {
-      db=$2
-      mysqldumpArgs="$singleDumpArgs $db"
-      shift 2
-    }
+  [[ "$1" == '--db' ]] && {
+    db="$2"
+    mysqldumpArgs="$singleDumpArgs $db"
+    shift 2
+  }
 
   local outFile="$1"
   local COMPRESS=
 
-  if [[ "$gzip" = "true" ]]; then
+  if [[ "$gzip" == "true" ]]; then
     outFile="${outFile}.gz"
     COMPRESS="$GZIP"
   else
-    if [[ "$bz2" = "true" ]]; then
+    if [[ "$bz2" == "true" ]]; then
       outFile="${outFile}.bz2"
       COMPRESS="$BZ2"
     fi
@@ -250,16 +243,17 @@ doBackup() {
 
   info "Backing up into ${outFile}"
 
-  if [[ "$gzip" = "true" || $bz2 = true ]]; then
-    [[ "$nice" = "true" ]] && COMPRESS="$NICE $COMPRESS"
+  if [[ "$gzip" == "true" || $bz2 == true ]];
+  then
+    [[ "$nice" == "true" ]] && COMPRESS="$NICE $COMPRESS"
 
-    [[ "$dryRun" = "true" ]] \
+    [[ "$dryRun" == "true" ]] \
       && echo "DRYRUN: Not executing $MYSQLDUMP $mysqldumpArgs | $COMPRESS > ${outFile}" \
       || {
         $MYSQLDUMP $mysqldumpArgs | $COMPRESS > "${outFile}"
       }
   else
-    [[ "$dryRun" = "true" ]] \
+    [[ "$dryRun" == "true" ]] \
       && echo "DRYRUN: Not executing $MYSQLDUMP $mysqldumpArgs > ${outFile}" \
       || {
         $MYSQLDUMP $mysqldumpArgs > "${outFile}"
@@ -283,14 +277,14 @@ backupSingle() {
         AND \`Database\` NOT LIKE '%nobackup%'
         ;
     "
-  
+
   info "Doing single database backups..."
 
   dbList=`echo "$sql" | mysql -Br --silent`
 
   local dbListExit=$?
 
-  [ $dbListExit -eq 0 ] || {
+  [[ "$dbListExit" == "0" ]] || {
     info "Error: failed to get list of db to backup."
     return $dbListExit
   }
@@ -313,11 +307,12 @@ backupSingle() {
 
   done;
 
-  [[ $exitStatus == 0 ]] && {
+  if [[ $exitStatus == 0 ]];
+  then
     info "All single database backups done"
-  } || {
+  else
     info "All single database backups done (with errors)"
-  }
+  fi
 
   return $exitStatus
 }
@@ -345,8 +340,8 @@ backupFull() {
 deleteOldBackups() {
   local exitStatus=
 
-
-  if [[ "$single" = "true" ]]; then
+  if [[ "$single" == "true" ]];
+  then
       info "Deleting single backups older than ${keepSingle} days"
 
       $FIND "${outPath}" -type f -name 'mysqldump_*.sql*' -mtime +$keepSingle
@@ -372,31 +367,34 @@ deleteOldBackups() {
   return $exitStatus
 }
 
-[[ "$single" == "true" ]] && {
+if [[ "$single" == "true" ]];
+then
   backupSingle
-} || {
+else
   backupFull
-}
+fi
 
 backupExit=$?
 
-[[ $backupExit == 0 ]] && {
+if [[ $backupExit == 0 ]];
+then
   deleteOldBackups
 
   deleteExit=$?
-} || {
+else
   info "There were some errors during backup process, skipping deleting older backups."
-}
+fi
 
 globalExit=$(( $deleteExit > $backupExit ? $deleteExit : $backupExit ))
 
 # Check we have a file that is less than 1 day old in backup dir
-[ "`find "$backupDir" -type f -ctime -1 -name '*.sql*'`" ] && {
+if [ "`find "$backupDir" -type f -ctime -1 -name '*.sql*'`" ];
+then
   checkBackupExit=0
-} || {
+else
   info "Error: no backup less than 1 day old could be found in $backupDir"
   checkBackupExit=2
-}
+fi
 
 globalExit=$(( $globalExit > $checkBackupExit ? $globalExit : $checkBackupExit ))
 
