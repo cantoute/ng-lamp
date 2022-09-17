@@ -3,6 +3,7 @@
 umask 027
 LANG="en_US.UTF-8"
 
+createDirsExit=0
 backupExit=0
 deleteExit=0
 checkBackupExit=
@@ -108,24 +109,31 @@ dryrun() {
     printf -v cmd_str '%q ' "$@"; echo "DRYRUN: Not executing $cmd_str" >&2
 }
 
-checkDirs() {
-  local args=("$@")
+createDirs() {
+  local exitStatus=0
+  local d=
 
-  # for d in "${args[@]}"
-  #   do
-      # if not is a dir
-      d=$1
-      if [[ -d "$d" ]]; then
-        [[ $verbose == true ]] && {
-          info "$d exists, nothing to do.";
+  for d in "${backupDir}/single" "${backupDir}/full";
+  do
+    if [[ -d "$d" ]]; then
+      [[ $verbose == true ]] && {
+        info "$d exists, nothing to do.";
+      }
+
+      return $exitStatus;
+    else
+      $DRYRUN mkdir -p "${d}" &&    \
+        $DRYRUN chmod 700 "${d}" && {
+          echo "Created dir $d" 
+        } || {
+          exitStatus=$?
+
+          info "Failed to create dir $d"
         }
-      else
-        $DRYRUN mkdir -p "${d}";
-        $DRYRUN chmod 700 "${d}";
-      fi
-    # done;
+    fi
+  done
   
-  return 0;
+  return $exitStatus;
 }
 
 single=false time=false dryRun=false verbose=false nice=false gzip=false bz2=false createDirs=false
@@ -212,10 +220,14 @@ fi
   echo
 }
 
-[[ "$createDirs" == "true" ]] && {
-  dirs2check=("${outPath}")
-  checkDirs "${dirs2check[@]}"
-}
+[[ "$createDirs" == "true" ]] \
+  && createDirs \
+  || {
+    createDirsExit=$?
+    info "Failed to create backup dirs."
+
+    exit $createDirsExit
+  }
 
 doBackup() {
   local mysqldumpArgs="$fullDumpArgs"
