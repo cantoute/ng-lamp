@@ -3,6 +3,10 @@
 umask 027
 LANG="en_US.UTF-8"
 
+backupExit=0
+deleteExit=0
+globalExit=0
+
 # A POSIX variable
 OPTIND=1         # Reset in case getopts has been used previously in the shell.
 
@@ -24,17 +28,26 @@ dateStamp=$(date +%F_%H%M)
 
 srcHost=$(hostname -s)
 
-outPath="/home/backups/mysql-${srcHost}"
+backupDir="/home/backups/mysql-${srcHost}"
 
-commonArgs="--single-transaction"
-# preserve real utf8
+# keep full backup for N days
+keepFull=3
+
+keepSingle=$keepFull
+
+commonArgs=
+commonArgs+=" --single-transaction"
+commonArgs+=" --extended-insert"
+commonArgs+=" --order-by-primary"
+commonArgs+=" --quick" # aka swap ram for speed
+
+# preserve real utf8 (aka don't brake extended utf8 like emoji)
 commonArgs+=" --default-character-set=utf8mb4"
 
 fullDumpArgs="${commonArgs}"
 fullDumpArgs+=" -A --events"
 
 singleDumpArgs="${commonArgs}"
-singleDumpArgs+=" --quick --extended-insert --order-by-primary"
 singleDumpArgs+=" --skip-lock-tables"
 
 # More safety, by turning some bugs into errors.
@@ -45,26 +58,28 @@ singleDumpArgs+=" --skip-lock-tables"
 
 #set -o errexit -o nounset -o xtrace
 
-set -eu
+set -o nounset
 
 # dont allow override existing files
 set -o noclobber
 
 # debug
-set -o xtrace
+#set -o xtrace
 
 GLOBIGNORE=*:?
 
 # stop on error - if backup fails old ones aren't deleted
 # set -e
 
-
+# some helpers and error handling:
+info() { printf "\n%s %s\n\n" "$( date )" "$*" >&2; }
+trap 'echo $( date ) Backup interrupted >&2; exit 2' INT TERM
 
 # -allow a command to fail with !’s side effect on errexit
 # -use return value from ${PIPESTATUS[0]}, because ! hosed $?
 ! getopt --test > /dev/null 
 if [[ ${PIPESTATUS[0]} -ne 4 ]]; then
-    echo 'I’m sorry, `getopt --test` failed in this environment.'
+    info 'I’m sorry, `getopt --test` failed in this environment.'
     exit 1
 fi
 
@@ -101,8 +116,7 @@ checkDirs() {
       d=$1
       if [[ -d "$d" ]]; then
         [[ $verbose = true ]] && {
-          echo "$d exists, nothing to do.";
-          echo;
+          info "$d exists, nothing to do.";
         }
       else
         $DRYRUN mkdir -p "${d}";
@@ -159,7 +173,7 @@ while true; do
       break
       ;;
     *)
-      echo "Error: unhandled argument '$1'"
+      info "Error: unhandled argument '$1'"
       exit 3
       ;;
   esac
@@ -176,8 +190,8 @@ done
 }
 
 [[ $single = true ]] \
-  && outPath="${outPath}/single" \
-  || outPath="${outPath}/full"
+  && outPath="${backupDir}/single" \
+  || outPath="${backupDir}/full"
 
 
 [[ $time = true ]] && {
@@ -198,115 +212,189 @@ fi
 #   COMPRESS="$NICE $COMPRESS"
 # }
 
-[[ $verbose = true ]] && {
+[[ "$verbose" = "true" ]] && {
   echo "verbose: $verbose, dryRun: $dryRun, single: $single, outPath: $outPath, createDirs: $createDirs, nice: $nice, gzip: $gzip, bz2: $bz2"
   echo
 }
 
-[[ $createDirs = true ]] && {
+[[ "$createDirs" = "true" ]] && {
   dirs2check=("${outPath}")
   checkDirs "${dirs2check[@]}"
 }
 
-runBackup() {
-  local mysqldumpArgs=$fullDumpArgs
+doBackup() {
+  local mysqldumpArgs="$fullDumpArgs"
   local db=
+  local exitStatus=
 
   [[ $1 = '--db' ]] \
     && {
       db=$2
       mysqldumpArgs="$singleDumpArgs $db"
-      shift
-      shift
+      shift 2
     }
 
-  local outFile=$1
+  local outFile="$1"
   local COMPRESS=
 
-  if [[ $gzip = true ]]; then
+  if [[ "$gzip" = "true" ]]; then
     outFile="${outFile}.gz"
     COMPRESS="$GZIP"
   else
-    if [[ $bz2 = true ]]; then
+    if [[ "$bz2" = "true" ]]; then
       outFile="${outFile}.bz2"
       COMPRESS="$BZ2"
     fi
   fi
 
-  echo "Backing up into ${outFile}"
+  info "Backing up into ${outFile}"
 
-  if [[ $gzip = true || $bz2 = true ]]; then
-    [[ $nice = true ]] && COMPRESS="$NICE $COMPRESS"
+  if [[ "$gzip" = "true" || $bz2 = true ]]; then
+    [[ "$nice" = "true" ]] && COMPRESS="$NICE $COMPRESS"
 
-    [[ $dryRun = true ]] \
+    [[ "$dryRun" = "true" ]] \
       && echo "DRYRUN: Not executing $MYSQLDUMP $mysqldumpArgs | $COMPRESS > ${outFile}" \
       || {
         $MYSQLDUMP $mysqldumpArgs | $COMPRESS > "${outFile}"
       }
   else
-    [[ $dryRun = true ]] \
+    [[ "$dryRun" = "true" ]] \
       && echo "DRYRUN: Not executing $MYSQLDUMP $mysqldumpArgs > ${outFile}" \
       || {
         $MYSQLDUMP $mysqldumpArgs > "${outFile}"
       }
   fi
+
+  exitStatus=$?
+
+  return $exitStatus
 }
 
-if [[ $single = true ]];
-then
-  echo "Doing single database backups..."
+backupSingle() {
+  local exitStatus=0
+  local thisExit=
 
-  dbList=$(mysql -Br --silent <<<
-    "
-      SHOW databases
-      WHERE \`Database\`
-        NOT IN ('information_schema', 'performance_schema', 'mysql')
+  local sql="
+    SHOW DATABASES
+      WHERE
+        \`Database\` NOT IN ('information_schema', 'performance_schema', 'mysql')
         AND \`Database\` NOT LIKE '%trash%'
         AND \`Database\` NOT LIKE '%nobackup%'
         ;
     "
-  )
+  
+  info "Doing single database backups..."
+
+  dbList=`echo "$sql" | mysql -Br --silent`
+
+  local dbListExit=$?
+
+  [ $dbListExit -eq 0 ] || {
+    info "Error: failed to get list of db to backup."
+    return $dbListExit
+  }
 
   for db in $dbList
   do
-    echo
-    echo "Processing '${db}'... "
+    info "Processing '${db}'... "
 
     outFile="${outPath}/mysqldump_${srcHost}_${db}_$(date +%F_%H%M).sql"
 
-    runBackup --db "${db}" "${outFile}"
+    doBackup --db "${db}" "${outFile}" && {
+      info Done
+    } || {
+      thisExit=$?
+      
+      exitStatus=$(( $thisExit > $exitStatus ? $thisExit : $exitStatus ))
 
-    echo Done
+      info "Error: doBackup --db '${db}' '${outFile}' exit status $thisExit"
+    }
+
   done;
 
-  echo
-  echo "Single database backups done"
-else
-  echo "Doing full dump (all databases)"
+  [[ $exitStatus == 0 ]] && {
+    info "All single database backups done"
+  } || {
+    info "All single database backups done (with errors)"
+  }
+
+  return $exitStatus
+}
+
+backupFull() {
+  local exitStatus=
+
+  info "Doing full dump (all databases)"
 
   outFile="${outPath}/mysqldumpall_${srcHost}_${dateStamp}.sql"
 
-  runBackup $outFile
+  doBackup "$outFile" && {
+    exitStatus=$?
 
-  echo
-  echo "Full dump done" 
-fi
+    info Done
+  } || {
+    exitStatus=$?
 
-deleteOldBackups() {
-  echo
-  echo "Deleting old backups"
+    info "Error: doBackup '${outFile}' exit status $exitStatus" >&2 ;
+  }
 
-  if [[ $single = true ]]; then
-      # delete single database backup older than 3 days
-      $DRYRUN $FIND "${outPath}" -type f -name 'mysqldump_*.sql*' -mtime +3 -exec rm {} \;
-  else
-      # delete full backups older then 30 days
-      $DRYRUN $FIND "${outPath}" -type f -name 'mysqldumpall_*.sql*' -mtime +31 -exec rm {} \;
-  fi
-
-  echo "Done"
+  return $exitStatus
 }
 
-deleteOldBackups
+deleteOldBackups() {
+  local exitStatus=
 
-echo
+  info "Deleting old backups"
+
+  if [[ "$single" = "true" ]]; then
+      $FIND "${outPath}" -type f -name 'mysqldump_*.sql*' -mtime +$keepSingle
+      # delete single database backup older than 3 days
+      $DRYRUN $FIND "${outPath}" -type f -name 'mysqldump_*.sql*' -mtime +$keepSingle -exec rm {} \;
+  else
+      $FIND "${outPath}" -type f -name 'mysqldumpall_*.sql*' -mtime +$keepFull
+
+      # delete full backups older then 3 days
+      $DRYRUN $FIND "${outPath}" -type f -name 'mysqldumpall_*.sql*' -mtime +$keepFull -exec rm {} \;
+  fi
+
+  exitStatus=$?
+
+  [ $exitStatus -eq 0 ] && {
+    info "Done"
+  } || {
+    info "Error: deleting old backups returned status ${exitStatus}"
+  }
+
+  return $exitStatus
+}
+
+[[ "$single" == "true" ]] && {
+  backupSingle
+
+  backupExit=$?
+} || {
+  backupFull
+
+  backupExit=$?
+}
+
+
+[[ $backupExit == 0 ]] && {
+  deleteOldBackups
+
+  deleteExit=$?
+} || {
+  info "There were some errors during backup process, skipping deleting older backups."
+}
+
+globalExit=$(( $deleteExit > $backupExit ? $deleteExit : $backupExit ))
+
+
+[ "`find "$backupDir" -type f -ctime -1 -name '*.sql*'`" ] || {
+  info "Error: no backup less than 1 day old could be found in $backupDir"
+  checkBackupExit=2
+  
+  globalExit=$(( $globalExit > $checkBackupExit ? $globalExit : $checkBackupExit ))
+}
+
+exit $globalExit
