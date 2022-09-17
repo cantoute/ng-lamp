@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 umask 027
 LANG="en_US.UTF-8"
