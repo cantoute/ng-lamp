@@ -5,6 +5,7 @@ LANG="en_US.UTF-8"
 
 backupExit=0
 deleteExit=0
+checkBackupExit=
 globalExit=0
 
 # A POSIX variable
@@ -80,7 +81,7 @@ trap 'echo $( date ) Backup interrupted >&2; exit 2' INT TERM
 ! getopt --test > /dev/null 
 if [[ ${PIPESTATUS[0]} -ne 4 ]]; then
     info 'I’m sorry, `getopt --test` failed in this environment.'
-    exit 1
+    exit 2
 fi
 
 OPTIONS=sdto:vngbc
@@ -359,7 +360,7 @@ deleteOldBackups() {
 
   exitStatus=$?
 
-  [ $exitStatus -eq 0 ] && {
+  [[ $exitStatus == 0 ]] && {
     info "Done"
   } || {
     info "Error: deleting old backups returned status ${exitStatus}"
@@ -389,12 +390,13 @@ deleteOldBackups() {
 
 globalExit=$(( $deleteExit > $backupExit ? $deleteExit : $backupExit ))
 
-
-[ "`find "$backupDir" -type f -ctime -1 -name '*.sql*'`" ] || {
+# Check we have a file that is less than 1 day old in backup dir
+[ "`find "$backupDir" -type f -ctime -1 -name '*.sql*'`" ] && {
+  checkBackupExit=0
+} || {
   info "Error: no backup less than 1 day old could be found in $backupDir"
   checkBackupExit=2
-  
-  globalExit=$(( $globalExit > $checkBackupExit ? $globalExit : $checkBackupExit ))
 }
 
+globalExit=$(( $globalExit > $checkBackupExit ? $globalExit : $checkBackupExit ))
 exit $globalExit
