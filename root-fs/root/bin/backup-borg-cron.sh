@@ -23,7 +23,8 @@ mysqldumpBaseDir="/home/backups/mysql-${hostname}"
 NICE="nice ionice -c3"
 
 dotEnv=~/.env.borg
-localConf=~/projects/ng-lamp/ng-lamp/root-fs/root/bin/backup-borg-cron-serv01.sh
+localConf="$0-local.sh"
+# localConf=~/projects/ng-lamp/ng-lamp/root-fs/root/bin/backup-borg-cron-serv01.sh
 
 
 globalExit=
@@ -35,13 +36,6 @@ NICE=
 
 borgCreateArgs=
 mysqldumpArgs=
-
-[[ -f "$localConf" ]] && {
-  source "$localConf"
-
-  echo "Info: loaded local config ${localConf}"
-}
-
 
 
 # Debug
@@ -406,9 +400,9 @@ trap 'echo $( date ) Backup interrupted >&2; exit 2' INT TERM
 ###################################################
 # Main
 
-for arg in "$@"
+while true;
 do
-  case "$arg" in
+  case "$1" in
     --dry-run)
       DRYRUN="dryRun"
       borgCreateArgs+=" --dry-run"
@@ -436,6 +430,7 @@ do
       shift 2
       ;;
     --local-conf|--local)
+
       localConf="$2"
       shift 2
       ;;
@@ -453,7 +448,13 @@ done
 #   info "Warning: failed to create logrotate ${logrotateConf}"
 # }
 
-doBackup $@ 2>&1 | $NICE tee -a "$logFile"
+[[ -f "$localConf" ]] && {
+  source "$localConf"
+
+  echo "Info: loaded local config ${localConf}"
+}
+
+doBackup "$@" 2>&1 | $NICE tee -a "$logFile"
 
 globalExit=$?
 
