@@ -33,6 +33,9 @@ doInit=
 DRYRUN=
 NICE=
 
+borgCreateArgs=
+mysqldumpArgs=
+
 [[ -f "$localConf" ]] && {
   source "$localConf"
 
@@ -56,160 +59,6 @@ doBackup() {
   for label in "$@"
   do
     case "$label" in
-      # home:auto|home)
-      #   shift
-      #   doBorgCreate "home" /home --exclude "home/vmail" --exclude "$mysqldumpBaseDir"
-
-      #   thisStatus=$?
-      #   exitStatus=$(max2 "$thisStatus" "$exitStatus")
-
-      #   [[ "$thisStatus" == 0 ]] || info "${label} returned status: ${thisStatus}"
-      #   ;;
-
-      # home:no-exclude)
-      #   shift
-
-      #   doBorgCreate "home" /home
-
-      #   thisStatus=$?
-      #   exitStatus=$(max2 "$thisStatus" "$exitStatus")
-
-      #   [[ "$thisStatus" == 0 ]] || info "${label} returned status: ${thisStatus}"
-      #   ;;
-
-      # home:vmail|vmail)
-      #   shift
-
-      #   doBorgCreate "vmail" /home/vmail
-        
-      #   thisStatus=$?
-      #   exitStatus=$(max2 "$thisStatus" "$exitStatus")
-
-      #   [[ "$thisStatus" == 0 ]] || info "returned status: ${thisStatus}"
-      #   ;;
-
-
-
-      # sys:no-var)
-      #   shift
-
-      #   doBorgCreate "$label" /etc /usr/local /root
-
-      #   thisStatus=$?
-      #   exitStatus=$(max2 "$thisStatus" "$exitStatus")
-
-      #   [[ "$thisStatus" == 0 ]] || info "returned status: ${thisStatus}"
-      #   ;;
-
-      # etc)
-      #   doBorgCreate "sys" /etc
-
-      #   thisStatus=$?
-      #   exitStatus=$(max2 "$thisStatus" "$exitStatus")
-
-      #   [[ "$thisStatus" == 0 ]] || info "returned status: ${thisStatus}"
-      #   ;;
-
-      # usr-local)
-      #   shift
-
-      #   doBorgCreate "sys" /usr/local
-
-      #   thisStatus=$?
-      #   exitStatus=$(max2 "$thisStatus" "$exitStatus")
-
-      #   [[ "$thisStatus" == 0 ]] || info "returned status: ${thisStatus}"
-      #   ;;
-
-      # var)
-      #   shift
-
-      #   doBorgCreate "$label" /var --exclude var/www/vhosts
-        
-      #   thisStatus=$?
-      #   exitStatus=$(max2 "$thisStatus" "$exitStatus")
-
-      #   [[ "$thisStatus" == 0 ]] || info "returned status: ${thisStatus}"
-      #   ;;
-
-      # vhosts)
-      #   # so we could run mysql and vhosts backup in //
-      #   # not sure it's a good idea, need to try
-      #   # get repo and password
-      #   source "$dotEnv" 
-      #   export BORG_REPO="${BORG_REPO}-vhosts"
-
-      #   echo "BORG_REPO: $BORG_REPO"
-
-      #   doBorgCreate "$label" /var/www/vhosts
-        
-      #   thisStatus=$?
-      #   exitStatus=$(max2 "$thisStatus" "$exitStatus")
-
-      #   [[ "$thisStatus" == 0 ]] || info "returned status: ${thisStatus}"
-
-      #   # set back to default repo
-      #   source "$dotEnv"
-      #   echo "BORG_REPO: $BORG_REPO"
-      #   ;;
-
-      # mysql:full|mysql)
-      #   shift
-
-      #   mysqldumpAndBorgCreate
-
-      #   thisStatus=$?
-      #   exitStatus=$(max2 "$thisStatus" "$exitStatus")
-      #   ;;
-
-      # mysql:single)
-      #   shift
-
-      #   mysqldumpAndBorgCreate --single
-
-      #   thisStatus=$?
-      #   exitStatus=$(max2 "$thisStatus" "$exitStatus")
-      #   ;;
-
-      # sleep)
-      #   shift
-      #   echo "Sleeping 2min..."
-      #   sleep 120
-
-      #   thisStatus=$?
-      #   exitStatus=$(max2 "$thisStatus" "$exitStatus")
-      #   ;;
-
-      # sleep:*)
-      #   shift
-      #   split=(${label//\:/ })
-
-      #   echo "Sleeping ${split[1]}s..."
-      #   sleep ${split[1]}
-
-      #   thisStatus=$?
-      #   exitStatus=$(max2 "$thisStatus" "$exitStatus")
-      #   ;;
-
-      # test|test:ok|simulate:ok)
-      #   shift
-      #   info "${label}"
-        
-      #   thisStatus=0
-      #   exitStatus=$(max2 "$thisStatus" "$exitStatus")
-
-      #   [[ "$thisStatus" == 0 ]] || info "${label} returned status: ${thisStatus}"
-      #   ;;
-
-      # test:ko|simulate:ko)
-      #   shift
-      #   info "${label}"
-        
-      #   thisStatus=1
-      #   exitStatus=$(max2 "$thisStatus" "$exitStatus")
-
-      #   [[ "$thisStatus" == 0 ]] || info "${label} returned status: ${thisStatus}"
-      #   ;;
 
       --)
         shift
@@ -260,17 +109,6 @@ doBackup() {
         [[ "$thisStatus" == 0 ]] || info "${label} returned status: ${thisStatus}"
         ;;
 
-      # *)
-      #   shift
-
-      #   info "Unknown backup label '${label}'"
-
-      #   thisStatus=2
-      #   exitStatus=$(max2 "$thisStatus" "$exitStatus")
-
-      #   [[ "$thisStatus" == 0 ]] || info "${label} returned status: ${thisStatus}"
-      #   ;;
-
       *)
 
         shift
@@ -285,12 +123,6 @@ doBackup() {
         ;;
     esac
 
-    # unless onErrorContinue we stop on error
-    # [[ "$thisStatus" == 0 || "$onErrorContinue" == "true" ]] || {
-    #   info "Error: backup labeled '${label}' returned status ${thisStatus}" "Tip: --on-error-continue"
-
-    #   break
-    # };
     if [[ 0 != $thisStatus ]];
     then
       info "Error: backup labeled '${label}' returned status ${thisStatus}"
@@ -301,14 +133,6 @@ doBackup() {
         break
       }
     fi
-    
-    
-    
-    # || {
-    #   info "Error: backup labeled '${label}' returned status ${thisStatus}"
-
-    #   break
-    # };
   done
 
   return $exitStatus
@@ -318,7 +142,11 @@ mysqldumpAndBorgCreate() {
   local thisStatus=
   local exitStatus=0
 
-  doMysqldump "$@"
+  local args="$@"
+
+  # [[ ]]
+
+  doMysqldump "$@" $mysqldumpArgs
 
   thisStatus=$?
   exitStatus=$(max2 "$thisStatus" "$exitStatus")
@@ -383,12 +211,12 @@ max2() {
 }
 
 doBorgCreate() {
-  $DRYRUN $NICE $borgCreate "$@" $createArgs
+  $DRYRUN $NICE $borgCreate "$@" $borgCreateArgs
   return $?
 }
 
 doMysqldump() {
-  $DRYRUN $NICE $mysqldump "$@" $createArgs
+  $DRYRUN $NICE $mysqldump "$@"
   return $?
 }
 
@@ -535,7 +363,8 @@ bb_label_var() {
 bb_label_mysql() {
   local single=
 
-  [[ -v 2 && "$2" == "single" ]] && single='--single'
+  [[ "$2" == "single" ]] && single='--single'
+  shift 2
 
   mysqldumpAndBorgCreate $single "$@"
   return $?
@@ -582,15 +411,16 @@ do
   case "$arg" in
     --dry-run)
       DRYRUN="dryRun"
-      createArgs+=" --dry-run"
+      borgCreateArgs+=" --dry-run"
+      mysqldumpArgs+=" --dry-run"
       shift
       ;;
     --verbose|--progress)
-      createArgs+=" $1"
+      borgCreateArgs+=" $1"
       shift
       ;;
     --borg-dry-run)
-      createArgs+=" --dry-run"
+      borgCreateArgs+=" --dry-run"
       shift
       ;;
     --on-error-stop|--stop)
