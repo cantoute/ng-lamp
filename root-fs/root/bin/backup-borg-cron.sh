@@ -542,7 +542,7 @@ bb_label_mysql() {
 }
 
 bb_label_sleep() {
-  local sleep="$2"
+  local sleep=$2
 
   echo "Sleeping ${sleep}s..."
 
@@ -552,9 +552,15 @@ bb_label_sleep() {
 }
 
 bb_label_test() {
-  [[ -v 2 ]] && {
-    [[ "$2" == "ok" || "$2" == "" ]] && return 0 || return 128
-  } || return 0
+  # [[ -v 2 ]] && {
+  #   [[ "$2" == "ok" || "$2" == "" ]] && return 0 || return 128
+  # } || return 0
+
+  [[ "$2" == "ok" ]] && {
+    return 0
+  } || {
+    return 128
+  } 
 
 
   # [[  ! -v 2 || (-v 2 && ("$2" == "ok" || "$2" == ""))  ]] && {
