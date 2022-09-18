@@ -1,0 +1,547 @@
+#!/bin/bash
+#!/usr/bin/env bash
+# had some cases where second line would not work in cron (old debian)
+
+set -u
+set -o pipefail
+
+umask 027
+# LANG="en_US.UTF-8"
+
+# your email@some.co
+alertEmail="alert"
+
+hostname=$(hostname -s)
+
+logFile="/var/log/backup-borg.log"
+logrotateConf="/etc/logrotate.d/backup-borg"
+
+borgCreate="/root/bin/backup-borg.sh"
+mysqldump="/root/bin/backup-mysql.sh --bz2"
+mysqldumpBaseDir="/home/backups/mysql-${hostname}"
+
+NICE="nice ionice -c3"
+
+dotEnv=~/.env.borg
+localConf=~/projects/ng-lamp/ng-lamp/root-fs/root/bin/backup-borg-cron-serv01.sh
+
+
+globalExit=
+onErrorStop=
+doLogrotateCreate=
+doInit=
+DRYRUN=
+NICE=
+
+[[ -f "$localConf" ]] && {
+  source "$localConf"
+
+  echo "Info: loaded local config ${localConf}"
+}
+
+
+
+# Debug
+# logFile="/tmp/backup-borg.log2"
+# logrotateConf="/tmp/backup-borg4"
+# NICE=""
+# DRYRUN="dryRun"
+
+doBackup() {
+  local exitStatus=0
+  local thisStatus=0
+  local label
+  local split
+
+  for label in "$@"
+  do
+    case "$label" in
+      home:auto|home)
+        shift
+        doBorgCreate "home" /home --exclude "home/vmail" --exclude "$mysqldumpBaseDir"
+
+        thisStatus=$?
+        exitStatus=$(max2 "$thisStatus" "$exitStatus")
+
+        [[ "$thisStatus" == 0 ]] || info "${label} returned status: ${thisStatus}"
+        ;;
+
+      home:no-exclude)
+        shift
+
+        doBorgCreate "home" /home
+
+        thisStatus=$?
+        exitStatus=$(max2 "$thisStatus" "$exitStatus")
+
+        [[ "$thisStatus" == 0 ]] || info "${label} returned status: ${thisStatus}"
+        ;;
+
+      home:vmail|vmail)
+        shift
+
+        doBorgCreate "vmail" /home/vmail
+        
+        thisStatus=$?
+        exitStatus=$(max2 "$thisStatus" "$exitStatus")
+
+        [[ "$thisStatus" == 0 ]] || info "returned status: ${thisStatus}"
+        ;;
+
+      sys)
+        shift
+
+        doBorgCreate "$label" /etc /usr/local /root /var
+
+        thisStatus=$?
+        exitStatus=$(max2 "$thisStatus" "$exitStatus")
+
+        [[ "$thisStatus" == 0 ]] || info "returned status: ${thisStatus}"
+        ;;
+
+      sys:no-var)
+        shift
+
+        doBorgCreate "$label" /etc /usr/local /root
+
+        thisStatus=$?
+        exitStatus=$(max2 "$thisStatus" "$exitStatus")
+
+        [[ "$thisStatus" == 0 ]] || info "returned status: ${thisStatus}"
+        ;;
+
+      etc)
+        doBorgCreate "sys" /etc
+
+        thisStatus=$?
+        exitStatus=$(max2 "$thisStatus" "$exitStatus")
+
+        [[ "$thisStatus" == 0 ]] || info "returned status: ${thisStatus}"
+        ;;
+
+      usr-local)
+        shift
+
+        doBorgCreate "sys" /usr/local
+
+        thisStatus=$?
+        exitStatus=$(max2 "$thisStatus" "$exitStatus")
+
+        [[ "$thisStatus" == 0 ]] || info "returned status: ${thisStatus}"
+        ;;
+
+      var)
+        shift
+
+        doBorgCreate "$label" /var --exclude var/www/vhosts
+        
+        thisStatus=$?
+        exitStatus=$(max2 "$thisStatus" "$exitStatus")
+
+        [[ "$thisStatus" == 0 ]] || info "returned status: ${thisStatus}"
+        ;;
+
+      # vhosts)
+      #   # so we could run mysql and vhosts backup in //
+      #   # not sure it's a good idea, need to try
+      #   # get repo and password
+      #   source "$dotEnv" 
+      #   export BORG_REPO="${BORG_REPO}-vhosts"
+
+      #   echo "BORG_REPO: $BORG_REPO"
+
+      #   doBorgCreate "$label" /var/www/vhosts
+        
+      #   thisStatus=$?
+      #   exitStatus=$(max2 "$thisStatus" "$exitStatus")
+
+      #   [[ "$thisStatus" == 0 ]] || info "returned status: ${thisStatus}"
+
+      #   # set back to default repo
+      #   source "$dotEnv"
+      #   echo "BORG_REPO: $BORG_REPO"
+      #   ;;
+
+      mysql:full|mysql)
+        shift
+
+        mysqldumpAndBorgCreate
+
+        thisStatus=$?
+        exitStatus=$(max2 "$thisStatus" "$exitStatus")
+        ;;
+
+      mysql:single)
+        shift
+
+        mysqldumpAndBorgCreate --single
+
+        thisStatus=$?
+        exitStatus=$(max2 "$thisStatus" "$exitStatus")
+        ;;
+
+      sleep)
+        shift
+        echo "Sleeping 2min..."
+        sleep 120
+
+        thisStatus=$?
+        exitStatus=$(max2 "$thisStatus" "$exitStatus")
+        ;;
+
+      sleep:*)
+        shift
+        split=(${label//\:/ })
+
+        echo "Sleeping ${split[1]}s..."
+        sleep ${split[1]}
+
+        thisStatus=$?
+        exitStatus=$(max2 "$thisStatus" "$exitStatus")
+        ;;
+
+      test|test:ok|simulate:ok)
+        shift
+        info "${label}"
+        
+        thisStatus=0
+        exitStatus=$(max2 "$thisStatus" "$exitStatus")
+
+        [[ "$thisStatus" == 0 ]] || info "${label} returned status: ${thisStatus}"
+        ;;
+
+      test:ko|simulate:ko)
+        shift
+        info "${label}"
+        
+        thisStatus=1
+        exitStatus=$(max2 "$thisStatus" "$exitStatus")
+
+        [[ "$thisStatus" == 0 ]] || info "${label} returned status: ${thisStatus}"
+        ;;
+
+      --)
+        shift
+
+        break
+        ;;
+
+      --*:*)
+        shift
+
+        info "local backup hook '${label}'"
+
+        # removes first 2 chars and splits :
+        split=(${label:2//\:/ })
+
+        bb_hook_${split[0]}_${split[1]}
+
+        thisStatus=$?
+        exitStatus=$(max2 "$thisStatus" "$exitStatus")
+
+        [[ "$thisStatus" == 0 ]] || info "${label} returned status: ${thisStatus}"
+        ;;
+
+      --*)
+        shift
+
+        bb_hook_${label:2}
+
+        thisStatus=$?
+        exitStatus=$(max2 "$thisStatus" "$exitStatus")
+
+        [[ "$thisStatus" == 0 ]] || info "${label} returned status: ${thisStatus}"
+        ;;
+
+      *:*)
+        shift
+
+        info "local backup label '${label}'"
+
+        # splits :
+        split=(${label//\:/ })
+
+        bb_label_${split[0]}_${split[1]}
+
+        thisStatus=$?
+        exitStatus=$(max2 "$thisStatus" "$exitStatus")
+
+        [[ "$thisStatus" == 0 ]] || info "${label} returned status: ${thisStatus}"
+        ;;
+
+      *)
+        shift
+
+        info "Unknown backup label '${label}'"
+
+        thisStatus=2
+        exitStatus=$(max2 "$thisStatus" "$exitStatus")
+
+        [[ "$thisStatus" == 0 ]] || info "${label} returned status: ${thisStatus}"
+        ;;
+    esac
+
+    # unless onErrorContinue we stop on error
+    # [[ "$thisStatus" == 0 || "$onErrorContinue" == "true" ]] || {
+    #   info "Error: backup labeled '${label}' returned status ${thisStatus}" "Tip: --on-error-continue"
+
+    #   break
+    # };
+    if [[ 0 != $thisStatus ]];
+    then
+      info "Error: backup labeled '${label}' returned status ${thisStatus}"
+
+      [[ "true" == "$onErrorStop" ]] && {
+        echo "We stop here (--on-error-stop invoked)"
+
+        break
+      }
+    fi
+    
+    
+    
+    # || {
+    #   info "Error: backup labeled '${label}' returned status ${thisStatus}"
+
+    #   break
+    # };
+  done
+
+  return $exitStatus
+}
+
+mysqldumpAndBorgCreate() {
+  local thisStatus=
+  local exitStatus=0
+
+  doMysqldump "$@"
+
+  thisStatus=$?
+  exitStatus=$(max2 "$thisStatus" "$exitStatus")
+
+  [[ "$thisStatus" == 0 ]] || info "${label}:mysqldump returned status: ${thisStatus}"
+
+  # of course we upload backup even if dump returned errors
+  doBorgCreate "mysql" "$mysqldumpBaseDir"
+  
+  thisStatus=$?
+  exitStatus=$(max2 "$thisStatus" "$exitStatus")
+
+  [[ "$thisStatus" == 0 ]] || info "${label}:borgCreate returned status: ${thisStatus}"
+
+  return $exitStatus
+}
+
+createLogrotate() {
+  if [[ ! -e "$logrotateConf" ]];
+  then
+    local now=$(date)
+    local conf="
+# created by $0 on $now
+
+${logFile} {
+  daily
+  delaycompress
+  rotate 14
+  compress
+  notifempty
+  # generate an error on missing
+  # 24h without any logs is not normal
+  nocreate
+  nomissingok #default
+  errors ${alertEmail}
+}
+"
+
+    if [[ "$DRYRUN" == "" || "$doLogrotateCreate" == "true" ]];
+    then 
+      info "Creating ${logrotateConf}"
+      printf "%s" "$conf" > "$logrotateConf"
+      local exitStatus=$?
+
+      return $exitStatus
+    else
+      echo "DryRun: not creating file ${logrotateConf}"
+      echo "${conf}"
+    fi
+  fi
+}
+
+max() {
+  local numbers="$@"
+  local max="`printf "%d\n" "${numbers[@]}" | sort -rn | head -1`"
+
+  printf '%d' "$max"
+}
+
+max2() {
+  printf '%d' $(( "$1" > "$2" ? "$1" : "$2" ))
+}
+
+doBorgCreate() {
+  $DRYRUN $NICE $borgCreate "$@" $createArgs
+  return $?
+}
+
+doMysqldump() {
+  $DRYRUN $NICE $mysqldump "$@" $createArgs
+  return $?
+}
+
+info() { printf "\n%s %s\n\n" "$( date )" "$*" >&2; }
+
+dryRun() {
+  echo "DRYRUN: $@"
+}
+
+loadDotEnv() {
+  source "$dotEnv" 
+}
+
+subRepo() {
+  local repoSuffix="$1"
+  shift
+
+  local exitStatus=
+
+  # Load defaults
+  loadDotEnv
+
+  # append repoSuffix to default repo
+  setRepo "${BORG_REPO}-${repoSuffix}" "$BORG_PASSPHRASE" "$@"
+
+  exitStatus=$?
+
+  return $exitStatus
+}
+
+setRepo() {
+  case "$1" in
+    --dot-env)
+      loadDotEnv
+      shift
+      ;;
+    *)
+      BORG_REPO="$1"
+      BORG_PASSPHRASE="$2"
+      shift 2
+      ;;
+  esac
+
+  export BORG_REPO
+  export BORG_PASSPHRASE
+
+  echo "Info: set BORG_REPO: ${BORG_REPO}"
+
+  "$@"
+
+  exitStatus=$?
+
+  # unset
+  export BORG_REPO=
+  export BORG_PASSPHRASE=
+
+  return $exitStatus
+}
+
+swapRepo() {
+  local repo="$1"
+  local pass="$2"
+  shift 2
+
+  local exitStatus=
+
+  local BORG_REPO_SWITCHED="${BORG_REPO-unset}"
+  local BORG_PASSPHRASE_SWITCHED="${BORG_PASSPHRASE-unset}"
+
+  export BORG_REPO="${repo}"
+  export BORG_PASSPHRASE="${pass}"
+  
+  # do
+  "$@"
+
+  exitStatus=$?
+
+
+  [[ "${BORG_REPO_SWITCHED}" != "${BORG_REPO}" ]] && {
+    [[ "$BORG_REPO_SWITCHED" == "unset" ]] && {
+      export BORG_REPO=
+      echo "Info: cleared BORG_REPO"
+    } || {
+      export BORG_REPO="$BORG_REPO_SWITCHED"
+      echo "Info: restored BORG_REPO: ${BORG_REPO}"
+    }
+  }
+
+  [[ "${BORG_PASSPHRASE_SWITCHED}" != "${BORG_PASSPHRASE}" ]] && {
+    [[ "$BORG_PASSPHRASE_SWITCHED" == "unset" ]] && {
+      export BORG_PASSPHRASE=
+      echo "Info: cleared BORG_PASSPHRASE"
+    } || {
+      export BORG_REPO="$BORG_PASSPHRASE_SWITCHED"
+      echo "Info: restored BORG_PASSPHRASE"
+    }
+  }
+
+  return $exitStatus
+}
+
+# error handling: (Ctrl-C)
+
+trap 'echo $( date ) Backup interrupted >&2; exit 2' INT TERM
+
+
+###################################################
+# Main
+
+for arg in "$@"
+do
+  case "$arg" in
+    --dry-run)
+      DRYRUN="dryRun"
+      createArgs+=" --dry-run"
+      shift
+      ;;
+    --verbose|--progress)
+      createArgs+=" $1"
+      shift
+      ;;
+    --borg-dry-run)
+      createArgs+=" --dry-run"
+      shift
+      ;;
+    --on-error-stop|--stop)
+      onErrorStop="true"
+      shift
+      ;;
+    --do-init|--init)
+      doInit="true"
+      shift
+      ;;
+    --log-file|--log)
+      logFile="$2"
+      shift 2
+      ;;
+    --local-conf|--local)
+      localConf="$2"
+      shift 2
+      ;;
+    --)
+      shift
+      break
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+# createLogrotate || {
+#   info "Warning: failed to create logrotate ${logrotateConf}"
+# }
+
+doBackup $@ 2>&1 | $NICE tee -a "$logFile"
+
+globalExit=$?
+
+exit $globalExit
