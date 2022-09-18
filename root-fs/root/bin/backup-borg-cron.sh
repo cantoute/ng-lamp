@@ -72,8 +72,6 @@ doBackup() {
 
         thisStatus=$?
         exitStatus=$(max2 "$thisStatus" "$exitStatus")
-
-        [[ "$thisStatus" == 0 ]] || info "${label} returned status: ${thisStatus}"
         ;;
 
       --*)
@@ -83,8 +81,6 @@ doBackup() {
 
         thisStatus=$?
         exitStatus=$(max2 "$thisStatus" "$exitStatus")
-
-        [[ "$thisStatus" == 0 ]] || info "${label} returned status: ${thisStatus}"
         ;;
 
       *:*)
@@ -99,8 +95,6 @@ doBackup() {
 
         thisStatus=$?
         exitStatus=$(max2 "$thisStatus" "$exitStatus")
-
-        [[ "$thisStatus" == 0 ]] || info "${label} returned status: ${thisStatus}"
         ;;
 
       *)
@@ -112,8 +106,6 @@ doBackup() {
 
         thisStatus=$?
         exitStatus=$(max2 "$thisStatus" "$exitStatus")
-
-        [[ "$thisStatus" == 0 ]] || info "${label} returned status: ${thisStatus}"
         ;;
     esac
 
