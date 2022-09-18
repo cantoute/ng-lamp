@@ -56,90 +56,81 @@ doBackup() {
   for label in "$@"
   do
     case "$label" in
-      home:auto|home)
-        shift
-        doBorgCreate "home" /home --exclude "home/vmail" --exclude "$mysqldumpBaseDir"
+      # home:auto|home)
+      #   shift
+      #   doBorgCreate "home" /home --exclude "home/vmail" --exclude "$mysqldumpBaseDir"
 
-        thisStatus=$?
-        exitStatus=$(max2 "$thisStatus" "$exitStatus")
+      #   thisStatus=$?
+      #   exitStatus=$(max2 "$thisStatus" "$exitStatus")
 
-        [[ "$thisStatus" == 0 ]] || info "${label} returned status: ${thisStatus}"
-        ;;
+      #   [[ "$thisStatus" == 0 ]] || info "${label} returned status: ${thisStatus}"
+      #   ;;
 
-      home:no-exclude)
-        shift
+      # home:no-exclude)
+      #   shift
 
-        doBorgCreate "home" /home
+      #   doBorgCreate "home" /home
 
-        thisStatus=$?
-        exitStatus=$(max2 "$thisStatus" "$exitStatus")
+      #   thisStatus=$?
+      #   exitStatus=$(max2 "$thisStatus" "$exitStatus")
 
-        [[ "$thisStatus" == 0 ]] || info "${label} returned status: ${thisStatus}"
-        ;;
+      #   [[ "$thisStatus" == 0 ]] || info "${label} returned status: ${thisStatus}"
+      #   ;;
 
-      home:vmail|vmail)
-        shift
+      # home:vmail|vmail)
+      #   shift
 
-        doBorgCreate "vmail" /home/vmail
+      #   doBorgCreate "vmail" /home/vmail
         
-        thisStatus=$?
-        exitStatus=$(max2 "$thisStatus" "$exitStatus")
+      #   thisStatus=$?
+      #   exitStatus=$(max2 "$thisStatus" "$exitStatus")
 
-        [[ "$thisStatus" == 0 ]] || info "returned status: ${thisStatus}"
-        ;;
+      #   [[ "$thisStatus" == 0 ]] || info "returned status: ${thisStatus}"
+      #   ;;
 
-      sys)
-        shift
 
-        doBorgCreate "$label" /etc /usr/local /root /var
 
-        thisStatus=$?
-        exitStatus=$(max2 "$thisStatus" "$exitStatus")
+      # sys:no-var)
+      #   shift
 
-        [[ "$thisStatus" == 0 ]] || info "returned status: ${thisStatus}"
-        ;;
+      #   doBorgCreate "$label" /etc /usr/local /root
 
-      sys:no-var)
-        shift
+      #   thisStatus=$?
+      #   exitStatus=$(max2 "$thisStatus" "$exitStatus")
 
-        doBorgCreate "$label" /etc /usr/local /root
+      #   [[ "$thisStatus" == 0 ]] || info "returned status: ${thisStatus}"
+      #   ;;
 
-        thisStatus=$?
-        exitStatus=$(max2 "$thisStatus" "$exitStatus")
+      # etc)
+      #   doBorgCreate "sys" /etc
 
-        [[ "$thisStatus" == 0 ]] || info "returned status: ${thisStatus}"
-        ;;
+      #   thisStatus=$?
+      #   exitStatus=$(max2 "$thisStatus" "$exitStatus")
 
-      etc)
-        doBorgCreate "sys" /etc
+      #   [[ "$thisStatus" == 0 ]] || info "returned status: ${thisStatus}"
+      #   ;;
 
-        thisStatus=$?
-        exitStatus=$(max2 "$thisStatus" "$exitStatus")
+      # usr-local)
+      #   shift
 
-        [[ "$thisStatus" == 0 ]] || info "returned status: ${thisStatus}"
-        ;;
+      #   doBorgCreate "sys" /usr/local
 
-      usr-local)
-        shift
+      #   thisStatus=$?
+      #   exitStatus=$(max2 "$thisStatus" "$exitStatus")
 
-        doBorgCreate "sys" /usr/local
+      #   [[ "$thisStatus" == 0 ]] || info "returned status: ${thisStatus}"
+      #   ;;
 
-        thisStatus=$?
-        exitStatus=$(max2 "$thisStatus" "$exitStatus")
+      # var)
+      #   shift
 
-        [[ "$thisStatus" == 0 ]] || info "returned status: ${thisStatus}"
-        ;;
-
-      var)
-        shift
-
-        doBorgCreate "$label" /var --exclude var/www/vhosts
+      #   doBorgCreate "$label" /var --exclude var/www/vhosts
         
-        thisStatus=$?
-        exitStatus=$(max2 "$thisStatus" "$exitStatus")
+      #   thisStatus=$?
+      #   exitStatus=$(max2 "$thisStatus" "$exitStatus")
 
-        [[ "$thisStatus" == 0 ]] || info "returned status: ${thisStatus}"
-        ;;
+      #   [[ "$thisStatus" == 0 ]] || info "returned status: ${thisStatus}"
+      #   ;;
 
       # vhosts)
       #   # so we could run mysql and vhosts backup in //
@@ -162,63 +153,63 @@ doBackup() {
       #   echo "BORG_REPO: $BORG_REPO"
       #   ;;
 
-      mysql:full|mysql)
-        shift
+      # mysql:full|mysql)
+      #   shift
 
-        mysqldumpAndBorgCreate
+      #   mysqldumpAndBorgCreate
 
-        thisStatus=$?
-        exitStatus=$(max2 "$thisStatus" "$exitStatus")
-        ;;
+      #   thisStatus=$?
+      #   exitStatus=$(max2 "$thisStatus" "$exitStatus")
+      #   ;;
 
-      mysql:single)
-        shift
+      # mysql:single)
+      #   shift
 
-        mysqldumpAndBorgCreate --single
+      #   mysqldumpAndBorgCreate --single
 
-        thisStatus=$?
-        exitStatus=$(max2 "$thisStatus" "$exitStatus")
-        ;;
+      #   thisStatus=$?
+      #   exitStatus=$(max2 "$thisStatus" "$exitStatus")
+      #   ;;
 
-      sleep)
-        shift
-        echo "Sleeping 2min..."
-        sleep 120
+      # sleep)
+      #   shift
+      #   echo "Sleeping 2min..."
+      #   sleep 120
 
-        thisStatus=$?
-        exitStatus=$(max2 "$thisStatus" "$exitStatus")
-        ;;
+      #   thisStatus=$?
+      #   exitStatus=$(max2 "$thisStatus" "$exitStatus")
+      #   ;;
 
-      sleep:*)
-        shift
-        split=(${label//\:/ })
+      # sleep:*)
+      #   shift
+      #   split=(${label//\:/ })
 
-        echo "Sleeping ${split[1]}s..."
-        sleep ${split[1]}
+      #   echo "Sleeping ${split[1]}s..."
+      #   sleep ${split[1]}
 
-        thisStatus=$?
-        exitStatus=$(max2 "$thisStatus" "$exitStatus")
-        ;;
+      #   thisStatus=$?
+      #   exitStatus=$(max2 "$thisStatus" "$exitStatus")
+      #   ;;
 
-      test|test:ok|simulate:ok)
-        shift
-        info "${label}"
+      # test|test:ok|simulate:ok)
+      #   shift
+      #   info "${label}"
         
-        thisStatus=0
-        exitStatus=$(max2 "$thisStatus" "$exitStatus")
+      #   thisStatus=0
+      #   exitStatus=$(max2 "$thisStatus" "$exitStatus")
 
-        [[ "$thisStatus" == 0 ]] || info "${label} returned status: ${thisStatus}"
-        ;;
+      #   [[ "$thisStatus" == 0 ]] || info "${label} returned status: ${thisStatus}"
+      #   ;;
 
-      test:ko|simulate:ko)
-        shift
-        info "${label}"
+      # test:ko|simulate:ko)
+      #   shift
+      #   info "${label}"
         
-        thisStatus=1
-        exitStatus=$(max2 "$thisStatus" "$exitStatus")
+      #   thisStatus=1
+      #   exitStatus=$(max2 "$thisStatus" "$exitStatus")
 
-        [[ "$thisStatus" == 0 ]] || info "${label} returned status: ${thisStatus}"
-        ;;
+      #   [[ "$thisStatus" == 0 ]] || info "${label} returned status: ${thisStatus}"
+      #   ;;
 
       --)
         shift
@@ -234,7 +225,7 @@ doBackup() {
         # removes first 2 chars and splits :
         split=(${label:2//\:/ })
 
-        bb_hook_${split[0]}_${split[1]}
+        bb_hook_${split[0]} "${split[0]}" "${split[1]}"
 
         thisStatus=$?
         exitStatus=$(max2 "$thisStatus" "$exitStatus")
@@ -261,7 +252,7 @@ doBackup() {
         # splits :
         split=(${label//\:/ })
 
-        bb_label_${split[0]}_${split[1]}
+        bb_label_${split[0]} "${split[0]}" "${split[1]}"
 
         thisStatus=$?
         exitStatus=$(max2 "$thisStatus" "$exitStatus")
@@ -269,12 +260,25 @@ doBackup() {
         [[ "$thisStatus" == 0 ]] || info "${label} returned status: ${thisStatus}"
         ;;
 
+      # *)
+      #   shift
+
+      #   info "Unknown backup label '${label}'"
+
+      #   thisStatus=2
+      #   exitStatus=$(max2 "$thisStatus" "$exitStatus")
+
+      #   [[ "$thisStatus" == 0 ]] || info "${label} returned status: ${thisStatus}"
+      #   ;;
+
       *)
+
         shift
 
-        info "Unknown backup label '${label}'"
 
-        thisStatus=2
+        bb_label_${label}
+
+        thisStatus=$?
         exitStatus=$(max2 "$thisStatus" "$exitStatus")
 
         [[ "$thisStatus" == 0 ]] || info "${label} returned status: ${thisStatus}"
@@ -485,6 +489,79 @@ swapRepo() {
 
   return $exitStatus
 }
+##################################
+# Default labels
+
+bb_label_sys() {
+ doBorgCreate "$label" /etc /usr/local /root "$@"
+ return $?
+}
+
+bb_label_home() {
+  doBorgCreate "home" /home --exclude "home/vmail" --exclude "$mysqldumpBaseDir" "$@"
+  return $?
+}
+
+bb_label_home_no-exclude() {
+  doBorgCreate "home" /home "$@"
+  return $?
+}
+
+bb_label_home_vmail() {
+  doBorgCreate "vmail" /home/vmail "$@"
+  return $?
+}
+
+bb_label_sys_no-var() {
+  doBorgCreate "sys" /etc /usr/local /root "$@"
+  return $?
+}
+
+bb_label_etc() {
+  doBorgCreate "sys" /etc "$@"
+  return $?
+}
+
+bb_label_usr-local() {
+  doBorgCreate "sys" /usr/local "$@"
+  return $?
+}
+
+bb_label_var() {
+  doBorgCreate "var" /var --exclude 'var/www/vhosts' "$@"
+  return $?
+}
+
+bb_label_mysql() {
+  local single=
+
+  [[ -v 2 && "$2" == "single" ]] && single='--single'
+
+  mysqldumpAndBorgCreate $single "$@"
+  return $?
+}
+
+bb_label_sleep() {
+  local sleep="$2"
+
+  echo "Sleeping ${sleep}s..."
+
+  sleep $sleep
+  
+  return $?
+}
+
+bb_label_test() {
+  [[ -v 2 ]] && {
+    [[ "$2" == "ok" || "$2" == "" ]] && return 0 || return 128
+  } || return 0
+
+
+  # [[  ! -v 2 || (-v 2 && ("$2" == "ok" || "$2" == ""))  ]] && {
+  #   return 0
+  # } || return 128
+}
+
 
 # error handling: (Ctrl-C)
 
