@@ -144,12 +144,17 @@ doMysqldump() {
 
 listDb() {
   local exitStatus
+  local where
+
+  [[ -v BACKUP_MYSQL_LIST_DB_WHERE ]] && where="$BACKUP_MYSQL_LIST_DB_WHERE"
+
   local sql="
     SHOW DATABASES
       WHERE
         \`Database\` NOT IN ('information_schema', 'performance_schema', 'mysql')
         AND \`Database\` NOT LIKE '%trash%'
         AND \`Database\` NOT LIKE '%nobackup%'
+        $where
         ;
     "
 
@@ -163,17 +168,9 @@ backupSingle() {
   local exitStatus=0
   local thisExit
   local name
-  local dbList
+  local dbList="$@"
 
-  info "Doing single database backups..."
-
-  dbList=$(listDb) || {
-    local listDbExit=$?
-
-    info "Error: failed to get list of db to backup."
-
-    return $dbListExit
-  }
+  info "Doing single database backups of ${dbList}"
 
   for db in $dbList
   do
@@ -405,36 +402,48 @@ done
 #################################
 # Main
 
-case "$backupMode" in
-  single)
-    backupSingle
+main() {
+  case "$backupMode" in
+    single)
+      local dbList="$(listDb)"
+      local listDbExit=$?
 
-    backupExit=$?
+      globalExit=$(max2 $listDbExit $globalExit)
+      
+      if [[ $listDbExit != 0 ]]
+      then
+        info "Error: failed to get list of db to backup."
+      else
+        backupSingle $dbList
+        backupExit=$?
+        globalExit=$(max2 $backupExit $globalExit)
+      fi
+      ;;
+
+    full)
+      backupFull
+      
+      backupExit=$?
+      globalExit=$(max2 $backupExit $globalExit)
+      ;;
+
+    *)
+      info "Error: unknown mode '$backupMode'"
+      exit 3
+  esac
+
+  if [[ "$backupExit" == 0 ]];
+  then
+    deleteOldBackups $backupMode
+
+    deleteExit=$?
     globalExit=$(max2 $backupExit $globalExit)
-    ;;
+  else
+    info "There were some errors during backup process, skipping deleting older backups."
+  fi
+}
 
-  full)
-    backupFull
-    
-    backupExit=$?
-    globalExit=$(max2 $backupExit $globalExit)
-    ;;
-
-  *)
-    info "Error: unknown mode '$backupMode'"
-    exit 3
-esac
-
-if [[ "$backupExit" == 0 ]];
-then
-  deleteOldBackups $backupMode
-
-  deleteExit=$?
-  globalExit=$(max2 $backupExit $globalExit)
-else
-  info "There were some errors during backup process, skipping deleting older backups."
-fi
-
+main
 
 ###################################
 # Check existing backups

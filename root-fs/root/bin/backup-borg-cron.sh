@@ -78,7 +78,7 @@ do
       shift 2
       ;;
 
-    --local-conf|--local)
+    --conf)
       localConf="$2"
       shift 2
       ;;
@@ -200,12 +200,8 @@ doBackup() {
 }
 
 mysqldumpAndBorgCreate() {
-  local thisStatus=
   local exitStatus=0
-
-  local args="$@"
-
-  # [[ ]]
+  local thisStatus=
 
   doMysqldump "$@" $mysqldumpArgs
 
@@ -360,10 +356,6 @@ swapRepo() {
 ##################################
 # Default labels
 
-bb_label_sys() {
- doBorgCreate "$label" /etc /usr/local /root "$@"
- return $?
-}
 
 bb_label_home() {
   doBorgCreate "home" /home --exclude "home/vmail" --exclude "$mysqldumpBaseDir" "$@"
@@ -380,7 +372,7 @@ bb_label_home_vmail() {
   return $?
 }
 
-bb_label_sys_no-var() {
+bb_label_sys() {
   doBorgCreate "sys" /etc /usr/local /root "$@"
   return $?
 }
@@ -401,12 +393,12 @@ bb_label_var() {
 }
 
 bb_label_mysql() {
-  local single=
+  local args
 
-  [[ "$2" == "single" ]] && single='--single'
+  [[ "$2" == "single" ]] && args='--single'
   shift 2
 
-  mysqldumpAndBorgCreate $single "$@"
+  mysqldumpAndBorgCreate $args "$@"
   return $?
 }
 
