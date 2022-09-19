@@ -8,6 +8,8 @@ set -o pipefail
 umask 027
 # LANG="en_US.UTF-8"
 
+
+
 # your email@some.co
 alertEmail="alert"
 
@@ -20,10 +22,13 @@ borgCreate="/root/bin/backup-borg.sh"
 mysqldump="/root/bin/backup-mysql.sh --bz2"
 mysqldumpBaseDir="/home/backups/mysql-${hostname}"
 
-NICE="nice ionice -c3"
+# NICE="nice ionice -c3"
+NIDE=
 
 dotEnv=~/.env.borg
-localConf="$0-local.sh"
+
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+localConf="${SCRIPT_DIR}/${0%.*}-${hostname}.sh"
 # localConf=~/projects/ng-lamp/ng-lamp/root-fs/root/bin/backup-borg-cron-serv01.sh
 
 
@@ -37,6 +42,51 @@ NICE=
 borgCreateArgs=
 mysqldumpArgs=
 
+loadArgs() {
+  for arg in "$@";
+  do
+    case "$1" in
+      --dry-run)
+        DRYRUN="dryRun"
+        borgCreateArgs+=" --dry-run"
+        mysqldumpArgs+=" --dry-run"
+        shift
+        ;;
+      --verbose|--progress)
+        borgCreateArgs+=" $1"
+        shift
+        ;;
+      --borg-dry-run)
+        borgCreateArgs+=" --dry-run"
+        shift
+        ;;
+      --on-error-stop|--stop)
+        onErrorStop="true"
+        shift
+        ;;
+      --do-init|--init)
+        doInit="true"
+        shift
+        ;;
+      --log-file|--log)
+        logFile="$2"
+        shift 2
+        ;;
+      --local-conf|--local)
+
+        localConf="$2"
+        shift 2
+        ;;
+      --)
+        shift
+        break
+        ;;
+      *)
+        break
+        ;;
+    esac
+  done
+}
 
 # Debug
 # logFile="/tmp/backup-borg.log2"
@@ -98,9 +148,7 @@ doBackup() {
         ;;
 
       *)
-
         shift
-
 
         bb_label_${label}
 
@@ -392,53 +440,12 @@ trap 'echo $( date ) Backup interrupted >&2; exit 2' INT TERM
 ###################################################
 # Main
 
-while true;
-do
-  case "$1" in
-    --dry-run)
-      DRYRUN="dryRun"
-      borgCreateArgs+=" --dry-run"
-      mysqldumpArgs+=" --dry-run"
-      shift
-      ;;
-    --verbose|--progress)
-      borgCreateArgs+=" $1"
-      shift
-      ;;
-    --borg-dry-run)
-      borgCreateArgs+=" --dry-run"
-      shift
-      ;;
-    --on-error-stop|--stop)
-      onErrorStop="true"
-      shift
-      ;;
-    --do-init|--init)
-      doInit="true"
-      shift
-      ;;
-    --log-file|--log)
-      logFile="$2"
-      shift 2
-      ;;
-    --local-conf|--local)
+loadArgs
 
-      localConf="$2"
-      shift 2
-      ;;
-    --)
-      shift
-      break
-      ;;
-    *)
-      break
-      ;;
-  esac
-done
 
-# createLogrotate || {
-#   info "Warning: failed to create logrotate ${logrotateConf}"
-# }
+createLogrotate || {
+  info "Warning: failed to create logrotate ${logrotateConf}"
+}
 
 [[ -f "$localConf" ]] && {
   source "$localConf"
