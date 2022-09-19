@@ -8,8 +8,12 @@ shift
 backupArgs="$@"
 
 # so we can override default repo
-[[ "$BORG_REPO" == "" ]] && {
-  source ~/.env.borg
+# [[ "$BORG_REPO" == "" ]] && {
+#   source ~/.env.borg
+# }
+
+[[ -v BORG_REPO ]] && {
+  echo "BORG_REPO: ${BORG_REPO}"
 }
 
 # Setting this, so the repo does not need to be given on the commandline:

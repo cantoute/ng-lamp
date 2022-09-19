@@ -8,7 +8,7 @@ set -o pipefail
 umask 027
 # LANG="en_US.UTF-8"
 
-
+SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
 # your email@some.co
 alertEmail="alert"
@@ -18,8 +18,8 @@ hostname=$(hostname -s)
 logFile="/var/log/backup-borg.log"
 logrotateConf="/etc/logrotate.d/backup-borg"
 
-borgCreate="/root/bin/backup-borg.sh"
-mysqldump="/root/bin/backup-mysql.sh --bz2"
+borgCreate="${SCRIPT_DIR}/backup-borg-create.sh"
+mysqldump="${SCRIPT_DIR}/backup-mysql.sh --bz2"
 mysqldumpBaseDir="/home/backups/mysql-${hostname}"
 
 # NICE="nice ionice -c3"
@@ -27,7 +27,6 @@ NIDE=
 
 dotEnv=~/.env.borg
 
-SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 localConf="${SCRIPT_DIR}/${0%.*}-${hostname}.sh"
 # localConf=~/projects/ng-lamp/ng-lamp/root-fs/root/bin/backup-borg-cron-serv01.sh
 
@@ -271,7 +270,7 @@ subRepo() {
   local exitStatus=
 
   # Load defaults
-  loadDotEnv
+  # loadDotEnv
 
   # append repoSuffix to default repo
   setRepo "${BORG_REPO}-${repoSuffix}" "$BORG_PASSPHRASE" "$@"
