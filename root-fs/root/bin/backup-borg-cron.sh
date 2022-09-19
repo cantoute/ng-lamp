@@ -22,14 +22,9 @@ borgCreate="${SCRIPT_DIR}/backup-borg-create.sh"
 mysqldump="${SCRIPT_DIR}/backup-mysql.sh --bz2"
 mysqldumpBaseDir="/home/backups/mysql-${hostname}"
 
-# NICE="nice ionice -c3"
-NIDE=
-
-dotEnv=~/.env.borg
+NICE=
 
 localConf="${SCRIPT_DIR}/${0%.*}-${hostname}.sh"
-# localConf=~/projects/ng-lamp/ng-lamp/root-fs/root/bin/backup-borg-cron-serv01.sh
-
 
 globalExit=
 onErrorStop=
@@ -47,49 +42,82 @@ mysqldumpArgs=
 # NICE=""
 # DRYRUN="dryRun"
 
-for arg in "$@";
+while [[ $# > 0 ]]
 do
   case "$1" in
     --dry-run)
+      shift
+
       DRYRUN="dryRun"
       borgCreateArgs+=" --dry-run"
       mysqldumpArgs+=" --dry-run"
-      shift
       ;;
+
     --verbose|--progress)
       borgCreateArgs+=" $1"
       shift
       ;;
+
     --borg-dry-run)
       borgCreateArgs+=" --dry-run"
       shift
       ;;
+
     --on-error-stop|--stop)
       onErrorStop="true"
       shift
       ;;
+
     --do-init|--init)
       doInit="true"
       shift
       ;;
+
     --log-file|--log)
       logFile="$2"
       shift 2
       ;;
-    --local-conf|--local)
 
+    --local-conf|--local)
       localConf="$2"
       shift 2
       ;;
+
     --)
       shift
       break
       ;;
+
     *)
       break
       ;;
   esac
 done
+
+##############################################
+
+doBorgCreate() {
+  $DRYRUN $NICE $borgCreate "$@" $borgCreateArgs
+  return $?
+}
+
+doMysqldump() {
+  $DRYRUN $NICE $mysqldump "$@"
+  return $?
+}
+
+info() { printf "\n%s %s\n\n" "$( date )" "$*" >&2; }
+
+# returns max of two numbers
+max2() { printf '%d' $(( $1 > $2 ? $1 : $2 )); }
+
+dryRun() {
+  echo "DRYRUN: $@"
+}
+
+loadDotEnv() {
+  source "$dotEnv" 
+}
 
 ##############################################
 
@@ -232,50 +260,27 @@ ${logFile} {
   fi
 }
 
-max() {
-  local numbers="$@"
-  local max="`printf "%d\n" "${numbers[@]}" | sort -rn | head -1`"
-
-  printf '%d' "$max"
-}
-
-max2() {
-  printf '%d' $(( "$1" > "$2" ? "$1" : "$2" ))
-}
-
-doBorgCreate() {
-  $DRYRUN $NICE $borgCreate "$@" $borgCreateArgs
-  return $?
-}
-
-doMysqldump() {
-  $DRYRUN $NICE $mysqldump "$@"
-  return $?
-}
-
-info() { printf "\n%s %s\n\n" "$( date )" "$*" >&2; }
-
-dryRun() {
-  echo "DRYRUN: $@"
-}
-
-loadDotEnv() {
-  source "$dotEnv" 
-}
-
 subRepo() {
   local repoSuffix="$1"
   shift
 
   local exitStatus=
 
-  # Load defaults
-  # loadDotEnv
+  [[ -v 'BORG_REPO' ]] || {
+    info "Error: subRepo requires BORG_REPO"
+    return 2
+  }
+
+  local BORG_REPO_ORIG="${BORG_REPO}"
 
   # append repoSuffix to default repo
-  setRepo "${BORG_REPO}-${repoSuffix}" "$BORG_PASSPHRASE" "$@"
+  export BORG_REPO="${BORG_REPO}-${repoSuffix}"
+
+  "$@"
 
   exitStatus=$?
+
+  export BORG_REPO="${BORG_REPO_ORIG}"
 
   return $exitStatus
 }
@@ -350,6 +355,8 @@ swapRepo() {
 
   return $exitStatus
 }
+
+
 ##################################
 # Default labels
 
@@ -433,7 +440,7 @@ bb_label_test() {
 
 # error handling: (Ctrl-C)
 
-trap 'echo $( date ) Backup interrupted >&2; exit 2' INT TERM
+# trap 'echo $( date ) Backup interrupted >&2; exit 2' INT TERM
 
 
 ###################################################
@@ -449,7 +456,7 @@ createLogrotate || {
   echo "Info: loaded local config ${localConf}"
 }
 
-doBackup "$@" 2>&1 | $NICE tee -a "$logFile"
+doBackup "$@" 2>&1 | $NICE tee --output-error=warn -a "$logFile"
 
 globalExit=$?
 
