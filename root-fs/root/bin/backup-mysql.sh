@@ -1,66 +1,6 @@
 #!/bin/bash
 
-umask 027
-LANG="en_US.UTF-8"
-
-createDirsExit=0
-backupExit=0
-deleteExit=0
-checkBackupExit=
-globalExit=0
-
-# A POSIX variable
-OPTIND=1         # Reset in case getopts has been used previously in the shell.
-
-# Initialize our own variables:
-verbose=false
-
-MYSQLDUMP=$(which mysqldump)
-TIME="$(which time) --portability"
-NICE=$(which nice)
-BZ2="$(which bzip2) -z"
-GZIP="$(which gzip) -c"
-FIND="$(which find)"
-
-DRYRUN=
-
-COMPRESS="cat -"
-
-dateStamp=$(date +%F_%H%M)
-
-srcHost=$(hostname -s)
-
-backupDir="/home/backups/mysql-${srcHost}"
-
-# keep full backup for N days
-keepFull=3
-
-keepSingle=$keepFull
-
-commonArgs=
-commonArgs+=" --single-transaction"
-commonArgs+=" --extended-insert"
-commonArgs+=" --order-by-primary"
-commonArgs+=" --quick" # aka swap ram for speed
-
-# preserve real utf8 (aka don't brake extended utf8 like emoji)
-commonArgs+=" --default-character-set=utf8mb4"
-
-fullDumpArgs="${commonArgs}"
-fullDumpArgs+=" -A --events"
-
-singleDumpArgs="${commonArgs}"
-singleDumpArgs+=" --skip-lock-tables"
-
-# More safety, by turning some bugs into errors.
-# Without `errexit` you don’t need ! and can replace
-# PIPESTATUS with a simple $?, but I don’t do that.
-# set -o errexit -o pipefail -o noclobber -o nounset
-# set -o pipefail -o noclobber -o nounset
-
-#set -o errexit -o nounset -o xtrace
-
-set -o nounset
+set -u
 
 # dont allow override existing files
 set -o noclobber
@@ -68,91 +8,89 @@ set -o noclobber
 # debug
 #set -o xtrace
 
-GLOBIGNORE=*:?
+umask 027
+LANG="en_US.UTF-8"
 
-# stop on error - if backup fails old ones aren't deleted
-# set -e
+hostname=$(hostname -s)
+
+createDirsExit=
+backupExit=
+deleteExit=
+checkBackupExit=
+globalExit=0
+
+MYSQLDUMP=$(which mysqldump)
+TIME="$(which time) --portability"
+BZIP2="$(which bzip2) -z"
+GZIP="$(which gzip) -c"
+FIND="$(which find)"
+
+DRYRUN=
+COMPRESS=
+NICE=
+
+backupMode="full"
+
+backupBaseDir="/home/backups/mysql-${hostname}"
+filenamePrefix="mysqldump_${hostname}_"
+filenameSuffix=
+
+verbose=
+
+# keep full backup for N days
+keepFull=3
+keepSingle=$keepFull
+
+commonArgs=
+# preserve real utf8 (aka don't brake extended utf8 like emoji)
+commonArgs+=" --default-character-set=utf8mb4"
+commonArgs+=" --single-transaction"
+commonArgs+=" --extended-insert"
+commonArgs+=" --order-by-primary"
+commonArgs+=" --quick" # aka swap ram for speed
+
+fullDumpArgs="${commonArgs}"
+fullDumpArgs+=" -A --events"
+
+singleDumpArgs="${commonArgs}"
+singleDumpArgs+=" --skip-lock-tables"
+
+now() { date +%F_%H%M ; }
+started=$(now)
 
 # some helpers and error handling:
 info() { printf "\n%s %s\n\n" "$( date )" "$*" >&2; }
 trap 'echo $( date ) Backup interrupted >&2; exit 2' INT TERM
 
-# max of two integers
-max2() { printf '%d' $(( "$1" > "$2" ? "$1" : "$2" )); }
+dryRun() { echo "DRYRUN: $@"; }
 
-# -allow a command to fail with !’s side effect on errexit
-# -use return value from ${PIPESTATUS[0]}, because ! hosed $?
-! getopt --test > /dev/null 
-if [[ ${PIPESTATUS[0]} -ne 4 ]]; then
-    info 'I’m sorry, `getopt --test` failed in this environment.'
-    exit 2
-fi
+# returns max of two numbers
+max2() { printf '%d' $(( $1 > $2 ? $1 : $2 )); }
 
-OPTIONS=sdto:vngbc
-LONGOPTS=single,dry-run,time,out-path:,verbose,nice,gzip,bz2,create-dirs
+# OPTIONS=sdto:vngbc
+# LONGOPTS=single,dry-run,time,out-path:,verbose,nice,gzip,bz2,create-dirs
 
-# -regarding ! and PIPESTATUS see above
-# -temporarily store output to be able to check for errors
-# -activate quoting/enhanced mode (e.g. by writing out “--options”)
-# -pass arguments only via   -- "$@"   to separate them correctly
-! PARSED=$(getopt --options=$OPTIONS --longoptions=$LONGOPTS --name "$0" -- "$@")
-if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
-    # e.g. return value is 1
-    #  then getopt has complained about wrong arguments to stdout
-    exit 2
-fi
-# read getopt’s output this way to handle the quoting right:
-eval set -- "$PARSED"
+time=
+verbose=
+createDirs=
 
-dryrun() {
-    if [[ ! -t 0 ]]
-    then
-        cat
-    fi
-    printf -v cmd_str '%q ' "$@"; echo "DRYRUN: Not executing $cmd_str" >&2
-}
-
-# checkDirs() {
-#   local args=("$@")
-
-#   # for d in "${args[@]}"
-#   #   do
-#       # if not is a dir
-#       d=$1
-#       if [[ -d "$d" ]]; then
-#         [[ $verbose = true ]] && {
-#           info "$d exists, nothing to do.";
-#         }
-#       else
-#         $DRYRUN mkdir -p "${d}";
-#         $DRYRUN chmod 700 "${d}";
-#       fi
-#     # done;
-  
-#   return 0;
-# }
-
-createDirs() {
+doCreateDirs() {
   local exitStatus=0
-  local d=
+  local dir=
 
-  for d in "${backupDir}/single" "${backupDir}/full";
+  for mode in "single" "full";
   do
-    echo "toto: $d"
-    if [[ -d "$d" ]]; then
-      [[ "$verbose" == "true" ]] && {
-        info "$d exists, nothing to do.";
-      }
-
-      return $exitStatus;
+    dir="$backupBaseDir/$mode"
+    if [[ -d "$dir" ]]; then
+      info "$dir exists, nothing to do.";
     else
-      $DRYRUN mkdir -p "${d}" && \
-        $DRYRUN chmod 700 "${d}" && {
-          echo "Created dir $d" 
+      $DRYRUN mkdir -p "${dir}" && \
+        $DRYRUN chmod 700 "${dir}" && {
+          info "Created dir '$dir'" 
         } || {
-          exitStatus=$?
+          exitStatus=$(max2 $? $exitStatus)
 
-          info "Failed to create dir $d"
+          info "Failed to create dir $dir"
         }
     fi
   done
@@ -160,153 +98,52 @@ createDirs() {
   return $exitStatus;
 }
 
-single=false time=false dryRun=false verbose=false nice=false gzip=false bz2=false createDirs=false
-# now enjoy the options in order and nicely split until we see --
+storeBackup() {
+  local dstFile=$1
+  local compress=$2
+  shift 2
 
-while true; do
-  case "$1" in
-    -c|--create-dirs)
-      createDirs=true
-      shift
-      ;;
-    -s|--single)
-      single=true
-      shift
-      ;;
-    -t|--time)
-      time=true
-      shift
-      ;;
-    -d|--dry-run)
-      dryRun=true
-      shift
-      ;;
-    -v|--verbose)
-      verbose=true
-      shift
-      ;;
-    -n|--nice)
-      nice=true
-      shift
-      ;;
-    -o|--out-path)
-      outPath="$2"
-      shift 2
-      ;;
-    -g|--gzip)
-      gzip=true
-      shift
-      ;;
-    -b|--bz2)
-      bz2=true
-      shift
-      ;;
-    --)
-      shift
-      break
-      ;;
-    *)
-      info "Error: unhandled argument '$1'"
-      exit 3
-      ;;
-  esac
-done
-
-# handle non-option arguments
-# if [[ $# -ne 1 ]]; then
-#     echo "$0: A single input file is required."
-#     exit 4
-# fi
-
-[[ "$dryRun" == "true" ]] && {
-  DRYRUN="dryrun"
-}
-
-[[ "$single" == "true" ]] \
-  && outPath="${backupDir}/single" \
-  || outPath="${backupDir}/full"
-
-[[ "$time" == "true" ]] && {
-  MYSQLDUMP="$TIME $MYSQLDUMP"
-  FIND="$TIME $FIND"
-}
-
-if [[ "$gzip" == "true" ]]; then
-  COMPRESS="$GZIP"
-else
-  if [[ "$bz2" == "true" ]]; then
-    COMPRESS="$BZ2"
-  fi
-fi
-
-[[ "$verbose" == "true" ]] && {
-  echo "verbose: $verbose, dryRun: $dryRun, single: $single, outPath: $outPath, createDirs: $createDirs, nice: $nice, gzip: $gzip, bz2: $bz2"
-  echo
-}
-
-
-if [[ "$createDirs" == "true" ]];
-then
-  createDirs || {
-    createDirsExit=$?
-    info "Failed to create backup dirs."
-
-    globalExit=$(max2 $createDirsExit $globalExit)
+  [[ "$compress" == "" ]] && {
+    "$@" > "$dstFile"
+  } || {
+    "$@" | $compress > "$dstFile"
   }
-fi
+}
 
-doBackup() {
-  local mysqldumpArgs="$fullDumpArgs"
+doMysqldump() {
+  local mysqldumpArgs=
   local db=
   local exitStatus=
 
-  [[ "$1" == '--db' ]] && {
-    db="$2"
-    mysqldumpArgs="$singleDumpArgs $db"
-    shift 2
-  }
+  local name="$1"
+  local mode="$2"
+  shift 2
 
-  local outFile="$1"
-  local COMPRESS=
+  local dir="$backupBaseDir/$mode"
+  local filePath="$dir/$name"
 
-  if [[ "$gzip" == "true" ]]; then
-    outFile="${outFile}.gz"
-    COMPRESS="$GZIP"
-  else
-    if [[ "$bz2" == "true" ]]; then
-      outFile="${outFile}.bz2"
-      COMPRESS="$BZ2"
-    fi
-  fi
+  case "$mode" in
+    single)
+      mysqldumpArgs="$singleDumpArgs $1"
+      shift
+      ;;
 
-  info "Backing up into ${outFile}"
+    full)
+      mysqldumpArgs="$fullDumpArgs"
+      ;;
+  esac
 
-  if [[ "$gzip" == "true" || $bz2 == true ]];
-  then
-    [[ "$nice" == "true" ]] && COMPRESS="$NICE $COMPRESS"
+  info "Backing up ${filePath}"
 
-    [[ "$dryRun" == "true" ]] \
-      && echo "DRYRUN: Not executing $MYSQLDUMP $mysqldumpArgs | $COMPRESS > ${outFile}" \
-      || {
-        $MYSQLDUMP $mysqldumpArgs | $COMPRESS > "${outFile}"
-      }
-  else
-    [[ "$dryRun" == "true" ]] \
-      && echo "DRYRUN: Not executing $MYSQLDUMP $mysqldumpArgs > ${outFile}" \
-      || {
-        $MYSQLDUMP $mysqldumpArgs > "${outFile}"
-      }
-  fi
+  $DRYRUN storeBackup "${filePath}" "$NICE $COMPRESS" $NICE $MYSQLDUMP $mysqldumpArgs
 
   exitStatus=$?
 
   return $exitStatus
 }
 
-backupSingle() {
-  local exitStatus=0
-  local thisExit=
-
+listDb() {
+  local exitStatus
   local sql="
     SHOW DATABASES
       WHERE
@@ -316,14 +153,25 @@ backupSingle() {
         ;
     "
 
+  echo "$sql" | mysql -Br --silent
+
+  exitStatus=$?
+  return $exitStatus
+}
+
+backupSingle() {
+  local exitStatus=0
+  local thisExit
+  local name
+  local dbList
+
   info "Doing single database backups..."
 
-  dbList=`echo "$sql" | mysql -Br --silent`
+  dbList=$(listDb) || {
+    local listDbExit=$?
 
-  local dbListExit=$?
-
-  [[ "$dbListExit" == "0" ]] || {
     info "Error: failed to get list of db to backup."
+
     return $dbListExit
   }
 
@@ -331,45 +179,44 @@ backupSingle() {
   do
     info "Processing '${db}'... "
 
-    outFile="${outPath}/mysqldump_${srcHost}_${db}_$(date +%F_%H%M).sql"
+    name="${filenamePrefix}${db}_$(now).sql${filenameSuffix}"
 
-    doBackup --db "${db}" "${outFile}" && {
-      info Done
+    doMysqldump "${name}" 'single' "${db}"
+
+    thisExit=$?
+    exitStatus=$(max2 $thisExit $exitStatus)
+
+    [[ $thisExit == 0 ]] && {
+      info "Done"
     } || {
-      thisExit=$?
-      
-      exitStatus=$(max2 $thisExit $exitStatus)
-
-      info "Error: doBackup --db '${db}' '${outFile}' exit status $thisExit"
+      info "Error: doMysqldump '${name}' 'single' '${db}' exit status $thisExit"
     }
-
   done;
 
-  if [[ $exitStatus == 0 ]];
-  then
+  [[ $exitStatus == 0 ]] && {
     info "All single database backups done"
-  else
+  } || {
     info "All single database backups done (with errors)"
-  fi
+  }
 
   return $exitStatus
 }
 
 backupFull() {
   local exitStatus=
+  local now=$(now)
+  local name="${filenamePrefix}-full-${now}.sql${filenameSuffix}"
 
   info "Doing full dump (all databases)"
 
-  outFile="${outPath}/mysqldumpall_${srcHost}_${dateStamp}.sql"
-
-  doBackup "$outFile" && {
+  doMysqldump "$name" 'full' && {
     exitStatus=$?
 
     info Done
   } || {
     exitStatus=$?
 
-    info "Error: doBackup '${outFile}' exit status $exitStatus" >&2 ;
+    info "Error: doMysqldump '${name}' 'full' exit status $exitStatus" >&2 ;
   }
 
   return $exitStatus
@@ -377,61 +224,224 @@ backupFull() {
 
 deleteOldBackups() {
   local exitStatus=
+  local dir=
+  local keep=
+  local mode="$1"
+  shift
 
-  if [[ "$single" == "true" ]];
+  case "$mode" in
+    all)
+      dir="$backupBaseDir"
+      keep=$(max2 $keepSingle $keepFull)
+      ;;
+    
+    single)
+      dir="$backupBaseDir/$mode"
+      keep=$keepSingle
+      ;;
+
+    full)
+      dir="$backupBaseDir/$mode"
+      keep=$keepFull
+      ;;
+    *)
+      info "Error: delete mode not known '$mode'"
+      ;;
+  esac
+
+  if [[ "$dir" != "" && "$filenamePrefix" != "" ]]
   then
-      info "Deleting single backups older than ${keepSingle} days"
+    info "Deleting backups older than ${keepSingle} days in ${dir} having prefix ${filenamePrefix}"
 
-      $FIND "${outPath}" -type f -name 'mysqldump_*.sql*' -mtime +$keepSingle
-      # delete single database backup older than 3 days
-      $DRYRUN $FIND "${outPath}" -type f -name 'mysqldump_*.sql*' -mtime +$keepSingle -exec rm {} \;
+    $FIND "${dir}" -type f -name "${filenamePrefix}*.sql*" -mtime +$keep
+    
+    $DRYRUN $FIND "${dir}" -type f -name "${filenamePrefix}*.sql*" -mtime +$keep -exec rm {} \;
+
+    exitStatus=$?
+    return $exitStatus
   else
-      info "Deleting full backups older than ${keepFull} days"
+    info "Error: deleteOldBackups"
 
-      $FIND "${outPath}" -type f -name 'mysqldumpall_*.sql*' -mtime +$keepFull
-
-      # delete full backups older then 3 days
-      $DRYRUN $FIND "${outPath}" -type f -name 'mysqldumpall_*.sql*' -mtime +$keepFull -exec rm {} \;
+    exitStatus=1
+    return $exitStatus
   fi
+}
 
-  exitStatus=$?
+# Check we have a file that is less than 1 day old in backup dir
+checkBackup() {
+  local existStatus
+  local mode
+  local dir
+
+  [[ $# > 0 ]] && {
+    mode="$1"
+    shift
+
+    dir="$backupBaseDir/$mode"
+  } || {
+    dir="$backupBaseDir"
+  }
+
+  if [ "`find "$dir" -type f -ctime -1 -name "${filenamePrefix}*.sql*"`" ];
+  then
+    info "Info: check found backup less than 1 day old in ${dir}"
+    exitStatus=0
+  else
+    info "Error: check didn't find backup less than 1 day old  in ${backupBaseDir}"
+    exitStatus=2
+  fi
 
   return $exitStatus
 }
 
-if [[ "$single" == "true" ]];
+
+###########################################################
+# Process args
+
+while [[ $# > 0 ]]
+do
+  case "$1" in
+    --create-dirs)
+      createDirs="true"
+      shift
+      ;;
+
+    --single)
+      backupMode="single"
+      shift
+      ;;
+
+    --full)
+    # default
+      backupMode="full"
+      shift
+      ;;
+
+    --time)
+      time="true"
+      shift
+      ;;
+
+    --dry-run)
+      DRYRUN="dryRun"
+      shift
+      ;;
+
+    -v|--verbose)
+      verbose="true"
+      shift
+      ;;
+
+    --nice)
+      NICE+=" nice"
+      shift
+      ;;
+
+    --io-nice)
+      NICE+=" ionice -c3"
+      shift
+      ;;
+
+    --base-dir)
+      backupBaseDir="$2"
+      shift 2
+      ;;
+
+    -g|--gzip)
+      COMPRESS="$GZIP"
+      filenameSuffix=".gz"
+      shift
+      ;;
+
+    -b|--bz2)
+      COMPRESS="$BZIP2"
+      filenameSuffix=".bz2"
+      shift
+      ;;
+
+    --no-compress)
+      COMPRESS=""
+      filenameSuffix=""
+      shift
+      ;;
+
+    --)
+      shift
+      break
+      ;;
+
+    *)
+      break
+      ;;
+  esac
+done
+
+[[ "$time" == "true" ]] && {
+  MYSQLDUMP="$TIME $MYSQLDUMP"
+  FIND="$TIME $FIND"
+}
+
+
+[[ "$verbose" == "true" ]] && {
+  echo "verbose: $verbose, backupMode: $backupMode, backupBaseDir: $backupBaseDir, createDirs: $createDirs, NICE: $NICE, COMPRESS: $COMPRESS, $outputFileSuffix"
+  echo
+}
+
+################################
+# Create dirs
+
+[[ "$createDirs" == "true" ]] && {
+  doCreateDirs || {
+    createDirsExit=$?
+    info "Failed to create backup dirs."
+
+    globalExit=$(max2 $createDirsExit $globalExit)
+  }
+
+  # we create dir and stop
+  exit $globalExit
+}
+
+#################################
+# Main
+
+case "$backupMode" in
+  single)
+    backupSingle
+
+    backupExit=$?
+    globalExit=$(max2 $backupExit $globalExit)
+    ;;
+
+  full)
+    backupFull
+    
+    backupExit=$?
+    globalExit=$(max2 $backupExit $globalExit)
+    ;;
+
+  *)
+    info "Error: unknown mode '$backupMode'"
+    exit 3
+esac
+
+if [[ "$backupExit" == 0 ]];
 then
-  backupSingle
-
-  backupExit=$?
-  globalExit=$(max2 $backupExit $globalExit)
-else
-  backupFull
-
-  backupExit=$?
-  globalExit=$(max2 $backupExit $globalExit)
-fi
-
-if [[ "$backupExit" != 0 ]];
-then
-  info "There were some errors during backup process, skipping deleting older backups."
-else
-  deleteOldBackups
+  deleteOldBackups $backupMode
 
   deleteExit=$?
   globalExit=$(max2 $backupExit $globalExit)
-fi
-
-# Check we have a file that is less than 1 day old in backup dir
-if [ "`find "$backupDir" -type f -ctime -1 -name '*.sql*'`" ];
-then
-  info "Info: check found backup less than 1 day old in ${backupDir}"
-  checkBackupExit=0
 else
-  info "Error: check didn't find backup less than 1 day old  in ${backupDir}"
-  checkBackupExit=2
+  info "There were some errors during backup process, skipping deleting older backups."
 fi
 
-globalExit=$(max2 $backupExit $globalExit)
+
+###################################
+# Check existing backups
+
+checkBackup $backupMode
+
+checkBackupExit=$?
+globalExit=$(max2 $checkBackupExit $globalExit)
 
 exit $globalExit
