@@ -77,6 +77,9 @@ GLOBIGNORE=*:?
 info() { printf "\n%s %s\n\n" "$( date )" "$*" >&2; }
 trap 'echo $( date ) Backup interrupted >&2; exit 2' INT TERM
 
+# max of two integers
+max2() { printf '%d' $(( "$1" > "$2" ? "$1" : "$2" )); }
+
 # -allow a command to fail with !’s side effect on errexit
 # -use return value from ${PIPESTATUS[0]}, because ! hosed $?
 ! getopt --test > /dev/null 
@@ -109,20 +112,41 @@ dryrun() {
     printf -v cmd_str '%q ' "$@"; echo "DRYRUN: Not executing $cmd_str" >&2
 }
 
+# checkDirs() {
+#   local args=("$@")
+
+#   # for d in "${args[@]}"
+#   #   do
+#       # if not is a dir
+#       d=$1
+#       if [[ -d "$d" ]]; then
+#         [[ $verbose = true ]] && {
+#           info "$d exists, nothing to do.";
+#         }
+#       else
+#         $DRYRUN mkdir -p "${d}";
+#         $DRYRUN chmod 700 "${d}";
+#       fi
+#     # done;
+  
+#   return 0;
+# }
+
 createDirs() {
   local exitStatus=0
   local d=
 
   for d in "${backupDir}/single" "${backupDir}/full";
   do
+    echo "toto: $d"
     if [[ -d "$d" ]]; then
-      [[ $verbose == true ]] && {
+      [[ "$verbose" == "true" ]] && {
         info "$d exists, nothing to do.";
       }
 
       return $exitStatus;
     else
-      $DRYRUN mkdir -p "${d}" &&    \
+      $DRYRUN mkdir -p "${d}" && \
         $DRYRUN chmod 700 "${d}" && {
           echo "Created dir $d" 
         } || {
@@ -220,14 +244,16 @@ fi
   echo
 }
 
-[[ "$createDirs" == "true" ]] \
-  && createDirs \
-  || {
+
+if [[ "$createDirs" == "true" ]];
+then
+  createDirs || {
     createDirsExit=$?
     info "Failed to create backup dirs."
 
-    exit $createDirsExit
+    globalExit=$(max2 $createDirsExit $globalExit)
   }
+fi
 
 doBackup() {
   local mysqldumpArgs="$fullDumpArgs"
@@ -312,7 +338,7 @@ backupSingle() {
     } || {
       thisExit=$?
       
-      exitStatus=$(( $thisExit > $exitStatus ? $thisExit : $exitStatus ))
+      exitStatus$(max2 $thisExit $exitStatus)
 
       info "Error: doBackup --db '${db}' '${outFile}' exit status $thisExit"
     }
@@ -387,17 +413,17 @@ else
 fi
 
 backupExit=$?
+globalExit=$(max2 $backupExit $globalExit)
 
-if [[ $backupExit == 0 ]];
+if [[ "$backupExit" != 0 ]];
 then
+  info "There were some errors during backup process, skipping deleting older backups."
+else
   deleteOldBackups
 
   deleteExit=$?
-else
-  info "There were some errors during backup process, skipping deleting older backups."
+  globalExit=$(max2 $backupExit $globalExit)
 fi
-
-globalExit=$(( $deleteExit > $backupExit ? $deleteExit : $backupExit ))
 
 # Check we have a file that is less than 1 day old in backup dir
 if [ "`find "$backupDir" -type f -ctime -1 -name '*.sql*'`" ];
@@ -408,6 +434,6 @@ else
   checkBackupExit=2
 fi
 
-globalExit=$(( $globalExit > $checkBackupExit ? $globalExit : $checkBackupExit ))
+globalExit=$(max2 $backupExit $globalExit)
 
 exit $globalExit
