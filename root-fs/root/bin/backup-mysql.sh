@@ -338,7 +338,7 @@ backupSingle() {
     } || {
       thisExit=$?
       
-      exitStatus$(max2 $thisExit $exitStatus)
+      exitStatus=$(max2 $thisExit $exitStatus)
 
       info "Error: doBackup --db '${db}' '${outFile}' exit status $thisExit"
     }
@@ -396,24 +396,21 @@ deleteOldBackups() {
 
   exitStatus=$?
 
-  [[ $exitStatus == 0 ]] && {
-    info "Done"
-  } || {
-    info "Error: deleting old backups returned status ${exitStatus}"
-  }
-
   return $exitStatus
 }
 
 if [[ "$single" == "true" ]];
 then
   backupSingle
+
+  backupExit=$?
+  globalExit=$(max2 $backupExit $globalExit)
 else
   backupFull
-fi
 
-backupExit=$?
-globalExit=$(max2 $backupExit $globalExit)
+  backupExit=$?
+  globalExit=$(max2 $backupExit $globalExit)
+fi
 
 if [[ "$backupExit" != 0 ]];
 then
@@ -428,9 +425,10 @@ fi
 # Check we have a file that is less than 1 day old in backup dir
 if [ "`find "$backupDir" -type f -ctime -1 -name '*.sql*'`" ];
 then
+  info "Info: check found backup less than 1 day old in ${backupDir}"
   checkBackupExit=0
 else
-  info "Error: no backup less than 1 day old could be found in $backupDir"
+  info "Error: check didn't find backup less than 1 day old  in ${backupDir}"
   checkBackupExit=2
 fi
 
