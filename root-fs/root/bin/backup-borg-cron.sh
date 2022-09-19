@@ -42,57 +42,57 @@ NICE=
 borgCreateArgs=
 mysqldumpArgs=
 
-loadArgs() {
-  for arg in "$@";
-  do
-    case "$1" in
-      --dry-run)
-        DRYRUN="dryRun"
-        borgCreateArgs+=" --dry-run"
-        mysqldumpArgs+=" --dry-run"
-        shift
-        ;;
-      --verbose|--progress)
-        borgCreateArgs+=" $1"
-        shift
-        ;;
-      --borg-dry-run)
-        borgCreateArgs+=" --dry-run"
-        shift
-        ;;
-      --on-error-stop|--stop)
-        onErrorStop="true"
-        shift
-        ;;
-      --do-init|--init)
-        doInit="true"
-        shift
-        ;;
-      --log-file|--log)
-        logFile="$2"
-        shift 2
-        ;;
-      --local-conf|--local)
-
-        localConf="$2"
-        shift 2
-        ;;
-      --)
-        shift
-        break
-        ;;
-      *)
-        break
-        ;;
-    esac
-  done
-}
-
 # Debug
 # logFile="/tmp/backup-borg.log2"
 # logrotateConf="/tmp/backup-borg4"
 # NICE=""
 # DRYRUN="dryRun"
+
+for arg in "$@";
+do
+  case "$1" in
+    --dry-run)
+      DRYRUN="dryRun"
+      borgCreateArgs+=" --dry-run"
+      mysqldumpArgs+=" --dry-run"
+      shift
+      ;;
+    --verbose|--progress)
+      borgCreateArgs+=" $1"
+      shift
+      ;;
+    --borg-dry-run)
+      borgCreateArgs+=" --dry-run"
+      shift
+      ;;
+    --on-error-stop|--stop)
+      onErrorStop="true"
+      shift
+      ;;
+    --do-init|--init)
+      doInit="true"
+      shift
+      ;;
+    --log-file|--log)
+      logFile="$2"
+      shift 2
+      ;;
+    --local-conf|--local)
+
+      localConf="$2"
+      shift 2
+      ;;
+    --)
+      shift
+      break
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+##############################################
 
 doBackup() {
   local exitStatus=0
@@ -439,9 +439,6 @@ trap 'echo $( date ) Backup interrupted >&2; exit 2' INT TERM
 
 ###################################################
 # Main
-
-loadArgs
-
 
 createLogrotate || {
   info "Warning: failed to create logrotate ${logrotateConf}"
