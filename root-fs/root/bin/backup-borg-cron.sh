@@ -46,6 +46,16 @@ mysqldumpArgs=()
 while [[ $# > 0 ]]
 do
   case "$1" in
+    --nice)
+      NICE+=("nice")
+      shift
+      ;;
+
+    --io-nice)
+      NICE+=("ionice -c3")
+      shift
+      ;;
+
     --dry-run)
       DRYRUN="dryRun"
       
@@ -59,6 +69,7 @@ do
       borgCreateArgs+=("--dry-run")
       # pushing it as first arg, seemed safer but brakes access to $label as $2 in wrappers (shifting)
       # borgCreate+=("--dry-run")
+
       shift
       ;;
 
@@ -132,6 +143,16 @@ doBorgCreateWrapped() {
 #   return $?
 # }
 
+# bb_borg_create_wrapper_dell-aio() {
+#   local args=(
+#     --compression auto,zstd,11
+#     --upload-ratelimit 30720  # ~25Mo/s
+#     --upload-buffer 50        # 50Mo
+#   )
+
+#   "$@" "${args[@]}"
+# }
+
 doBorgCreate() {
   local rs
   local wrapper
@@ -192,16 +213,6 @@ doBackup() {
     label="$1"
 
     case "$label" in
-      --nice)
-        NICE+=("nice")
-        shift
-        ;;
-
-      --io-nice)
-        NICE+=("ionice -c3")
-        shift
-        ;;
-
       --)
         shift
         break
