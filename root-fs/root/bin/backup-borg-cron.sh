@@ -5,6 +5,8 @@
 set -u
 set -o pipefail
 
+LC_ALL=C
+
 umask 027
 # LANG="en_US.UTF-8"
 
@@ -18,11 +20,10 @@ hostname=$(hostname -s)
 logFile="/var/log/backup-borg.log"
 logrotateConf="/etc/logrotate.d/backup-borg"
 
-borgCreate="${SCRIPT_DIR}/backup-borg-create.sh"
-mysqldump="${SCRIPT_DIR}/backup-mysql.sh --bz2"
+borgCreate=("${SCRIPT_DIR}/backup-borg-create.sh")
+mysqldump=("${SCRIPT_DIR}/backup-mysql.sh" "--bz2")
 mysqldumpBaseDir="/home/backups/mysql-${hostname}"
 
-NICE=
 
 localConf="${SCRIPT_DIR}/${0%.*}-${hostname}.sh"
 
@@ -31,10 +32,10 @@ onErrorStop=
 doLogrotateCreate=
 doInit=
 DRYRUN=
-NICE=
 
-borgCreateArgs=
-mysqldumpArgs=
+NICE=()
+borgCreateArgs=()
+mysqldumpArgs=()
 
 # Debug
 # logFile="/tmp/backup-borg.log2"
@@ -46,21 +47,39 @@ while [[ $# > 0 ]]
 do
   case "$1" in
     --dry-run)
-      shift
-
       DRYRUN="dryRun"
-      borgCreateArgs+=" --dry-run"
-      mysqldumpArgs+=" --dry-run"
-      ;;
+      
+      # borgCreateArgs+=("--dry-run")
+      mysqldumpArgs+=("--dry-run")
 
-    --verbose|--progress)
-      borgCreateArgs+=" $1"
       shift
       ;;
 
     --borg-dry-run)
-      borgCreateArgs+=" --dry-run"
+      borgCreateArgs+=("--dry-run")
+      # pushing it as first arg, seemed safer but brakes access to $label as $2 in wrappers (shifting)
+      # borgCreate+=("--dry-run")
       shift
+      ;;
+
+    --mysqldump-dry-run)
+      mysqldumpArgs+=("--dry-run")
+      shift
+      ;;
+
+    --verbose)
+      borgCreateArgs+=("$1")
+      shift
+      ;;
+
+    --progress)
+      borgCreateArgs+=("$1")
+      shift
+      ;;
+
+    --exclude|--include)
+      borgCreateArgs+=("$1" "$2")
+      shift 2
       ;;
 
     --on-error-stop|--stop)
@@ -73,7 +92,7 @@ do
       shift
       ;;
 
-    --log-file|--log)
+    --log)
       logFile="$2"
       shift 2
       ;;
@@ -96,9 +115,60 @@ done
 
 ##############################################
 
-doBorgCreate() {
-  $DRYRUN $NICE $borgCreate "$@" $borgCreateArgs
+doBorgCreateWrapped() {
+  # never call directly, only via doBorgCreate
+  $DRYRUN "${NICE[@]}" "${borgCreate[@]}" "$@"
   return $?
+}
+
+#debug
+bb_borg_create_wrapper() {
+  "$@" --exclude '**/node_modules'
+  return $?
+}
+
+bb_borg_create_wrapper_home() {
+  "$@" --exclude '**/node_modules_home'
+  return $?
+}
+
+doBorgCreate() {
+  local rs
+  local wrapper
+  local wrappers=()
+  local label="$1"
+
+  local bbWrappers=(
+    "bb_borg_create_wrapper"
+    "bb_borg_create_wrapper_${label}"
+    "bb_borg_create_wrapper_${hostname}"
+    "bb_borg_create_wrapper_${hostname}_${label}"
+  )
+
+  for wrapper in "${bbWrappers[@]}"
+  do
+    if [[ "$(LC_ALL=C type -t "$wrapper")" == "function" ]]
+    then
+      wrappers+=("$wrapper")
+    fi
+  done
+
+  # echo "${wrappers[@]}" "$@" "${borgCreateArgs[@]}"
+  
+  "${wrappers[@]}" doBorgCreateWrapped "$@" "${borgCreateArgs[@]}"
+
+  # "${wrappers[@]}" $DRYRUN "${NICE[@]}" "${borgCreate[@]}" "$@" "${borgCreateArgs[@]}"
+
+
+  # bb_borg_create_wrapper "${NICE[@]}" $DRYRUN "${borgCreate[@]}" "${borgCreateArgs[@]}" "$@"
+
+  #  $DRYRUN "${NICE[@]}" "${wrappers[@]}" "${borgCreate[@]}" "${borgCreateArgs[@]}" "$@"
+
+  # $DRYRUN "${NICE[@]}" "${wrappers[@]}" "${borgCreate[@]}" "$@" "${borgCreateArgs[@]}"
+
+  rs=$?
+
+  return $rs
 }
 
 doMysqldump() {
@@ -127,19 +197,27 @@ doBackup() {
   local label
   local split
 
-  for label in "$@"
+  while [[ $# > 0 ]]
   do
+    label="$1"
+
     case "$label" in
+      --nice)
+        NICE+=("nice")
+        shift
+        ;;
+
+      --io-nice)
+        NICE+=("ionice -c3")
+        shift
+        ;;
 
       --)
         shift
-
         break
         ;;
 
       --*:*)
-        shift
-
         info "local backup hook '${label}'"
 
         # removes first 2 chars and splits :
@@ -149,15 +227,18 @@ doBackup() {
 
         thisStatus=$?
         exitStatus=$(max2 "$thisStatus" "$exitStatus")
+
+        shift
         ;;
 
       --*)
-        shift
 
         bb_hook_${label:2}
 
         thisStatus=$?
         exitStatus=$(max2 "$thisStatus" "$exitStatus")
+
+        shift
         ;;
 
       *:*)
@@ -393,7 +474,7 @@ bb_label_var() {
 }
 
 bb_label_mysql() {
-  local args
+  local args=
 
   [[ "$2" == "single" ]] && args='--single'
   shift 2
@@ -448,7 +529,7 @@ createLogrotate || {
   echo "Info: loaded local config ${localConf}"
 }
 
-doBackup "$@" 2>&1 | $NICE tee --output-error=warn -a "$logFile"
+doBackup "$@" 2>&1 | "${NICE[@]}" tee --output-error=warn -a "$logFile"
 
 globalExit=$?
 
