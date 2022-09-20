@@ -153,7 +153,7 @@ doBorgCreate() {
     fi
   done
 
-  
+
   "${wrappers[@]}" doBorgCreateWrapped  "$@" "${borgCreateArgs[@]}"
 
   rs=$?

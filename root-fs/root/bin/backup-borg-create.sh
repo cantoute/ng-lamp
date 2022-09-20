@@ -57,10 +57,6 @@ borg create 				                      \
   --exclude-caches                        \
   --exclude '**/lost+found'               \
   --exclude '**/*nobackup*'               \
-  --exclude 'root/tmp'                    \
-  --exclude 'home*/*/tmp'                 \
-  --exclude 'home*/*/downloads'           \
-  --exclude 'home*/*/Downloads'           \
   --exclude '**/.*cache*'                 \
   --exclude '**/.*Cache*'                 \
   --exclude '**/*.tmp'                    \
@@ -75,23 +71,28 @@ borg create 				                      \
   --exclude '**/wp-content/*log*'         \
   --exclude '**/wp-content/*webp*'        \
   --exclude '**/wp-content/*backup*'      \
-  --exclude '**/smarty/compile/*'         \
-  --exclude 'var/tmp/*'                   \
-  --exclude 'var/log/*'                   \
-  --exclude 'var/run/*'                   \
-  --exclude 'var/cache/*'                 \
-  --exclude '**/var/cache/*'              \
-  --exclude '**/tmp/cache/*'              \
-  --exclude '**/site/cache/*'             \
-  --exclude 'var/lib/ntp/*'               \
+  --exclude '**/smarty/compile'           \
+  --exclude 'tmp'                         \
+  --exclude 'var/tmp'                     \
+  --exclude 'root/tmp'                    \
+  --exclude 'home*/*/tmp'                 \
+  --exclude 'home*/*/downloads'           \
+  --exclude 'home*/*/Downloads'           \
+  --exclude 'var/log'                     \
+  --exclude 'var/run'                     \
+  --exclude 'var/cache'                   \
+  --exclude '**/var/cache'                \
+  --exclude '**/tmp/cache'                \
+  --exclude '**/site/cache'               \
+  --exclude 'var/lib/ntp'                 \
   --exclude 'var/lib/**/sessions/*'       \
-  --exclude 'var/lib/mysql/*'             \
-  --exclude 'var/lib/postgresql/*'        \
-  --exclude 'var/lib/varnish/varnishd/*'  \
+  --exclude 'var/lib/mysql'               \
+  --exclude 'var/lib/postgresql'          \
   --exclude 'var/lib/postfix/*cache*'     \
   --exclude 'var/lib/fail2ban/fail2ban.sqlite3' \
   --exclude 'var/lib/varnish'             \
   --exclude 'var/spool/squid'             \
+  --exclude '**/.config/borg/security'    \
   --exclude '**/.ipfs/data'
 
 
