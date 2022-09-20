@@ -49,7 +49,7 @@ do
     --dry-run)
       DRYRUN="dryRun"
       
-      # borgCreateArgs+=("--dry-run")
+      borgCreateArgs+=("--dry-run")
       mysqldumpArgs+=("--dry-run")
 
       shift
@@ -122,15 +122,15 @@ doBorgCreateWrapped() {
 }
 
 #debug
-bb_borg_create_wrapper() {
-  "$@" --exclude '**/node_modules'
-  return $?
-}
+# bb_borg_create_wrapper() {
+#   "$@" --exclude '**/node_modules'
+#   return $?
+# }
 
-bb_borg_create_wrapper_home() {
-  "$@" --exclude '**/node_modules_home'
-  return $?
-}
+# bb_borg_create_wrapper_home() {
+#   "$@" --exclude '**/node_modules_home'
+#   return $?
+# }
 
 doBorgCreate() {
   local rs
@@ -153,18 +153,8 @@ doBorgCreate() {
     fi
   done
 
-  # echo "${wrappers[@]}" "$@" "${borgCreateArgs[@]}"
   
-  "${wrappers[@]}" doBorgCreateWrapped "$@" "${borgCreateArgs[@]}"
-
-  # "${wrappers[@]}" $DRYRUN "${NICE[@]}" "${borgCreate[@]}" "$@" "${borgCreateArgs[@]}"
-
-
-  # bb_borg_create_wrapper "${NICE[@]}" $DRYRUN "${borgCreate[@]}" "${borgCreateArgs[@]}" "$@"
-
-  #  $DRYRUN "${NICE[@]}" "${wrappers[@]}" "${borgCreate[@]}" "${borgCreateArgs[@]}" "$@"
-
-  # $DRYRUN "${NICE[@]}" "${wrappers[@]}" "${borgCreate[@]}" "$@" "${borgCreateArgs[@]}"
+  "${wrappers[@]}" doBorgCreateWrapped  "$@" "${borgCreateArgs[@]}"
 
   rs=$?
 
