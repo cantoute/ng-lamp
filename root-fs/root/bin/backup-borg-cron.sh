@@ -12,6 +12,15 @@ umask 027
 
 SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
 
+
+dryRun() { echo "DRYRUN:" "$@"; }
+loadDotEnv() { source "$dotEnv"; }
+
+info() { printf "\n%s %s\n\n" "$( date )" "$*" >&2; }
+
+# returns max of two numbers
+max2() { printf '%d' $(( $1 > $2 ? $1 : $2 )); }
+
 # your email@some.co
 alertEmail="alert"
 
@@ -31,6 +40,8 @@ globalExit=
 onErrorStop=
 doLogrotateCreate=
 doInit=
+
+bbLabel=
 
 DRYRUN=()
 
@@ -193,6 +204,8 @@ doBorgCreate() {
   local wrappers=()
   local label="$1"
 
+  bbLabel="${label}"
+
   local bbWrappers=(
     "bb_borg_create_wrapper"
     "bb_borg_create_wrapper_${label}"
@@ -218,22 +231,9 @@ doMysqldump() {
   return $?
 }
 
-info() { printf "\n%s %s\n\n" "$( date )" "$*" >&2; }
 
-# returns max of two numbers
-max2() { printf '%d' $(( $1 > $2 ? $1 : $2 )); }
-
-dryRun() {
-  echo "DRYRUN:" "$@"
-}
-
-loadDotEnv() {
-  source "$dotEnv" 
-}
 
 ##############################################
-# global
-label=
 
 doBackup() {
   local exitStatus=0
