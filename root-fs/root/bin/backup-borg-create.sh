@@ -8,7 +8,7 @@ set -u
 backupLabel="$1"
 shift
 
-backupArgs="$@"
+backupArgs=("$@")
 
 [[ -v 'BORG_REPO' ]] && {
   echo "BORG_REPO: ${BORG_REPO}"
@@ -91,11 +91,9 @@ trap 'echo $( date ) Backup interrupted >&2; exit 2' INT TERM
 
 info "Starting backup"
 
-# Backup the most important directories into an archive named after
-# the machine this script is currently running on:
+# Backup 
 
-borg create 				                      \
-	::"${backupPrefix}-{now}"                     \
+borg create ::"${backupPrefix}-{now}" \
 	"${backupArgs[@]}" "${createArgs[@]}" "${excludeArgs[@]}"
 
 backup_exit=$?

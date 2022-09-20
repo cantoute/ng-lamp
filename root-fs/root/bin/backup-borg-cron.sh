@@ -20,8 +20,8 @@ hostname=$(hostname -s)
 logFile="/var/log/backup-borg.log"
 logrotateConf="/etc/logrotate.d/backup-borg"
 
-borgCreate=("${SCRIPT_DIR}/backup-borg-create.sh")
-mysqldump=("${SCRIPT_DIR}/backup-mysql.sh" "--bz2")
+BORG_CREATE=("${SCRIPT_DIR}/backup-borg-create.sh")
+MYSQLDUMP=("${SCRIPT_DIR}/backup-mysql.sh" "--bz2")
 mysqldumpBaseDir="/home/backups/mysql-${hostname}"
 
 
@@ -31,9 +31,17 @@ globalExit=
 onErrorStop=
 doLogrotateCreate=
 doInit=
-DRYRUN=
+
+DRYRUN=()
+
+# command -v foo >/dev/null 2>&1 || { echo >&2 "I require foo but it's not installed.  Aborting."; exit 1; }
 
 NICE=()
+command -v nice >/dev/null 2>&1 && NICE+=(nice)
+command -v ionice >/dev/null 2>&1 && NICE+=(ionice -c3)
+#
+# NICE=(nice ionice -c3)
+
 borgCreateArgs=()
 mysqldumpArgs=()
 
@@ -47,34 +55,34 @@ while [[ $# > 0 ]]
 do
   case "$1" in
     --nice)
-      NICE+=("nice")
+      NICE+=(nice)
       shift
       ;;
 
     --io-nice)
-      NICE+=("ionice -c3")
+      NICE+=(ionice -c3)
       shift
       ;;
 
     --dry-run)
-      DRYRUN="dryRun"
+      DRYRUN+=(dryRun)
       
-      borgCreateArgs+=("--dry-run")
-      mysqldumpArgs+=("--dry-run")
+      borgCreateArgs+=(--dry-run)
+      mysqldumpArgs+=(--dry-run)
 
       shift
       ;;
 
     --borg-dry-run)
-      borgCreateArgs+=("--dry-run")
-      # pushing it as first arg, seemed safer but brakes access to $label as $2 in wrappers (shifting)
-      # borgCreate+=("--dry-run")
+      # borgCreateArgs+=(--dry-run)
+      # pushing it as first arg, seemed safer but brakes access to $bbLabel as $2 in wrappers (shifting)
+      BORG_CREATE+=(--dry-run)
 
       shift
       ;;
 
-    --mysqldump-dry-run)
-      mysqldumpArgs+=("--dry-run")
+    --mysqldump-dry-run|--mysql-dry-run)
+      mysqldumpArgs+=(--dry-run)
       shift
       ;;
 
@@ -119,8 +127,14 @@ do
       ;;
 
     *)
-      break
+      info "Error: unknown argument '$1'"
+      exit 1
       ;;
+
+    # *)
+    #   # not sure this is smart... as misspelled args here could be tricky to debug
+    #   break
+    #   ;;
   esac
 done
 
@@ -128,7 +142,7 @@ done
 
 doBorgCreateWrapped() {
   # never call directly, only via doBorgCreate
-  $DRYRUN "${NICE[@]}" "${borgCreate[@]}" "$@"
+  "${DRYRUN[@]}" "${NICE[@]}" "${BORG_CREATE[@]}" "$@"
   return $?
 }
 
@@ -153,6 +167,26 @@ doBorgCreateWrapped() {
 #   "$@" "${args[@]}"
 # }
 
+# bb_label_dabao-home() {
+
+#   local args=("$@")
+  
+#   args+=(
+#     --exclude 'home/postgresql/data'
+#     --exclude 'home/backups/mysql-dabao'
+#     --exclude 'home/bmag' 
+#   )
+
+#   # backup home in a separate repo dabao-home
+#   doBorgCreate      \
+#     "home" /home    \
+#     "${args[@]}"
+
+#   local rs=$?
+
+#   return $rs
+# }
+
 doBorgCreate() {
   local rs
   local wrapper
@@ -166,16 +200,13 @@ doBorgCreate() {
     "bb_borg_create_wrapper_${hostname}_${label}"
   )
 
-  for wrapper in "${bbWrappers[@]}"
-  do
-    if [[ "$(LC_ALL=C type -t "$wrapper")" == "function" ]]
-    then
+  for wrapper in "${bbWrappers[@]}"; do
+    [[ "$(LC_ALL=C type -t "$wrapper")" == "function" ]] && {
       wrappers+=("$wrapper")
-    fi
+    }
   done
 
-
-  "${wrappers[@]}" doBorgCreateWrapped  "$@" "${borgCreateArgs[@]}"
+  "${wrappers[@]}" doBorgCreateWrapped "$@" "${borgCreateArgs[@]}"
 
   rs=$?
 
@@ -183,7 +214,7 @@ doBorgCreate() {
 }
 
 doMysqldump() {
-  $DRYRUN $NICE $mysqldump "$@"
+  "${DRYRUN[@]}" "${NICE[@]}" "${MYSQLDUMP[@]}" "$@"
   return $?
 }
 
@@ -193,7 +224,7 @@ info() { printf "\n%s %s\n\n" "$( date )" "$*" >&2; }
 max2() { printf '%d' $(( $1 > $2 ? $1 : $2 )); }
 
 dryRun() {
-  echo "DRYRUN: $@"
+  echo "DRYRUN:" "$@"
 }
 
 loadDotEnv() {
@@ -201,28 +232,27 @@ loadDotEnv() {
 }
 
 ##############################################
+# global
+label=
 
 doBackup() {
   local exitStatus=0
   local thisStatus=0
-  local label
   local split
 
   while [[ $# > 0 ]]
   do
-    label="$1"
-
-    case "$label" in
+    case "$1" in
       --)
         shift
         break
         ;;
 
       --*:*)
-        info "local backup hook '${label}'"
+        info "local backup hook '${1}'"
 
         # removes first 2 chars and splits :
-        split=(${label:2//\:/ })
+        split=(${1:2//\:/ })
 
         bb_hook_${split[0]} "${split[0]}" "${split[1]}"
 
@@ -243,6 +273,7 @@ doBackup() {
         ;;
 
       *:*)
+        label="$1"
         shift
 
         info "local backup label '${label}'"
@@ -257,18 +288,19 @@ doBackup() {
         ;;
 
       *)
-        shift
-
-        bb_label_${label}
+        bbLabel=$1
+        bb_label_${bbLabel}
 
         thisStatus=$?
         exitStatus=$(max2 "$thisStatus" "$exitStatus")
+
+        shift
         ;;
     esac
 
     if [[ 0 != $thisStatus ]];
     then
-      info "Error: backup labeled '${label}' returned status ${thisStatus}"
+      info "Error: backup labeled '${bbLabel}' returned status ${thisStatus}"
 
       [[ "true" == "$onErrorStop" ]] && {
         echo "We stop here (--on-error-stop invoked)"
@@ -285,12 +317,12 @@ mysqldumpAndBorgCreate() {
   local exitStatus=0
   local thisStatus=
 
-  doMysqldump "$@" $mysqldumpArgs
+  doMysqldump "$@" "${mysqldumpArgs[@]}"
 
   thisStatus=$?
   exitStatus=$(max2 "$thisStatus" "$exitStatus")
 
-  [[ "$thisStatus" == 0 ]] || info "${label}:mysqldump returned status: ${thisStatus}"
+  [[ "$thisStatus" == 0 ]] || info "${bbLabel}:mysqldump returned status: ${thisStatus}"
 
   # of course we upload backup even if dump returned errors
   doBorgCreate "mysql" "$mysqldumpBaseDir"
@@ -298,18 +330,14 @@ mysqldumpAndBorgCreate() {
   thisStatus=$?
   exitStatus=$(max2 "$thisStatus" "$exitStatus")
 
-  [[ "$thisStatus" == 0 ]] || info "${label}:borgCreate returned status: ${thisStatus}"
+  [[ "$thisStatus" == 0 ]] || info "${bbLabel}:borgCreate returned status: ${thisStatus}"
 
   return $exitStatus
 }
 
 createLogrotate() {
-  if [[ ! -e "$logrotateConf" ]];
-  then
-    local now=$(date)
-    local conf="
-# created by $0 on $now
-
+  local conf="# created by $0 on $(now)"
+  conf+="
 ${logFile} {
   daily
   delaycompress
@@ -323,18 +351,20 @@ ${logFile} {
   errors ${alertEmail}
 }
 "
+  [[ ${#DRYRUN[@]} == 0 ]] || {
+    echo "DryRun: not creating file ${logrotateConf}"
+    echo "${conf}"
 
-    if [[ "$DRYRUN" == "" || "$doLogrotateCreate" == "true" ]];
-    then 
-      info "Creating ${logrotateConf}"
-      printf "%s" "$conf" > "$logrotateConf"
-      local exitStatus=$?
+    return
+  }
 
-      return $exitStatus
-    else
-      echo "DryRun: not creating file ${logrotateConf}"
-      echo "${conf}"
-    fi
+  if [[ "$doLogrotateCreate" == "true" ]];
+  then 
+    info "Creating ${logrotateConf}"
+    printf "%s" "$conf" > "$logrotateConf"
+    local exitStatus=$?
+
+    return $exitStatus
   fi
 }
 
@@ -520,8 +550,10 @@ bb_label_test() {
 ###################################################
 # Main
 
-createLogrotate || {
-  info "Warning: failed to create logrotate ${logrotateConf}"
+[[ -e "$logrotateConf" ]] || {
+  createLogrotate || {
+    info "Warning: failed to create logrotate ${logrotateConf}"
+  }
 }
 
 [[ -f "$localConf" ]] && {
@@ -530,7 +562,29 @@ createLogrotate || {
   echo "Info: loaded local config ${localConf}"
 }
 
-doBackup "$@" 2>&1 | "${NICE[@]}" tee --output-error=warn -a "$logFile"
+# logTo=("${NICE[@]}")
+# logTo+=(
+#   tee --output-error=warn -a 
+# )
+# doBackup "$@" 2>&1 | "${logTo[@]}" "$logFile"
+
+# takes 0 or n filenames where the stdin will be copied to (appended)
+logToFile() {
+  if [[ $# > 0 ]]
+  then
+    # assuming all args are names of files we append to
+    local file TEE=(tee --output-error=warn)
+    for file in "$@"; do TEE+=( -a "$file" ); done
+
+    ## consider `ionice -c3` for disk output niceness
+    "${NICE[@]}" "${TEE[@]}"
+  else
+    # simply pipe stdin to stdout
+    cat
+  fi
+}
+
+doBackup "$@" 2>&1 | logToFile "$logFile"
 
 globalExit=$?
 
