@@ -56,8 +56,8 @@ fullDumpArgs+=" -A --events"
 singleDumpArgs="${commonArgs}"
 singleDumpArgs+=" --skip-lock-tables"
 
-now() { date +%F_%H%M ; }
-started=$(now)
+now() { date +"%Y-%m-%dT%H-%M-%S%z" ; }
+started=$( date --iso-8601=seconds )
 
 # some helpers and error handling:
 info() { printf "\n%s %s\n\n" "$( date )" "$*" >&2; }
@@ -145,7 +145,7 @@ doMysqldump() {
 
 listDb() {
   local exitStatus
-  local where
+  local where=
 
   [[ -v BACKUP_MYSQL_LIST_DB_WHERE ]] && where="$BACKUP_MYSQL_LIST_DB_WHERE"
 
@@ -169,11 +169,11 @@ backupSingle() {
   local exitStatus=0
   local thisExit
   local name
-  local dbList="$@"
+  local dbList=("$@")
 
-  info "Doing single database backups of ${dbList}"
+  info "Doing single database backups of ${dbList[@]}"
 
-  for db in $dbList
+  for db in "${dbList[@]}"
   do
     info "Processing '${db}'... "
 
@@ -202,8 +202,7 @@ backupSingle() {
 
 backupFull() {
   local exitStatus=
-  local now=$(now)
-  local name="${filenamePrefix}-full-${now}.sql${filenameSuffix}"
+  local name="${filenamePrefix}full_$(now).sql${filenameSuffix}"
 
   info "Doing full dump (all databases)"
 
