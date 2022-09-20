@@ -9,7 +9,8 @@ set -o noclobber
 #set -o xtrace
 
 umask 027
-LANG="en_US.UTF-8"
+
+LC_ALL=C
 
 hostname=$(hostname -s)
 
