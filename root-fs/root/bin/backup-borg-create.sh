@@ -2,19 +2,8 @@
 
 set -u
 
-#export BORG_REPO=
-#export BORG_PASSPHRASE=
-
-backupLabel="$1"
-shift
-
-backupArgs=("$@")
-
-[[ -v 'BORG_REPO' ]] && {
-  echo "BORG_REPO: ${BORG_REPO}"
-}
-
-backupPrefix="{hostname}-${backupLabel}"
+#################################
+# Default values
 
 createArgs=(
   --verbose
@@ -22,51 +11,56 @@ createArgs=(
   --stats
   --show-rc
   --filter AME
-  # --compression auto,zstd,11
-  # --upload-ratelimit 30720
+  --compression auto,zstd,11
+  --upload-ratelimit 30720
 )
 
 excludeArgs=(
-  --one-file-system
-  --exclude-caches
+  --one-file-system # Don't backup mounted fs
+  --exclude-caches # See https://bford.info/cachedir/
+  --exclude '**/.config/borg/security' # creates annoying warnings
   --exclude '**/lost+found'
   --exclude '**/*nobackup*'
+
+  # some commons
   --exclude '**/.*cache*'
   --exclude '**/.*Cache*'
   --exclude '**/*.tmp'
   --exclude '**/*.log'
   --exclude '**/*.LOG'
   --exclude '**/.npm/_*'
+  --exclude '**/tmp'
+  --exclude 'var/log'
+  --exclude 'var/run'
+  --exclude 'var/cache'
+  --exclude 'var/lib/ntp'
+  --exclude 'var/lib/mysql'
+  --exclude 'var/lib/postgresql'
+  --exclude 'var/lib/postfix/*cache*'
+  --exclude 'var/lib/varnish'
+  --exclude 'var/spool/squid'
+  --exclude '**/site/cache'
+
+  # fail2ban
+  --exclude 'var/lib/fail2ban/fail2ban.sqlite3'
+  
+  # php
+  --exclude 'var/lib/**/sessions/*'
+  --exclude '**/sessions/sess_*'
+  --exclude '**/smarty/compile'
+
+  # Drupal
   --exclude '**/.drush'
   --exclude '**/drush-backups'
-  --exclude '**/sessions/sess_*'
+
+  # WordPress
   --exclude '**/.wp-cli'
   --exclude '**/wp-content/*cache*'
   --exclude '**/wp-content/*log*'
   --exclude '**/wp-content/*webp*'
   --exclude '**/wp-content/*backup*'
-  --exclude '**/smarty/compile'
-  --exclude 'tmp'
-  --exclude 'var/tmp'
-  --exclude 'root/tmp'
-  --exclude 'home*/*/tmp'
-  --exclude 'home*/*/downloads'
-  --exclude 'home*/*/Downloads'
-  --exclude 'var/log'
-  --exclude 'var/run'
-  --exclude 'var/cache'
-  --exclude '**/var/cache'
-  --exclude '**/tmp/cache'
-  --exclude '**/site/cache'
-  --exclude 'var/lib/ntp'
-  --exclude 'var/lib/**/sessions/*'
-  --exclude 'var/lib/mysql'
-  --exclude 'var/lib/postgresql'
-  --exclude 'var/lib/postfix/*cache*'
-  --exclude 'var/lib/fail2ban/fail2ban.sqlite3'
-  --exclude 'var/lib/varnish'
-  --exclude 'var/spool/squid'
-  --exclude '**/.config/borg/security'
+
+  # IPFS
   --exclude '**/.ipfs/data'
 )
 
@@ -85,18 +79,99 @@ pruneKeepArgs=(
   --keep-yearly    2
 )
 
+#################################
+
+NICE=()
+# auto nice
+command -v nice >/dev/null 2>&1 && NICE+=(nice)
+command -v ionice >/dev/null 2>&1 && NICE+=(ionice -c3)
+
+BORG=(borg)
+
+#export BORG_REPO=
+#export BORG_PASSPHRASE=
+DRYRUN=
+dryRun() { 
+  # echo "DRYRUN:" "${@@Q}";
+  echo "DRYRUN:" "$@";
+}
+
+borg() { 
+  # echo "DRYRUN:" "${@@Q}";
+  echo "DRYRUN:" "$@";
+}
+
 # some helpers and error handling:
 info() { printf "\n%s %s\n\n" "$( date )" "$*" ; }
 trap 'echo $( date ) Backup interrupted >&2; exit 2' INT TERM
+
+######################
+
+backupLabel="$1"
+shift
+
+while [[ $# > 0 ]]; do
+  case "$1" in
+    --debug)
+      DRYRUN=dryRun
+      DEBUG=true
+      shift
+      ;;
+
+    --dry-run)
+      createArgs+=(--dry-run)
+      pruneArgs+=(--dry-run)
+      shift
+      ;;
+
+    --no-nice)
+      NICE=()
+      shift
+      ;;
+      
+    --)
+      shift
+      break
+      ;;
+
+    *)
+      break
+      ;;
+  esac
+done
+
+backupArgs=("$@")
+
+[[ -v 'BORG_REPO' ]] && {
+  echo "BORG_REPO: ${BORG_REPO}"
+} || {
+  echo "Warning: BORG_REPO isn't set"
+  echo "Loading: ~/.env.borg"
+
+  source ~/.env.borg
+
+  [[ -v 'BORG_REPO' ]] || {
+    echo "Error: Environnement BORG_REPO isn't set"
+
+    [[ "${DEBUG-}" == "" ]] && {
+      exit 2
+    } || {
+      echo "DRYRUN: proceed anyway"
+    }
+  }
+}
+
+backupPrefix="{hostname}-${backupLabel}"
+
 
 info "Starting backup"
 
 # Backup 
 
-borg create ::"${backupPrefix}-{now}" \
+$DRYRUN ${NICE[@]} ${BORG[@]} create ::"${backupPrefix}-{now}" \
 	"${backupArgs[@]}" "${createArgs[@]}" "${excludeArgs[@]}"
 
-backup_exit=$?
+borgCreateRc=$?
 
 info "Pruning repository"
 
@@ -105,28 +180,28 @@ info "Pruning repository"
 # limit prune's operation to this machine's archives and not apply to
 # other machines' archives also:
 
-borg prune --glob-archives "${backupPrefix}-*" "${pruneArgs[@]}" "${pruneKeepArgs[@]}"
+$DRYRUN ${NICE[@]} ${BORG[@]} prune --glob-archives "${backupPrefix}-*" "${pruneArgs[@]}" "${pruneKeepArgs[@]}"
 
-prune_exit=$?
+borgPruneRc=$?
 
 # actually free repo disk space by compacting segments
 
 info "Compacting repository"
 
-borg compact
+$DRYRUN ${NICE[@]} ${BORG[@]} compact
 
-compact_exit=$?
+borgCompactRc=$?
 
 # use highest exit code as global exit code
-global_exit=$(( backup_exit > prune_exit ? backup_exit : prune_exit ))
-global_exit=$(( compact_exit > global_exit ? compact_exit : global_exit ))
+globalRc=$(( borgCreateRc > borgPruneRc ? borgCreateRc : borgPruneRc ))
+globalRc=$(( borgCompactRc > globalRc ? borgCompactRc : globalRc ))
 
-if [ ${global_exit} -eq 0 ]; then
-    info "Backup, Prune, and Compact finished successfully"
-elif [ ${global_exit} -eq 1 ]; then
-    info "Backup, Prune, and/or Compact finished with warnings"
+if [ ${globalRc} -eq 0 ]; then
+  info "Backup, Prune, and Compact finished successfully"
+elif [ ${globalRc} -eq 1 ]; then
+  info "Backup, Prune, and/or Compact finished with warnings"
 else
-    info "Backup, Prune, and/or Compact finished with errors"
+  info "Backup, Prune, and/or Compact finished with errors"
 fi
 
-exit ${global_exit}
+exit ${globalRc}
