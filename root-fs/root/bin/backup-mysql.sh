@@ -2,455 +2,340 @@
 
 set -u
 
+# important
+# set -e
+set -o pipefail
+
 # dont allow override existing files
 set -o noclobber
 
 # debug
 #set -o xtrace
 
-umask 027
+SCRIPT_NAME="${0##*/}"
+SCRIPT_DIR="${0%/*}"
 
-LC_ALL=C
+SCRIPT_NAME_NO_EXT="${SCRIPT_NAME%.*}"
 
-hostname=$(hostname -s)
+source "${SCRIPT_DIR}/backup-common.sh";
 
-createDirsExit=
-backupExit=
-deleteExit=
-checkBackupExit=
-globalExit=0
+init && initUtils || {
+  >2& echo "Failed to init"
+  exit 2;
+}
 
-MYSQLDUMP=$(which mysqldump)
-TIME="$(which time) --portability"
-BZIP2="$(which bzip2) -z"
-GZIP="$(which gzip) -c"
-FIND="$(which find)"
+exitRc=0
 
-DRYRUN=
-COMPRESS=
-NICE=
 
-backupMode="full"
+# debug
+# NICE=( dryRun )
 
-backupBaseDir="/home/backups/mysql-${hostname}"
-filenamePrefix="mysqldump_${hostname}_"
-filenameSuffix=
 
-verbose=
+########
+# Usage
+#
+# backup-mysql.sh proceeds a mysqldump --all-databases
+#
+# backup-mysql.sh db db1 db2,db3 -- -any-extra-param-to-mysql-dump
+#
+#
 
-# keep full backup for N days
-keepFull=3
-keepSingle=$keepFull
 
-commonArgs=
-# preserve real utf8 (aka don't brake extended utf8 like emoji)
-commonArgs+=" --default-character-set=utf8mb4"
-commonArgs+=" --single-transaction"
-commonArgs+=" --extended-insert"
-commonArgs+=" --order-by-primary"
-commonArgs+=" --quick" # aka swap ram for speed
+dumpArgs=(
+  # aka common args for all backups
+  --default-character-set=utf8mb4 # or die in hell if one used utf8mb4 (aka emoji)
+  --single-transaction
+  --extended-insert
+  --order-by-primary
+  --quick # aka swap ram for speed
+)
 
-fullDumpArgs="${commonArgs}"
-fullDumpArgs+=" -A --events"
+# on single db backup avoid locking users and accept the risk
+# meaning I'de recommend running at least one daily backup-all
+dumpDbArgs=(
+  # single
+  --skip-lock-tables
+)
 
-singleDumpArgs="${commonArgs}"
-singleDumpArgs+=" --skip-lock-tables"
+dumpAllArgs=(
+  # all
+  --events
+  --all-databases
+)
 
-now() { date +"%Y-%m-%dT%H-%M-%S%z" ; }
-started=$( date --iso-8601=seconds )
+########################################################
+# defaults
+#
 
-# some helpers and error handling:
-info() { printf "\n%s %s\n\n" "$( date )" "$*" >&2; }
+BACKUP=( backup-all )
+DUMP=( dump )
+
+
+STORE=( store-local "${backupMysqlLocalDir}" )
+
+
+########################################################
+# Utils
+
+# trap Ctrl-C
 trap 'echo $( date ) Backup interrupted >&2; exit 2' INT TERM
 
-dryRun() { echo "DRYRUN: $@"; }
 
-# returns max of two numbers
-max2() { printf '%d' $(( $1 > $2 ? $1 : $2 )); }
-
-# OPTIONS=sdto:vngbc
-# LONGOPTS=single,dry-run,time,out-path:,verbose,nice,gzip,bz2,create-dirs
-
-time=
-verbose=
-createDirs=
-
-doCreateDirs() {
-  local exitStatus=0
-  local dir=
-
-  for mode in "single" "full";
-  do
-    dir="$backupBaseDir/$mode"
-    if [[ -d "$dir" ]]; then
-      info "$dir exists, nothing to do.";
-    else
-      $DRYRUN mkdir -p "${dir}" && \
-        $DRYRUN chmod 700 "${dir}" && {
-          info "Created dir '$dir'" 
-        } || {
-          exitStatus=$(max2 $? $exitStatus)
-
-          info "Failed to create dir $dir"
-        }
-    fi
-  done
+# generates backup name ex: dump-my-host-name-2022-09-22T19-42+0200
+# take 1 optional arg (default to 'all')
+backupMysqlName() {
+  local name="${1-all}"
   
-  return $exitStatus;
+  printf "%s" "dump-${hostname}-${name}-$(now)"
 }
 
-storeBackup() {
-  local dstFile=$1
-  local compress=$2
-  shift 2
 
-  [[ "$compress" == "" ]] && {
-    "$@" > "$dstFile"
-  } || {
-    "$@" | $compress > "$dstFile"
-  }
-}
+# List mysql databases that are like
+# accepts
+# mysqlListDbLike db1 -db2 db3
+# mysqlListDbLike db1,-db2 db3
+# mysqlListDbLike "db1,-db2 db3"
+mysqlListDbLike() {
+  local mysqlExecSql=(mysql -Br --silent)
+  local andWhere=(1)
+  local like=(
+    # some default db to never backup in mode=single
+    -information_schema
+    -performance_schema
+    -mysql
+    '-%trash%'
+    '-%nobackup%'
+  )
 
-doMysqldump() {
-  local mysqldumpArgs=
-  local db=
-  local exitStatus=
+  # db names don't have spaces so safe to split on spaces as no ""
+  like+=(${@//,/ })
 
-  local name="$1"
-  local mode="$2"
-  shift 2
+  local Database="\`Database\`"
 
-  local dir="$backupBaseDir/$mode"
-  local filePath="$dir/$name"
-
-  case "$mode" in
-    single)
-      mysqldumpArgs="$singleDumpArgs $1"
-      shift
-      ;;
-
-    full)
-      mysqldumpArgs="$fullDumpArgs"
-      ;;
-  esac
-
-  info "Backing up ${filePath}"
-
-  $DRYRUN storeBackup "${filePath}" "$NICE $COMPRESS" $NICE $MYSQLDUMP $mysqldumpArgs
-
-  exitStatus=$?
-
-  return $exitStatus
-}
-
-listDb() {
-  local exitStatus
-  local where=
-
-  [[ -v BACKUP_MYSQL_LIST_DB_WHERE ]] && where="$BACKUP_MYSQL_LIST_DB_WHERE"
+  for db in "${like[@]}"; do
+    [[ "$db" == -* ]] && {
+      # db name starts with '-' => NOT LIKE
+      andWhere+=("${Database} NOT LIKE '${db:1}'")
+    } || {
+      andWhere+=("${Database} LIKE '${db}'")
+    }
+  done
 
   local sql="
     SHOW DATABASES
       WHERE
-        \`Database\` NOT IN ('information_schema', 'performance_schema', 'mysql')
-        AND \`Database\` NOT LIKE '%trash%'
-        AND \`Database\` NOT LIKE '%nobackup%'
-        $where
-        ;
-    "
+        $(joinBy ' AND ' "${andWhere[@]}")
+        ;"
 
-  echo "$sql" | mysql -Br --silent
+  echo "$sql" | "${mysqlExecSql[@]}"
 
-  exitStatus=$?
-  return $exitStatus
+  # echo ${like[@]}
+  # echo $sql
+
+  return $?
 }
 
-backupSingle() {
-  local exitStatus=0
-  local thisExit
-  local name
-  local dbList=("$@")
 
-  info "Doing single database backups of ${dbList[@]}"
+dump() {
+  local rc
 
-  for db in "${dbList[@]}"
-  do
-    info "Processing '${db}'... "
+  >&2 echo "Executing: " "${DRYRUN[@]}" "${NICE[@]}" "$MYSQLDUMP" "$@"
 
-    name="${filenamePrefix}${db}_$(now).sql${filenameSuffix}"
+  "${DRYRUN[@]}" "${NICE[@]}" "$MYSQLDUMP" "$@"
 
-    doMysqldump "${name}" 'single' "${db}"
+  rc=$?
 
-    thisExit=$?
-    exitStatus=$(max2 $thisExit $exitStatus)
+  [[ $rc == 1 ]] && rc=2
 
-    [[ $thisExit == 0 ]] && {
-      info "Done"
-    } || {
-      info "Error: doMysqldump '${name}' 'single' '${db}' exit status $thisExit"
-    }
-  done;
+  return $rc
+}
 
-  [[ $exitStatus == 0 ]] && {
-    info "All single database backups done"
-  } || {
-    info "All single database backups done (with errors)"
+backup-db() {
+  local rc=0
+  local dumpDbRc
+  local dbNames=()
+
+  while [[ $# > 0 ]]; do
+    case "$1" in
+      --)
+        shift
+        break
+        ;;
+      
+      *)
+        dbNames+=(${1//,/ })
+        shift
+    esac
+  done
+
+  info "Info: backing up db ${dbNames[@]@Q}"
+
+  # store "single" "$(backupMysqlName "$dbName")" compress dump "$dbName" "${dumpDbArgs[@]}" "$@"
+
+  for db in "${dbNames[@]}"; do
+    dump "${dumpArgs[@]}" "${dumpDbArgs[@]}" "$@" "$db" |
+      onEmptyReturn 2 store "single" "$(backupMysqlName "$db").sql"
+
+    dumpRc=$?
+    rc=$(max2 $dumpRc $rc)
+
+  done
+
+  # info "Info: stored a total of $( humanSize $storeLocalTotal )"
+
+  return $rc
+}
+
+
+backup-single() {
+  local rc
+  local like=()
+  local dbNames=()
+
+  while [[ $# > 0 ]]; do
+    case "$1" in
+      --like)
+        like+=("$2")
+        shift 2
+        ;;
+
+      --not-like)
+        local notLikes=(${2//,/ })
+        shift 2
+
+        for notLike in ${notLikes[@]}; do
+          like+=("-$notLike")
+        done
+        ;;
+        
+      --)
+        shift
+        break
+        ;;
+      
+      *)
+        break
+        ;;
+    esac
+  done
+
+  dbNames+=( "$( mysqlListDbLike "${like[@]}" )" )
+
+  [[ ${#dbNames} > 0 ]] || {
+    info "Error: no database to backup"
+    return 2
   }
 
-  return $exitStatus
+  echo "Backing up: ${dbNames[@]}"
+
+  backup-db "${dbNames[@]}" -- "$@"
+
+  rc=$?
+
+  return $rc
 }
 
-backupFull() {
-  local exitStatus=
-  local name="${filenamePrefix}full_$(now).sql${filenameSuffix}"
+backup-all() {
+  local name="$(backupMysqlName 'all')"
 
-  info "Doing full dump (all databases)"
+  while [[ $# > 0 ]]; do
+    case "$1" in
+      --)
+        shift
+        break
+        ;;
 
-  doMysqldump "$name" 'full' && {
-    exitStatus=$?
+      *)
+        break
+        ;;
+    esac
+  done
 
-    info Done
-  } || {
-    exitStatus=$?
+  dump "${dumpArgs[@]}" "${dumpAllArgs[@]}" "$@" |
+    onEmptyReturn 2 store "all" "${name}.sql"
 
-    info "Error: doMysqldump '${name}' 'full' exit status $exitStatus" >&2 ;
-  }
-
-  return $exitStatus
+  return $?
 }
 
-deleteOldBackups() {
-  local exitStatus=
-  local dir=
-  local keep=
-  local mode="$1"
-  shift
+backup() {
+  while [[ $# > 0 ]]; do
+    case "$1" in
+      --debug)
+        shift
+        DRYRUN="dryRun"
+        ;;
 
-  case "$mode" in
-    all)
-      dir="$backupBaseDir"
-      keep=$(max2 $keepSingle $keepFull)
-      ;;
-    
-    single)
-      dir="$backupBaseDir/$mode"
-      keep=$keepSingle
-      ;;
+      single|--single)
+        shift
 
-    full)
-      dir="$backupBaseDir/$mode"
-      keep=$keepFull
-      ;;
-    *)
-      info "Error: delete mode not known '$mode'"
-      ;;
-  esac
+        BACKUP=( backup-single )
+        ;;
 
-  if [[ "$dir" != "" && "$filenamePrefix" != "" ]]
-  then
-    info "Deleting backups older than ${keepSingle} days in ${dir} having prefix ${filenamePrefix}"
+      all|full|--full)
+        shift
 
-    $FIND "${dir}" -type f -name "${filenamePrefix}*.sql*" -mtime +$keep
-    
-    $DRYRUN $FIND "${dir}" -type f -name "${filenamePrefix}*.sql*" -mtime +$keep -exec rm {} \;
+        BACKUP=( backup-all ) # default
+        ;;
 
-    exitStatus=$?
-    return $exitStatus
-  else
-    info "Error: deleteOldBackups"
+      db)
+        shift
+        local dbNames=()
+        
+        while [[ $# > 0 ]]; do
+          case "$1" in
+            -*)
+              break
+              ;;
 
-    exitStatus=1
-    return $exitStatus
-  fi
+            *)
+              dbNames+=("${1}")
+              shift
+              ;;
+          esac
+        done
+
+        BACKUP=( backup-db "${dbNames[@]}" -- )
+        ;;
+
+      --)
+        shift
+        break
+        ;;
+
+      *)
+        break
+        ;;
+    esac
+  done
+  
+  info "Starting ${BACKUP[@]} $@"
+
+  "${BACKUP[@]}" "$@"
+
+  rc=$?
+
+  return $rc
 }
 
-# Check we have a file that is less than 1 day old in backup dir
-checkBackup() {
-  local existStatus
-  local mode
-  local dir
-
-  [[ $# > 0 ]] && {
-    mode="$1"
-    shift
-
-    dir="$backupBaseDir/$mode"
-  } || {
-    dir="$backupBaseDir"
-  }
-
-  if [ "`find "$dir" -type f -ctime -1 -name "${filenamePrefix}*.sql*"`" ];
-  then
-    info "Info: check found backup less than 1 day old in ${dir}"
-    exitStatus=0
-  else
-    info "Error: check didn't find backup less than 1 day old  in ${backupBaseDir}"
-    exitStatus=2
-  fi
-
-  return $exitStatus
-}
-
-
-###########################################################
-# Process args
-
-while [[ $# > 0 ]]
-do
-  case "$1" in
-    --create-dirs)
-      createDirs="true"
-      shift
-      ;;
-
-    --single)
-      backupMode="single"
-      shift
-      ;;
-
-    --full)
-    # default
-      backupMode="full"
-      shift
-      ;;
-
-    --time)
-      time="true"
-      shift
-      ;;
-
-    --dry-run)
-      DRYRUN="dryRun"
-      shift
-      ;;
-
-    -v|--verbose)
-      verbose="true"
-      shift
-      ;;
-
-    --nice)
-      NICE+=" nice"
-      shift
-      ;;
-
-    --io-nice)
-      NICE+=" ionice -c3"
-      shift
-      ;;
-
-    --base-dir)
-      backupBaseDir="$2"
-      shift 2
-      ;;
-
-    -g|--gzip)
-      COMPRESS="$GZIP"
-      filenameSuffix=".gz"
-      shift
-      ;;
-
-    -b|--bz2)
-      COMPRESS="$BZIP2"
-      filenameSuffix=".bz2"
-      shift
-      ;;
-
-    --no-compress)
-      COMPRESS=""
-      filenameSuffix=""
-      shift
-      ;;
-
-    --)
-      shift
-      break
-      ;;
-
-    *)
-      break
-      ;;
-  esac
-done
-
-[[ "$time" == "true" ]] && {
-  MYSQLDUMP="$TIME $MYSQLDUMP"
-  FIND="$TIME $FIND"
-}
-
-
-[[ "$verbose" == "true" ]] && {
-  echo "verbose: $verbose, backupMode: $backupMode, backupBaseDir: $backupBaseDir, createDirs: $createDirs, NICE: $NICE, COMPRESS: $COMPRESS, $outputFileSuffix"
-  echo
-}
-
-################################
-# Create dirs
-
-[[ "$createDirs" == "true" ]] && {
-  doCreateDirs || {
-    createDirsExit=$?
-    info "Failed to create backup dirs."
-
-    globalExit=$(max2 $createDirsExit $globalExit)
-  }
-
-  # we create dir and stop
-  exit $globalExit
-}
-
-#################################
+#################
 # Main
 
-main() {
-  case "$backupMode" in
-    single)
-      local dbList="$(listDb)"
-      local listDbExit=$?
+startedAt=$( nowIso )
 
-      globalExit=$(max2 $listDbExit $globalExit)
-      
-      if [[ $listDbExit != 0 ]]
-      then
-        info "Error: failed to get list of db to backup."
-      else
-        backupSingle $dbList
-        backupExit=$?
-        globalExit=$(max2 $backupExit $globalExit)
-      fi
-      ;;
+backup "$@"
 
-    full)
-      backupFull
-      
-      backupExit=$?
-      globalExit=$(max2 $backupExit $globalExit)
-      ;;
+backupRc=$?
+exitRc=$(max2 $exitRc $backupRc)
 
-    *)
-      info "Error: unknown mode '$backupMode'"
-      exit 3
-  esac
-
-  if [[ "$backupExit" == 0 ]];
-  then
-    deleteOldBackups $backupMode
-
-    deleteExit=$?
-    globalExit=$(max2 $backupExit $globalExit)
-  else
-    info "There were some errors during backup process, skipping deleting older backups."
-  fi
+[[ $exitRc == 0 ]] && {
+  info "Success: backup succeeded"
+} || {
+  [[ $exitRc == 1 ]] && {
+    info "Warning: backup ended with warnings rc: $exitRc"
+  } || {
+    info "Error: backup failed with rc: $exitRc"
+  }
 }
 
-main
+exit $exitRc
 
-###################################
-# Check existing backups
-
-checkBackup $backupMode
-
-checkBackupExit=$?
-globalExit=$(max2 $checkBackupExit $globalExit)
-
-exit $globalExit
