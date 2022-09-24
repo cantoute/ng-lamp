@@ -6,8 +6,11 @@
 
 
 bb_label_home() {
+  local self="$1"
+  local bbArg="$2"
+  shift 2
+
   doBorgCreate "home" /home --exclude "home/vmail" --exclude "$backupMysqlLocalDir" "$@"
-  return $?
 }
 
 bb_label_home_no-exclude() {
@@ -16,28 +19,43 @@ bb_label_home_no-exclude() {
 }
 
 bb_label_home_vmail() {
+  local self="$1"
+  local bbArg="$2"
+  shift 2
+
   doBorgCreate "vmail" /home/vmail "$@"
-  return $?
 }
 
 bb_label_sys() {
+  local self="$1"
+  local bbArg="$2"
+  shift 2
+
   doBorgCreate "sys" /etc /usr/local /root "$@"
-  return $?
 }
 
 bb_label_etc() {
+  local self="$1"
+  local bbArg="$2"
+  shift 2
+
   doBorgCreate "sys" /etc "$@"
-  return $?
 }
 
 bb_label_usr-local() {
+  local self="$1"
+  local bbArg="$2"
+  shift 2
+
   doBorgCreate "sys" /usr/local "$@"
-  return $?
 }
 
 bb_label_var() {
+  local self="$1"
+  local bbArg="$2"
+  shift 2
+
   doBorgCreate "var" /var --exclude 'var/www/vhosts' "$@"
-  return $?
 }
 
 bb_label_mysql() {
@@ -81,11 +99,15 @@ bb_label_sleep() {
 }
 
 bb_label_test() {
+  local self="$1"
+  local bbArg="$2"
+  shift 2
+
   # [[ -v 2 ]] && {
   #   [[ "$2" == "ok" || "$2" == "" ]] && return 0 || return 128
   # } || return 0
 
-  [[ "$2" == "ok" ]] && {
+  [[ "$bbArg" == "ok" ]] && {
     return 0
   } || {
     return 128
