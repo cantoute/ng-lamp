@@ -96,8 +96,8 @@ backupMysqlName() {
 # mysqlListDbLike db1,-db2 db3
 # mysqlListDbLike "db1,-db2 db3"
 mysqlListDbLike() {
-  local mysqlExecSql=(mysql -Br --silent)
-  local andWhere=(1)
+  local mysqlExecSql=( mysql -Br --silent )
+  local andWhere=( 1 )
   local like=(
     # some default db to never backup in mode=single
     -information_schema
@@ -148,6 +148,28 @@ dump() {
   [[ $rc == 1 ]] && rc=2
 
   return $rc
+}
+
+backup-all() {
+  local name="$(backupMysqlName 'all')"
+
+  while (( $# > 0 )); do
+    case "$1" in
+      --)
+        shift
+        break
+        ;;
+
+      *)
+        break
+        ;;
+    esac
+  done
+
+  dump "${dumpArgs[@]}" "${dumpAllArgs[@]}" "$@" |
+    onEmptyReturn 2 store "all" "${name}.sql"
+
+  return $?
 }
 
 backup-db() {
@@ -201,7 +223,7 @@ backup-single() {
   local like=()
   local dbNames=()
 
-  while [[ $# > 0 ]]; do
+  while (( $# > 0 )); do
     case "$1" in
       --like)
         like+=("$2")
@@ -209,11 +231,11 @@ backup-single() {
         ;;
 
       --not-like)
-        local notLikes=(${2//,/ })
+        local notLikes=( ${2//,/ } )
         shift 2
 
         for notLike in ${notLikes[@]}; do
-          like+=("-$notLike")
+          like+=( "-$notLike" )
         done
         ;;
         
@@ -242,30 +264,8 @@ backup-single() {
   return $rc
 }
 
-backup-all() {
-  local name="$(backupMysqlName 'all')"
-
-  while [[ $# > 0 ]]; do
-    case "$1" in
-      --)
-        shift
-        break
-        ;;
-
-      *)
-        break
-        ;;
-    esac
-  done
-
-  dump "${dumpArgs[@]}" "${dumpAllArgs[@]}" "$@" |
-    onEmptyReturn 2 store "all" "${name}.sql"
-
-  return $?
-}
-
 backup() {
-  while [[ $# > 0 ]]; do
+  while (( $# > 0 )); do
     case "$1" in
       --debug)
         shift
@@ -288,7 +288,7 @@ backup() {
         shift
         local dbNames=()
         
-        while [[ $# > 0 ]]; do
+        while (( $# > 0 )); do
           case "$1" in
             -*)
               break
@@ -329,18 +329,20 @@ backup() {
 
 startedAt=$( nowIso )
 
+trace=( "$SCRIPT_NAME" "$@" )
+
 backup "$@"
 
 backupRc=$?
 exitRc=$( max $exitRc $backupRc )
 
-[[ $exitRc == 0 ]] && {
-  info "Success: '$SCRIPT_NAME $@'"
+(( $exitRc == 0 )) && {
+  info "Success executing '${trace[@]}'"
 } || {
-  [[ $exitRc == 1 ]] && {
-    info "Warning: '$SCRIPT_NAME $@' ended with warnings rc: $exitRc"
+  (( $exitRc == 1 )) && {
+    info "Warning: '${trace[@]}' ended with warnings rc: $exitRc"
   } || {
-    info "Error: '$SCRIPT_NAME $@' failed with rc: $exitRc"
+    info "Error: '${trace[@]}' failed with rc: $exitRc"
   }
 }
 
