@@ -70,7 +70,7 @@ initUtils() {
     >&2 echo "DRYRUN: $@";
   }
 
-  info() { >&2 printf "\n%s %s\n\n" "$( date )" "$*"; }
+  info() { >&2 printf "\n%s %s\n\n" "$( LC_ALL=C date )" "$*"; }
 
   now() { date +"%Y-%m-%dT%H-%M-%S%z" ; } # avoid ':' in filenames
   nowIso() { date --iso-8601=seconds ; }
@@ -82,7 +82,7 @@ initUtils() {
 
   # max of n numbers
   max() {
-    [[ $# > 0 ]] || {
+    (( $# > 0 )) || {
       echo "Error: max takes minimum one argument"
       return 1
     }
@@ -167,14 +167,13 @@ initUtils() {
 
     rc=$?
 
-    return $(max2 $rc $readRc)
+    return $( max $rc $readRc )
   }
 
 
   # takes 0 or n filenames where the stdin will be copied to (appended)
   logToFile() {
-    if [[ $# > 0 ]]
-    then
+    if (( $# > 0 )); then
       # assuming all args are names of files we append to
       local file TEE=(tee --output-error=warn)
       for file in "$@"; do TEE+=( -a "$file" ); done
@@ -189,7 +188,7 @@ initUtils() {
 
 
   compress() {
-    [[ ${#COMPRESS[@]} == 0 ]] && COMPRESS=(cat);
+    (( ${#COMPRESS[@]} == 0 )) && COMPRESS=(cat);
 
     "${COMPRESS[@]}"
     
@@ -227,7 +226,7 @@ initUtils() {
     [[ -d "$dir" ]] || {
       info "Missing local dir: $dir"
 
-      exitRc=$(max2 $exitRc 1) # warning
+      exitRc=$( max $exitRc 1 ) # warning
 
       # lets try create it
 
@@ -236,7 +235,7 @@ initUtils() {
       } || {
         local mkdirRc=$?
 
-        exitRc=$(max2 $exitRc $mkdirRc)
+        exitRc=$( max $exitRc $mkdirRc )
 
         info "Error: could not create dir $dir"
 
@@ -246,7 +245,7 @@ initUtils() {
 
     # info "Info: storing to local '$file'"
 
-    if [[ "${#DRYRUN[@]}" == 0 ]]; then
+    if (( "${#DRYRUN[@]}" == 0 )); then
       cat > "$file"
     else
       cat > /dev/null
@@ -255,11 +254,7 @@ initUtils() {
 
     rc=$?
 
-    [[ $rc == 0 ]] && fileSize=$(fileSize "$file") && {
-      # info "gggg ${storeLocalTotal-unset}"
-
-
-
+    (( $rc == 0 )) && fileSize=$(fileSize "$file") && {
       # storeLocalTotal="$( sum ${storeLocalTotal-0} $fileSize 10000000000 )"
 
       # printf -v storeLocalTotal
@@ -271,10 +266,10 @@ initUtils() {
 
       # returned rc=1
       # in here rc=1 => warning
-      rc=$(max2 $rc 2)
+      rc=$( max $rc 2 )
     }
 
-    exitRc=$(max2 $rc $exitRc)
+    exitRc=$( max $rc $exitRc )
     return $exitRc
   }
 }

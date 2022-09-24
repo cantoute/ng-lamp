@@ -155,7 +155,7 @@ backup-db() {
   local dumpDbRc
   local dbNames=()
 
-  while [[ $# > 0 ]]; do
+  while (( $# > 0 )); do
     case "$1" in
       --)
         shift
@@ -168,16 +168,25 @@ backup-db() {
     esac
   done
 
-  info "Info: backing up db ${dbNames[@]@Q}"
+
+  local plural=
+  (( "${#dbNames[@]}" > 1 )) && {
+    plural="s"
+  }
+
+  info "Info: backing up database$plural: ${dbNames[@]@Q}"
+
+  # info "Info: backing up db ${dbNames[@]@Q}"
 
   # store "single" "$(backupMysqlName "$dbName")" compress dump "$dbName" "${dumpDbArgs[@]}" "$@"
 
   for db in "${dbNames[@]}"; do
+    info "Info: Backing up database: '$db'"
     dump "${dumpArgs[@]}" "${dumpDbArgs[@]}" "$@" "$db" |
       onEmptyReturn 2 store "single" "$(backupMysqlName "$db").sql"
 
     dumpRc=$?
-    rc=$(max2 $dumpRc $rc)
+    rc=$( max $dumpRc $rc )
 
   done
 
@@ -219,14 +228,12 @@ backup-single() {
     esac
   done
 
-  dbNames+=( "$( mysqlListDbLike "${like[@]}" )" )
+  dbNames+=( $( mysqlListDbLike "${like[@]}" ) )
 
-  [[ ${#dbNames} > 0 ]] || {
-    info "Error: no database to backup"
-    return 2
+  (( ${#dbNames[@]} > 0 )) || {
+    info "Warning: no database to backup"
+    return 1
   }
-
-  echo "Backing up: ${dbNames[@]}"
 
   backup-db "${dbNames[@]}" -- "$@"
 
@@ -325,7 +332,7 @@ startedAt=$( nowIso )
 backup "$@"
 
 backupRc=$?
-exitRc=$(max2 $exitRc $backupRc)
+exitRc=$( max $exitRc $backupRc )
 
 [[ $exitRc == 0 ]] && {
   info "Success: backup succeeded"
@@ -338,4 +345,3 @@ exitRc=$(max2 $exitRc $backupRc)
 }
 
 exit $exitRc
-
