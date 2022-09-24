@@ -76,7 +76,26 @@ initUtils() {
   nowIso() { date --iso-8601=seconds ; }
 
   # returns max of two numbers
-  max2() { printf '%d' $(( $1 > $2 ? $1 : $2 )) ; }
+  # max2() { printf '%d' $(( $1 > $2 ? $1 : $2 )) ; }
+
+  max2() { max "$@" ; }
+
+  # max of n numbers
+  max() {
+    [[ $# > 0 ]] || {
+      echo "Error: max takes minimum one argument"
+      return 1
+    }
+
+    local max=$1
+    shift
+
+    for n in $@; do
+      max=$(( $n > $max ? $n : $max ))
+    done
+
+    printf '%d' $max
+  }
 
   sum() { printf "%d" "$((${@/%/+}0))" ; }
 
@@ -94,18 +113,23 @@ initUtils() {
 
   # arg1: filename (required)
   humanSize() {
-    local number="$1"
+    local format
+    local number=$1
+
+    (( $number > 1024 )) && {
+      format='%.1f'
+    } || {
+      format='%f'
+    }
 
     # human format
-    local humanSize="$(numfmt --to=iec-i --suffix=B --format="%.2f" $number)" && {
+    local humanSize="$( numfmt --to=iec-i --suffix=B --format="$format" $number )" && {
       printf "%s" "$humanSize"
     } || {
       info "Warning: not a number (or missing 'numfmt' in path?)"
       printf "%s" "$number"
     }
   }
-
-
 
   ##
   # usage
