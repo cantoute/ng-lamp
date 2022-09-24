@@ -5,56 +5,46 @@
 set -u
 set -o pipefail
 
-LC_ALL=C
+SCRIPT_NAME="${0##*/}"
+SCRIPT_NAME_NO_EXT="${SCRIPT_NAME%.*}"
+SCRIPT_DIR="$(dirname -- "$0" )"
+SCRIPT_DIR="${0%/*}"
 
-umask 027
-# LANG="en_US.UTF-8"
+source "${SCRIPT_DIR}/backup-common.sh";
+init && initUtils
 
-SCRIPT_DIR=$( cd -- "$( dirname -- "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
+source "${SCRIPT_DIR}/backup-borg-labels.sh";
 
-
-dryRun() { echo "DRYRUN:" "$@"; }
-loadDotEnv() { source "$dotEnv"; }
-
-info() { printf "\n%s %s\n\n" "$( date )" "$*" >&2; }
-
-# returns max of two numbers
-max2() { printf '%d' $(( $1 > $2 ? $1 : $2 )); }
+loadDotEnv() { source "~/.env.borg"; }
 
 # your email@some.co
+# only used for logrotate 
 alertEmail="alert"
-
-hostname=$(hostname -s)
 
 logFile="/var/log/backup-borg.log"
 logrotateConf="/etc/logrotate.d/backup-borg"
 
-BORG_CREATE=("${SCRIPT_DIR}/backup-borg-create.sh")
-MYSQLDUMP=("${SCRIPT_DIR}/backup-mysql.sh" "--bz2")
-mysqldumpBaseDir="/home/backups/mysql-${hostname}"
+BORG_CREATE=( "${SCRIPT_DIR}/backup-borg-create.sh" )
+BACKUP_MYSQL=( "${SCRIPT_DIR}/backup-mysql.sh" )
+# backupMysqlLocalDir="/home/backups/mysql-${hostname}"
 
 
-localConf="${SCRIPT_DIR}/${0%.*}-${hostname}.sh"
+localConf=( "${SCRIPT_DIR}/${SCRIPT_NAME_NO_EXT}-${hostname}.sh" )
 
-globalExit=
+exitRc=0
 onErrorStop=
 doLogrotateCreate=
 doInit=
 
 bbLabel=
 
-DRYRUN=()
-
 # command -v foo >/dev/null 2>&1 || { echo >&2 "I require foo but it's not installed.  Aborting."; exit 1; }
 
-NICE=()
-command -v nice >/dev/null 2>&1 && NICE+=(nice)
-command -v ionice >/dev/null 2>&1 && NICE+=(ionice -c3)
 #
 # NICE=(nice ionice -c3)
 
 borgCreateArgs=()
-mysqldumpArgs=()
+backupMysqlArgs=()
 
 # Debug
 # logFile="/tmp/backup-borg.log2"
@@ -62,24 +52,23 @@ mysqldumpArgs=()
 # NICE=""
 # DRYRUN="dryRun"
 
-while [[ $# > 0 ]]
-do
+while (( $# > 0 )); do
   case "$1" in
     --nice)
-      NICE+=(nice)
+      NICE+=( nice )
       shift
       ;;
 
     --io-nice)
-      NICE+=(ionice -c3)
+      NICE+=( ionice -c3 )
       shift
       ;;
 
     --dry-run)
-      DRYRUN+=(dryRun)
+      DRYRUN=dryRun
       
-      borgCreateArgs+=(--dry-run)
-      mysqldumpArgs+=(--dry-run)
+      borgCreateArgs+=( --dry-run )
+      backupMysqlArgs+=( --dry-run )
 
       shift
       ;;
@@ -87,28 +76,28 @@ do
     --borg-dry-run)
       # borgCreateArgs+=(--dry-run)
       # pushing it as first arg, seemed safer but brakes access to $bbLabel as $2 in wrappers (shifting)
-      BORG_CREATE+=(--dry-run)
+      BORG_CREATE+=( --dry-run )
 
       shift
       ;;
 
     --mysqldump-dry-run|--mysql-dry-run)
-      mysqldumpArgs+=(--dry-run)
+      backupMysqlArgs+=( --dry-run )
       shift
       ;;
 
     --verbose)
-      borgCreateArgs+=("$1")
+      borgCreateArgs+=( "$1" )
       shift
       ;;
 
     --progress)
-      borgCreateArgs+=("$1")
+      borgCreateArgs+=( "$1" )
       shift
       ;;
 
     --exclude|--include)
-      borgCreateArgs+=("$1" "$2")
+      borgCreateArgs+=( "$1" "$2" )
       shift 2
       ;;
 
@@ -128,7 +117,7 @@ do
       ;;
 
     --conf)
-      localConf="$2"
+      localConf=( "$2" )
       shift 2
       ;;
 
@@ -153,7 +142,7 @@ done
 
 doBorgCreateWrapped() {
   # never call directly, only via doBorgCreate
-  "${DRYRUN[@]}" "${NICE[@]}" "${BORG_CREATE[@]}" "$@"
+  $DRYRUN "${NICE[@]}" "${BORG_CREATE[@]}" "$@"
   return $?
 }
 
@@ -180,7 +169,7 @@ doBorgCreateWrapped() {
 
 # bb_label_dabao-home() {
 
-#   local args=("$@")
+#   local args=("$@" )
   
 #   args+=(
 #     --exclude 'home/postgresql/data'
@@ -193,9 +182,9 @@ doBorgCreateWrapped() {
 #     "home" /home    \
 #     "${args[@]}"
 
-#   local rs=$?
+#   local rc=$?
 
-#   return $rs
+#   return $rc
 # }
 
 doBorgCreate() {
@@ -214,24 +203,22 @@ doBorgCreate() {
   )
 
   for wrapper in "${bbWrappers[@]}"; do
-    [[ "$(LC_ALL=C type -t "$wrapper")" == "function" ]] && {
-      wrappers+=("$wrapper")
+    [[ "$(LC_ALL=C type -t "$wrapper" )" == "function" ]] && {
+      wrappers+=("$wrapper" )
     }
   done
 
   "${wrappers[@]}" doBorgCreateWrapped "$@" "${borgCreateArgs[@]}"
 
-  rs=$?
+  rc=$?
 
-  return $rs
+  return $rc
 }
 
-doMysqldump() {
-  "${DRYRUN[@]}" "${NICE[@]}" "${MYSQLDUMP[@]}" "$@"
+doBackupMysql() {
+  $DRYRUN "${NICE[@]}" "${BACKUP_MYSQL[@]}" "$@"
   return $?
 }
-
-
 
 ##############################################
 
@@ -240,8 +227,7 @@ doBackup() {
   local thisStatus=0
   local split
 
-  while [[ $# > 0 ]]
-  do
+  while (( $# > 0 )); do
     case "$1" in
       --)
         shift
@@ -257,17 +243,16 @@ doBackup() {
         bb_hook_${split[0]} "${split[0]}" "${split[1]}"
 
         thisStatus=$?
-        exitStatus=$(max2 "$thisStatus" "$exitStatus")
+        exitStatus=$( max "$thisStatus" "$exitStatus" )
 
         shift
         ;;
 
       --*)
-
         bb_hook_${label:2}
 
         thisStatus=$?
-        exitStatus=$(max2 "$thisStatus" "$exitStatus")
+        exitStatus=$( max "$thisStatus" "$exitStatus" )
 
         shift
         ;;
@@ -284,22 +269,22 @@ doBackup() {
         bb_label_${split[0]} "${split[0]}" "${split[1]}"
 
         thisStatus=$?
-        exitStatus=$(max2 "$thisStatus" "$exitStatus")
+        exitStatus=$( max "$thisStatus" "$exitStatus" )
         ;;
 
       *)
-        bbLabel=$1
-        bb_label_${bbLabel}
+        bbLabel="$1"
+
+        bb_label_${bbLabel} ${bbLabel}
 
         thisStatus=$?
-        exitStatus=$(max2 "$thisStatus" "$exitStatus")
+        exitStatus=$( max "$thisStatus" "$exitStatus" )
 
         shift
         ;;
     esac
 
-    if [[ 0 != $thisStatus ]];
-    then
+    if (( 0 != $thisStatus )); then
       info "Error: backup labeled '${bbLabel}' returned status ${thisStatus}"
 
       [[ "true" == "$onErrorStop" ]] && {
@@ -313,22 +298,22 @@ doBackup() {
   return $exitStatus
 }
 
-mysqldumpAndBorgCreate() {
+backupMysqlAndBorgCreate() {
   local exitStatus=0
   local thisStatus=
 
-  doMysqldump "$@" "${mysqldumpArgs[@]}"
+  doBackupMysql "$@" "${backupMysqlArgs[@]}"
 
   thisStatus=$?
-  exitStatus=$(max2 "$thisStatus" "$exitStatus")
+  exitStatus=$( max "$thisStatus" "$exitStatus" )
 
   [[ "$thisStatus" == 0 ]] || info "${bbLabel}:mysqldump returned status: ${thisStatus}"
 
   # of course we upload backup even if dump returned errors
-  doBorgCreate "mysql" "$mysqldumpBaseDir"
+  doBorgCreate "mysql" "$backupMysqlLocalDir"
   
   thisStatus=$?
-  exitStatus=$(max2 "$thisStatus" "$exitStatus")
+  exitStatus=$( max "$thisStatus" "$exitStatus" )
 
   [[ "$thisStatus" == 0 ]] || info "${bbLabel}:borgCreate returned status: ${thisStatus}"
 
@@ -336,22 +321,22 @@ mysqldumpAndBorgCreate() {
 }
 
 createLogrotate() {
-  local conf="# created by $0 on $(now)"
-  conf+="
-${logFile} {
-  daily
-  delaycompress
-  rotate 14
-  compress
-  notifempty
-  # generate an error on missing
-  # 24h without any logs is not normal
-  nocreate
-  nomissingok #default
-  errors ${alertEmail}
-}
-"
-  [[ ${#DRYRUN[@]} == 0 ]] || {
+  local conf="# created by $0 on $(nowIso)"
+
+  conf+="\n${logFile} {
+    daily
+    delaycompress
+    rotate 14
+    compress
+    notifempty
+    # generate an error on missing
+    # 24h without any logs is not normal
+    nocreate
+    nomissingok #default
+    errors ${alertEmail}
+  }
+  "
+  [[ $DRYRUN == "" ]] || {
     echo "DryRun: not creating file ${logrotateConf}"
     echo "${conf}"
 
@@ -465,87 +450,6 @@ swapRepo() {
 }
 
 
-##################################
-# Default labels
-
-
-bb_label_home() {
-  doBorgCreate "home" /home --exclude "home/vmail" --exclude "$mysqldumpBaseDir" "$@"
-  return $?
-}
-
-bb_label_home_no-exclude() {
-  doBorgCreate "home" /home "$@"
-  return $?
-}
-
-bb_label_home_vmail() {
-  doBorgCreate "vmail" /home/vmail "$@"
-  return $?
-}
-
-bb_label_sys() {
-  doBorgCreate "sys" /etc /usr/local /root "$@"
-  return $?
-}
-
-bb_label_etc() {
-  doBorgCreate "sys" /etc "$@"
-  return $?
-}
-
-bb_label_usr-local() {
-  doBorgCreate "sys" /usr/local "$@"
-  return $?
-}
-
-bb_label_var() {
-  doBorgCreate "var" /var --exclude 'var/www/vhosts' "$@"
-  return $?
-}
-
-bb_label_mysql() {
-  local args=
-
-  [[ "$2" == "single" ]] && args='--single'
-  shift 2
-
-  mysqldumpAndBorgCreate $args "$@"
-  return $?
-}
-
-bb_label_sleep() {
-  local sleep=$2
-
-  echo "Sleeping ${sleep}s..."
-
-  sleep $sleep
-  
-  return $?
-}
-
-bb_label_test() {
-  # [[ -v 2 ]] && {
-  #   [[ "$2" == "ok" || "$2" == "" ]] && return 0 || return 128
-  # } || return 0
-
-  [[ "$2" == "ok" ]] && {
-    return 0
-  } || {
-    return 128
-  } 
-
-
-  # [[  ! -v 2 || (-v 2 && ("$2" == "ok" || "$2" == ""))  ]] && {
-  #   return 0
-  # } || return 128
-}
-
-
-# error handling: (Ctrl-C)
-
-# trap 'echo $( date ) Backup interrupted >&2; exit 2' INT TERM
-
 
 ###################################################
 # Main
@@ -556,36 +460,30 @@ bb_label_test() {
   }
 }
 
-[[ -f "$localConf" ]] && {
-  source "$localConf"
+for conf in "${localConf[@]}"; do
+  [[ -f "$conf" ]] && {
+    # first one we find, we source
+    source "$conf"
+    
+    (( $? == 0 )) && {
+      >&2 echo "Info: loaded local config ${conf}";
+      break;
+    } || {
+      >&2 echo "Warning: found '${conf}' but failed to load it."
+    }
+  }
+done
 
-  echo "Info: loaded local config ${localConf}"
-}
-
-# logTo=("${NICE[@]}")
+# logTo=("${NICE[@]}" )
 # logTo+=(
 #   tee --output-error=warn -a 
 # )
 # doBackup "$@" 2>&1 | "${logTo[@]}" "$logFile"
 
-# takes 0 or n filenames where the stdin will be copied to (appended)
-logToFile() {
-  if [[ $# > 0 ]]
-  then
-    # assuming all args are names of files we append to
-    local file TEE=(tee --output-error=warn)
-    for file in "$@"; do TEE+=( -a "$file" ); done
 
-    ## consider `ionice -c3` for disk output niceness
-    "${NICE[@]}" "${TEE[@]}"
-  else
-    # simply pipe stdin to stdout
-    cat
-  fi
-}
 
 doBackup "$@" 2>&1 | logToFile "$logFile"
 
-globalExit=$?
+exitRc=$?
 
-exit $globalExit
+exit $exitRc

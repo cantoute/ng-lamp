@@ -139,9 +139,9 @@ mysqlListDbLike() {
 dump() {
   local rc
 
-  >&2 echo "Executing: " "${DRYRUN[@]}" "${NICE[@]}" "$MYSQLDUMP" "$@"
+  >&2 echo "Executing: " $DRYRUN "${NICE[@]}" "$MYSQLDUMP" "$@"
 
-  "${DRYRUN[@]}" "${NICE[@]}" "$MYSQLDUMP" "$@"
+  $DRYRUN "${NICE[@]}" "$MYSQLDUMP" "$@"
 
   rc=$?
 
@@ -335,12 +335,12 @@ backupRc=$?
 exitRc=$( max $exitRc $backupRc )
 
 [[ $exitRc == 0 ]] && {
-  info "Success: backup succeeded"
+  info "Success: '$SCRIPT_NAME' succeeded"
 } || {
   [[ $exitRc == 1 ]] && {
-    info "Warning: backup ended with warnings rc: $exitRc"
+    info "Warning: '$SCRIPT_NAME' ended with warnings rc: $exitRc"
   } || {
-    info "Error: backup failed with rc: $exitRc"
+    info "Error: '$SCRIPT_NAME' failed with rc: $exitRc"
   }
 }
 

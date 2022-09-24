@@ -81,36 +81,41 @@ pruneKeepArgs=(
 
 #################################
 
-NICE=()
-# auto nice
-command -v nice >/dev/null 2>&1 && NICE+=(nice)
-command -v ionice >/dev/null 2>&1 && NICE+=(ionice -c3)
+SCRIPT_NAME="${0##*/}"
+SCRIPT_NAME_NO_EXT="${SCRIPT_NAME%.*}"
+SCRIPT_DIR="${0%/*}"
 
-BORG=(borg)
+source "${SCRIPT_DIR}/backup-common.sh";
+init && initUtils
 
-#export BORG_REPO=
-#export BORG_PASSPHRASE=
-DRYRUN=
-dryRun() { 
-  # echo "DRYRUN:" "${@@Q}";
-  echo "DRYRUN:" "$@";
-}
+# NICE=()
+# # auto nice
+# command -v nice >/dev/null 2>&1 && NICE+=(nice)
+# command -v ionice >/dev/null 2>&1 && NICE+=(ionice -c3)
 
-borg() { 
-  # echo "DRYRUN:" "${@@Q}";
-  echo "DRYRUN:" "$@";
-}
+# #export BORG_REPO=
+# #export BORG_PASSPHRASE=
+# DRYRUN=
+# dryRun() { 
+#   # echo "DRYRUN:" "${@@Q}";
+#   echo "DRYRUN:" "$@";
+# }
 
-# some helpers and error handling:
-info() { printf "\n%s %s\n\n" "$( date )" "$*" ; }
-trap 'echo $( date ) Backup interrupted >&2; exit 2' INT TERM
+# borg() { 
+#   # echo "DRYRUN:" "${@@Q}";
+#   echo "DRYRUN:" "$@";
+# }
+
+# # some helpers and error handling:
+# info() { printf "\n%s %s\n\n" "$( LC_ALL=C date )" "$*" ; }
+# trap 'echo $( date ) Backup interrupted >&2; exit 2' INT TERM
 
 ######################
 
 backupLabel="$1"
 shift
 
-while [[ $# > 0 ]]; do
+while (( $# > 0 )); do
   case "$1" in
     --debug)
       DRYRUN=dryRun
@@ -140,7 +145,7 @@ while [[ $# > 0 ]]; do
   esac
 done
 
-backupArgs=("$@")
+backupArgs=( "$@" )
 
 [[ -v 'BORG_REPO' ]] && {
   echo "BORG_REPO: ${BORG_REPO}"
@@ -168,7 +173,7 @@ info "Starting backup"
 
 # Backup 
 
-$DRYRUN ${NICE[@]} ${BORG[@]} create ::"${backupPrefix}-{now}" \
+$DRYRUN "${NICE[@]}" "${BORG[@]}" create ::"${backupPrefix}-{now}" \
 	"${backupArgs[@]}" "${createArgs[@]}" "${excludeArgs[@]}"
 
 borgCreateRc=$?
@@ -180,7 +185,7 @@ info "Pruning repository"
 # limit prune's operation to this machine's archives and not apply to
 # other machines' archives also:
 
-$DRYRUN ${NICE[@]} ${BORG[@]} prune --glob-archives "${backupPrefix}-*" "${pruneArgs[@]}" "${pruneKeepArgs[@]}"
+$DRYRUN "${NICE[@]}" "${BORG[@]}" prune --glob-archives "${backupPrefix}-*" "${pruneArgs[@]}" "${pruneKeepArgs[@]}"
 
 borgPruneRc=$?
 
@@ -188,7 +193,7 @@ borgPruneRc=$?
 
 info "Compacting repository"
 
-$DRYRUN ${NICE[@]} ${BORG[@]} compact
+$DRYRUN "${NICE[@]}" "${BORG[@]}" compact
 
 borgCompactRc=$?
 
