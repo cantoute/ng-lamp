@@ -148,20 +148,19 @@ done
 backupArgs=( "$@" )
 
 [[ -v 'BORG_REPO' ]] && {
-  echo "BORG_REPO: ${BORG_REPO}"
+  info "Using BORG_REPO: ${BORG_REPO}"
 } || {
-  echo "Warning: BORG_REPO isn't set"
-  echo "Loading: ~/.env.borg"
+  info "Warning: BORG_REPO isn't set, loading: ~/.env.borg"
 
   source ~/.env.borg
 
   [[ -v 'BORG_REPO' ]] || {
-    echo "Error: Environnement BORG_REPO isn't set"
+    info "Error: Environnement BORG_REPO isn't set"
 
     [[ "${DEBUG-}" == "" ]] && {
       exit 2
     } || {
-      echo "DRYRUN: proceed anyway"
+      info "DRYRUN: proceed anyway"
     }
   }
 }

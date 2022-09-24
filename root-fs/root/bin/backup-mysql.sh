@@ -335,12 +335,12 @@ backupRc=$?
 exitRc=$( max $exitRc $backupRc )
 
 [[ $exitRc == 0 ]] && {
-  info "Success: '$SCRIPT_NAME' succeeded"
+  info "Success: '$SCRIPT_NAME $@'"
 } || {
   [[ $exitRc == 1 ]] && {
-    info "Warning: '$SCRIPT_NAME' ended with warnings rc: $exitRc"
+    info "Warning: '$SCRIPT_NAME $@' ended with warnings rc: $exitRc"
   } || {
-    info "Error: '$SCRIPT_NAME' failed with rc: $exitRc"
+    info "Error: '$SCRIPT_NAME $@' failed with rc: $exitRc"
   }
 }
 

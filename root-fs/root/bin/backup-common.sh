@@ -57,7 +57,9 @@ init() {
   command -v nice >/dev/null 2>&1 && NICE+=( nice )
   command -v ionice >/dev/null 2>&1 && NICE+=( ionice -c3 )
 
-  DRYRUN=()
+  BORG=( borg )
+
+  DRYRUN=
 
   # storeLocalTotal=0
 }
@@ -230,7 +232,7 @@ initUtils() {
 
       # lets try create it
 
-      "${DRYRUN[@]}" mkdir -p "$dir" && {
+      $DRYRUN mkdir -p "$dir" && {
         info "Info: successfully created $dir"
       } || {
         local mkdirRc=$?
@@ -245,11 +247,11 @@ initUtils() {
 
     # info "Info: storing to local '$file'"
 
-    if (( "${#DRYRUN[@]}" == 0 )); then
+    if [[ $DRYRUN == "" ]]; then
       cat > "$file"
     else
       cat > /dev/null
-      "${DRYRUN[@]}" "output > '$file'"
+      $DRYRUN "output > '$file'"
     fi
 
     rc=$?

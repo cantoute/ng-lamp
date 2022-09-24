@@ -26,7 +26,6 @@ logrotateConf="/etc/logrotate.d/backup-borg"
 
 BORG_CREATE=( "${SCRIPT_DIR}/backup-borg-create.sh" )
 BACKUP_MYSQL=( "${SCRIPT_DIR}/backup-mysql.sh" )
-# backupMysqlLocalDir="/home/backups/mysql-${hostname}"
 
 
 localConf=( "${SCRIPT_DIR}/${SCRIPT_NAME_NO_EXT}-${hostname}.sh" )
@@ -37,14 +36,13 @@ doLogrotateCreate=
 doInit=
 
 bbLabel=
+borgCreateLabel=
 
-# command -v foo >/dev/null 2>&1 || { echo >&2 "I require foo but it's not installed.  Aborting."; exit 1; }
-
-#
-# NICE=(nice ionice -c3)
 
 borgCreateArgs=()
+
 backupMysqlArgs=()
+backupMysqlSingleArgs=()
 
 # Debug
 # logFile="/tmp/backup-borg.log2"
@@ -84,6 +82,16 @@ while (( $# > 0 )); do
     --mysqldump-dry-run|--mysql-dry-run)
       backupMysqlArgs+=( --dry-run )
       shift
+      ;;
+    
+    --mysql-single-like)
+      backupMysqlSingleArgs+=( --like "$2" )
+      shift 2
+      ;;
+    
+    --mysql-single-not-like)
+      backupMysqlSingleArgs+=( --not-like "$2" )
+      shift 2
       ;;
 
     --verbose)
@@ -193,7 +201,7 @@ doBorgCreate() {
   local wrappers=()
   local label="$1"
 
-  bbLabel="${label}"
+  borgCreateLabel="${label}"
 
   local bbWrappers=(
     "bb_borg_create_wrapper"
@@ -234,6 +242,13 @@ doBackup() {
         break
         ;;
 
+      '')
+        info "Warning: got empty backup label"
+        exitStatus=$( max $exitStatus 1 )
+        shift
+        break
+        ;;
+
       --*:*)
         info "local backup hook '${1}'"
 
@@ -249,7 +264,9 @@ doBackup() {
         ;;
 
       --*)
-        bb_hook_${label:2}
+        bbLabel="${1:2}"
+
+        "bb_hook_${bbLabel}"
 
         thisStatus=$?
         exitStatus=$( max "$thisStatus" "$exitStatus" )
@@ -258,15 +275,15 @@ doBackup() {
         ;;
 
       *:*)
-        label="$1"
+        bbLabel="$1"
         shift
 
-        info "local backup label '${label}'"
+        info "local backup label '${bbLabel}'"
 
         # splits :
-        split=(${label//\:/ })
+        split=(${bbLabel//\:/ })
 
-        bb_label_${split[0]} "${split[0]}" "${split[1]}"
+        "bb_label_${split[0]}" "${split[0]}" "${split[1]}"
 
         thisStatus=$?
         exitStatus=$( max "$thisStatus" "$exitStatus" )
@@ -275,7 +292,7 @@ doBackup() {
       *)
         bbLabel="$1"
 
-        bb_label_${bbLabel} ${bbLabel}
+        "bb_label_${bbLabel}" "${bbLabel}" ""
 
         thisStatus=$?
         exitStatus=$( max "$thisStatus" "$exitStatus" )
@@ -284,12 +301,17 @@ doBackup() {
         ;;
     esac
 
-    if (( 0 != $thisStatus )); then
+
+    if (( $thisStatus == 0 )); then
+      info "Info: borg backup labeled '${borgCreateLabel}' succeeded"
+    elif (( $thisStatus == 1 )); then
+        info "Warning: backup labeled '${bbLabel}' returned status $thisStatus"
+    else
       info "Error: backup labeled '${bbLabel}' returned status ${thisStatus}"
-
-      [[ "true" == "$onErrorStop" ]] && {
+      
+      
+      [[ "$onErrorStop" == "" ]] || {
         echo "We stop here (--on-error-stop invoked)"
-
         break
       }
     fi
@@ -301,21 +323,23 @@ doBackup() {
 backupMysqlAndBorgCreate() {
   local exitStatus=0
   local thisStatus=
+  local label
 
   doBackupMysql "$@" "${backupMysqlArgs[@]}"
 
   thisStatus=$?
   exitStatus=$( max "$thisStatus" "$exitStatus" )
 
-  [[ "$thisStatus" == 0 ]] || info "${bbLabel}:mysqldump returned status: ${thisStatus}"
+  (( $thisStatus == 0 )) || info "${bbLabel}:mysqldump returned status: ${thisStatus}"
 
   # of course we upload backup even if dump returned errors
-  doBorgCreate "mysql" "$backupMysqlLocalDir"
+  label="mysql"
+  doBorgCreate "$label" "$backupMysqlLocalDir"
   
   thisStatus=$?
   exitStatus=$( max "$thisStatus" "$exitStatus" )
 
-  [[ "$thisStatus" == 0 ]] || info "${bbLabel}:borgCreate returned status: ${thisStatus}"
+  [[ "$thisStatus" == 0 ]] || info "$label:borgCreate returned status: ${thisStatus}"
 
   return $exitStatus
 }
@@ -364,16 +388,34 @@ subRepo() {
     return 2
   }
 
-  local BORG_REPO_ORIG="${BORG_REPO}"
+  local BORG_REPO_ORIG
+  local BORG_PASSPHRASE_ORIG
+
+  BORG_REPO_ORIG="${BORG_REPO}"
 
   # append repoSuffix to default repo
   export BORG_REPO="${BORG_REPO}-${repoSuffix}"
+
+  local subRepoPassVar="BORG_PASSPHRASE_${repoSuffix}"
+  
+  [[ -v "${subRepoPassVar}" ]] && {
+
+    [[ -v 'BORG_PASSPHRASE' ]] && {
+      BORG_PASSPHRASE_ORIG="${BORG_PASSPHRASE}"
+    }
+
+    export BORG_PASSPHRASE="${!subRepoPassVar}"
+  }
 
   "$@"
 
   exitStatus=$?
 
   export BORG_REPO="${BORG_REPO_ORIG}"
+
+  [[ -v 'BORG_PASSPHRASE_ORIG' ]] && {
+    export BORG_PASSPHRASE="${BORG_PASSPHRASE_ORIG}"
+  }
 
   return $exitStatus
 }

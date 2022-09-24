@@ -41,24 +41,29 @@ bb_label_var() {
 }
 
 bb_label_mysql() {
-  local self=$1
-  shift
+  local self="$1"
+  local bbArg="$2"
+  shift 2
 
   local args=()
 
-  case "${1-default}" in
-    single)
-      # mysql:single
-      args+=( --single )
-      shift 1
+  case "${bbArg}" in
+    all|full|'')
       ;;
 
-    all|full)
-      shift 1
+    single)
+      # mysql:single
+      args+=( --single "${backupMysqlSingleArgs[@]}" )
+      ;;
+    
+    *)
+      info "Error: unknown argument: '$self:$bbArg'"
+      return 2
       ;;
   esac
 
   backupMysqlAndBorgCreate "${args[@]}" "$@"
+
   return $?
 }
 
@@ -66,7 +71,9 @@ bb_label_sleep() {
   local sleep=$2
   shift 2
 
-  echo "Sleeping ${sleep}s..."
+  [[ "$sleep" == "" ]] && sleep=60
+
+  info "Sleeping ${sleep}s..."
 
   sleep $sleep
   
