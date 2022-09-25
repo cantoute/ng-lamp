@@ -47,25 +47,27 @@ dumpArgs=(
 )
 
 # on single db backup avoid locking users and accept the risk
-# meaning I'de recommend running at least one daily backup-all
+# meaning I'de recommend running at least one daily backupAll
+# single
 dumpDbArgs=(
-  # single
   --skip-lock-tables
 )
 
+# all
 dumpAllArgs=(
-  # all
   --events
   --all-databases
 )
+
+backupMysqlPruneArgs=()
 
 ########################################################
 # defaults
 #
 
-BACKUP=( backup-all )
+BACKUP=( backupAll )
 DUMP=( dump )
-STORE=( store-local "$backupMysqlLocalDir" )
+STORE=( storeLocal "$backupMysqlLocalDir" )
 
 ########################################################
 # Utils
@@ -130,7 +132,7 @@ dump() {
   return $rc
 }
 
-backup-all() {
+backupAll() {
   local name="$( backupMysqlName all )"
 
   while (( $# > 0 )); do
@@ -147,14 +149,14 @@ backup-all() {
   done
 
   dump "${dumpArgs[@]}" "${dumpAllArgs[@]}" "$@" |
-    onEmptyReturn 2 store "all" "${name}.sql"
+    onEmptyReturn 2 store create "all" "${name}.sql"
 
   return $( max ${PIPESTATUS[@]} )
 }
 
-backup-db() {
+backupDb() {
   local rc=0
-  local dumpDbRc
+  local dumpRc
   local dbNames=()
 
   while (( $# > 0 )); do
@@ -173,20 +175,14 @@ backup-db() {
 
   local nb=${#dbNames[@]}
 
-  if (( $nb == 0 )); then
-    info "Warning: no database to backup"
-    rc=$( max 1 $rc )
-  elif (( $nb == 1 )); then
-    info "Info: Backing up 1 database: ${dbNames[@]@Q}"
-  else
-    info "Info: Backing up ${#dbNames[@]} databases: ${dbNames[@]@Q}"
-  fi
+  if   (( $nb == 0 )); then info "Warning: no database to backup"; rc=$( max 1 $rc )
+  elif (( $nb == 1 )); then info "Info: Backing up 1 database: ${dbNames[@]@Q}"
+  else info "Info: Backing up ${#dbNames[@]} databases: ${dbNames[@]@Q}"; fi
 
-  for db in "${dbNames[@]}"; do
-    info "Info: Backing up database: '$db'"
+  for db in "${dbNames[@]}"; do info "Info: Backing up database: '$db'"
 
     dump "${dumpArgs[@]}" "${dumpDbArgs[@]}" "$@" "$db" |
-      onEmptyReturn 2 store "single" "$( backupMysqlName "$db" ).sql"
+      onEmptyReturn 2 store create "single" "$( backupMysqlName "$db" ).sql"
 
     dumpRc=$?
     rc=$( max $dumpRc $rc )
@@ -195,26 +191,24 @@ backup-db() {
   return $rc
 }
 
-
-backup-single() {
-  local rc
-  local like=()
+# Get database list from local server and calls backupDb dbNames[]
+backupSingle() {
   local dbNames=()
+  local like=()
+  local n notLike=()
 
   while (( $# > 0 )); do
     case "$1" in
       --like)
-        like+=("$2")
+        # split on comma or space
+        like+=( ${2//,/ } )
         shift 2
         ;;
 
       --not-like)
-        local notLikes=( ${2//,/ } )
+        # split on comma or space
+        notLike+=( ${2//,/ } )
         shift 2
-
-        for notLike in ${notLikes[@]}; do
-          like+=( "-$notLike" )
-        done
         ;;
         
       --)
@@ -228,17 +222,22 @@ backup-single() {
     esac
   done
 
+  # Add notLike as like with a '-' 
+  for n in "${notLike[@]}"; do like+=( "-$n" ); done
+
+  # Get a list of databases from local server
   dbNames+=( $( mysqlListDbLike "${like[@]}" ) )
 
-  (( ${#dbNames[@]} > 0 )) || {
-    info "Warning: no database to backup"
-    return 1
-  }
+  (( ${#dbNames[@]} > 0 )) || { info "Warning: no database to backup" return 1; }
 
-  backup-db "${dbNames[@]}" -- "$@"
+  backupDb "${dbNames[@]}" -- "$@"
 }
 
-backup() {
+# Main
+backupMysql() {
+  local backupRc
+  local rc=0
+
   while (( $# > 0 )); do
     case "$1" in
       --debug)
@@ -248,25 +247,25 @@ backup() {
       
       --dir)
         backupMysqlLocalDir="$2"
-        STORE=( store-local "${backupMysqlLocalDir}" )
+        STORE=( storeLocal "${backupMysqlLocalDir}" )
         shift 2
         ;;
 
       single|--single)
         shift
 
-        BACKUP=( backup-single )
+        BACKUP=( backupSingle )
         ;;
 
       all|full|--full)
         shift
 
-        BACKUP=( backup-all ) # default
+        BACKUP=( backupAll ) # default
         ;;
 
       db)
-        shift
         local dbNames=()
+        shift
         
         while (( $# > 0 )); do
           case "$1" in
@@ -275,13 +274,13 @@ backup() {
               ;;
 
             *)
-              dbNames+=("${1}")
+              dbNames+=( "$1" )
               shift
               ;;
           esac
         done
 
-        BACKUP=( backup-db "${dbNames[@]}" -- )
+        BACKUP=( backupDb "${dbNames[@]}" -- )
         ;;
 
       --)
@@ -298,22 +297,47 @@ backup() {
   info "Starting ${BACKUP[@]} $@"
 
   "${BACKUP[@]}" "$@"
+
+  backupRc=$?
+
+  rc=$( max $backupRc $rc )
+
+  (( $rc == 0 )) || { info "Mysql backup returned non-zero status. Skipping old backups delete."; }
+
+  return $rc
+}
+
+backupMysqlPrune() {
+  info "Info: Pruning old backups. $@"
+
+
 }
 
 #################
-# Main
+# backup-mysql
 
 startedAt=$( nowIso )
 
 trace=( "$SCRIPT_NAME" "$@" )
 
-backup "$@"
+backupMysql "$@"
 
-backupRc=$?
-exitRc=$( max $backupRc $exitRc )
+backupMysqlRc=$?
+exitRc=$( max $backupMysqlRc $exitRc )
 
-if   (( $exitRc == 0 )); then info "Success executing '${trace[@]}'"
-elif (( $exitRc == 1 )); then info "Warning: '${trace[@]}' ended with warnings rc: $exitRc"
-else info "Error: '${trace[@]}' failed with rc: $exitRc"; fi
+if   (( $exitRc  > 1 )); then info "Error: '${trace[@]}' failed with rc: $exitRc";
+  exit $exitRc;
+elif (( $exitRc == 1 )); then info "Warning: '${trace[@]}' ended with warnings rc: $exitRc";
+  exit $exitRc;
+elif (( $exitRc == 0 )); then info "Success: '${trace[@]}' completed successfully rc: $exitRc";
+  # ok we continue with prune
+fi
+
+# Now errors have been intercepted we can delete old backups
+
+backupMysqlPrune "${backupMysqlPruneArgs[@]}";
+
+backupMysqlPruneRc=$?
+exitRc=$( max $backupMysqlPruneRc $exitRc )
 
 exit $exitRc

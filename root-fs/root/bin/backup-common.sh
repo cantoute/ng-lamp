@@ -171,16 +171,86 @@ initUtils() {
   }
 
   store() {
-    local path="$1"
-    local name="$2"
-    shift 2
+    local rc
+    local cmd="$1"
+    shift
 
-    cat | "${COMPRESS[@]}" | "${STORE[@]}" "${path}" "${name}${compressExt}"
+    case "$cmd" in
+      init|prune)
+        "${STORE[@]}" "$cmd" "$@" 
+        rc=$?
+        ;;
 
-    return $( max ${PIPESTATUS[@]} )
+      create)
+        local path="$1"
+        local name="$2"
+        shift 2
+        
+        cat | "${COMPRESS[@]}" | "${STORE[@]}" "$cmd" "$path" "${name}${compressExt}" "$@"
+        rc=$( max ${PIPESTATUS[@]} )
+        ;;
+
+      *)
+        info "Error: storeLocal: unknown command '$cmd' - accepts init|create|prune"
+        rc=2
+        ;;
+    esac
+
+    return $rc
   }
 
-  store-local() {
+  storeLocal() {
+    local run
+    local dir="$1"
+    local cmd="$2"
+    shift 2
+
+    case "$cmd" in
+      init)
+        run=( storeLocalInit )
+        ;;
+
+      create)
+        run=( storeLocalCreate )
+        ;;
+
+      prune)
+        run=( storeLocalPrune )
+        ;;
+      
+      *)
+        info "Error: storeLocal: unknown command '$cmd' - accepts init|create|prune"
+        return 2
+        ;;
+    esac
+
+    run+=( "$dir" "$@" )
+
+    "${run[@]}"
+  }
+
+  storeLocalInit() {
+    local dir="$1"
+    local mkdirRc
+    local rc=0
+
+    $DRYRUN mkdir -p "$dir"
+    
+    mkdirRc=$?
+
+    rc=$( max $mkdirRc $rc )
+    
+    (( $mkdirRc == 0 )) && { info "Info: successfully created $dir";  } || {
+      info "Error: could not create dir $dir"
+
+      (( $mkdirRc == 1 )) && rc=$( max 2 $rc ) # Escalade to error
+    }
+
+    return $rc
+  }
+
+  # Streams stdin to file
+  storeLocalCreate() {
     local storeDir="$1" # set in $STORE
     local path="$2"
     local filename="$3"
@@ -197,31 +267,38 @@ initUtils() {
     # cat > /dev/null; # end of the story
     # echo "> $filename"
 
+    [[ -d "$storeDir" ]] || {
+      info "Missing repo base dir: $storeDir"
+
+      storeLocal "$storeDir" init
+      
+      local storeInitRc=$?
+      
+      if (( $storeInitRc == 0 )); then
+        info "Local store init succeed: '$storeDir'"
+      else
+        info "Error: failed to init local store '$storeDir' rc = $?";
+      fi
+    }
+
     [[ -d "$dir" ]] || {
       info "Missing local dir: $dir"
 
       exitRc=$( max 1 $exitRc ) # warning
 
-      # lets try create it
-
       $DRYRUN mkdir -p "$dir" && {
-        info "Info: successfully created $dir"
+        info "Info: created dir '$dir'"
       } || {
-        local mkdirRc=$?
+        info "Error: failed to create dir '$dir'"
 
-        exitRc=$( max $mkdirRc $exitRc )
-
-        info "Error: could not create dir $dir"
-
-        # As dir missing and could not create no point to continue?
-        # exit $exitRc
+        exitRc=$( max 2 $exitRc ) # error
       }
     }
 
     # On dry run we stop here
     [[ $DRYRUN == "" ]] || {
       $DRYRUN output '>' "$file"; cat > /dev/null;
-      return
+      return $exitRc
     }
 
     cat > "$file";
