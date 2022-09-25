@@ -65,16 +65,13 @@ dumpAllArgs=(
 
 BACKUP=( backup-all )
 DUMP=( dump )
-
-
-STORE=( store-local "${backupMysqlLocalDir}" )
-
+STORE=( store-local "$backupMysqlLocalDir" )
 
 ########################################################
 # Utils
 
 # trap Ctrl-C
-trap 'echo $( date ) Backup interrupted >&2; exit 2' INT TERM
+trap '>&2 echo $( date ) Backup interrupted; exit 2' INT TERM
 
 
 # generates backup name ex: dump-my-host-name-2022-09-22T19-42+0200
@@ -82,7 +79,7 @@ trap 'echo $( date ) Backup interrupted >&2; exit 2' INT TERM
 backupMysqlName() {
   local name="${1-all}"
   
-  printf "%s" "dump-${hostname}-${name}-$(now)"
+  printf "%s" "dump-$hostname-$name-$( now )"
 }
 
 
@@ -121,13 +118,13 @@ mysqlListDbLike() {
 dump() {
   local rc
 
-  >&2 echo "Executing: " $DRYRUN "${NICE[@]}" "$MYSQLDUMP" "$@"
+  # >&2 echo "Executing: " $DRYRUN "${NICE[@]}" "$MYSQLDUMP" "$@"
 
   $DRYRUN "${NICE[@]}" "$MYSQLDUMP" "$@"
 
   rc=$?
 
-  # this would not be a warning. Raise to error.
+  # Escalade to error.
   (( $rc == 1 )) && rc=2
 
   return $rc
@@ -189,7 +186,7 @@ backup-db() {
     info "Info: Backing up database: '$db'"
 
     dump "${dumpArgs[@]}" "${dumpDbArgs[@]}" "$@" "$db" |
-      onEmptyReturn 2 store "single" "$(backupMysqlName "$db").sql"
+      onEmptyReturn 2 store "single" "$( backupMysqlName "$db" ).sql"
 
     dumpRc=$?
     rc=$( max $dumpRc $rc )
@@ -313,16 +310,10 @@ trace=( "$SCRIPT_NAME" "$@" )
 backup "$@"
 
 backupRc=$?
-exitRc=$( max $exitRc $backupRc )
+exitRc=$( max $backupRc $exitRc )
 
-(( $exitRc == 0 )) && {
-  info "Success executing '${trace[@]}'"
-} || {
-  (( $exitRc == 1 )) && {
-    info "Warning: '${trace[@]}' ended with warnings rc: $exitRc"
-  } || {
-    info "Error: '${trace[@]}' failed with rc: $exitRc"
-  }
-}
+if   (( $exitRc == 0 )); then info "Success executing '${trace[@]}'"
+elif (( $exitRc == 1 )); then info "Warning: '${trace[@]}' ended with warnings rc: $exitRc"
+else info "Error: '${trace[@]}' failed with rc: $exitRc"; fi
 
 exit $exitRc

@@ -84,8 +84,6 @@ bb_label_mysql() {
   esac
 
   backupMysql "${args[@]}" "$@"
-
-  return $?
 }
 
 bb_label_sleep() {
@@ -104,5 +102,5 @@ bb_label_test() {
   local bbArg="$2"
   shift 2
 
-  [[ "$bbArg" == "ok" ]] && { return 0; } || { return 128; }
+  [[ "$bbArg" == "ok" ]] || { return 128; }
 }

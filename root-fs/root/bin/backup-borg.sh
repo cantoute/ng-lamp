@@ -3,10 +3,9 @@
 set -u
 set -o pipefail
 
+SCRIPT_DIR="${0%/*}"
 SCRIPT_NAME="${0##*/}"
 SCRIPT_NAME_NO_EXT="${SCRIPT_NAME%.*}"
-SCRIPT_DIR="$(dirname -- "$0" )"
-SCRIPT_DIR="${0%/*}"
 
 source "${SCRIPT_DIR}/backup-common.sh";
 init && initUtils

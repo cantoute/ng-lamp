@@ -4,45 +4,37 @@
 # set -o pipefail
 
 # storeLocalTotal=0
-
-
 # declare -ix storeLocalTotal=0
-
-storeLocalTotal=0
+# storeLocalTotal=0
 
 init() {
-  [[ ${INIT-} == "" ]] || {
-    return 1
-  }
-
-  INIT=done
+  [[ -v 'INIT' ]] && { >&2 echo "Warning: init already loaded"; return; }
+  INIT=init
 
   umask 027
 
   LC_ALL=C
   # LANG="en_US.UTF-8"
 
-  startedAt=$( date --iso-8601=seconds )
-
-  hostname=$(hostname -s)
+  hostname=$( hostname -s )
 
   # for now hard coded
   # TODO: accept a arg to set --local-dir
   backupMysqlLocalDir="/home/backups/mysql-${hostname}"
 
-  MYSQLDUMP="$(which mysqldump)"
-  FIND="$(which find)"
-  TIME="$(which time) --portability"
+  MYSQLDUMP="$( which mysqldump )"
+  FIND="$( which find )"
+  TIME="$( which time ) --portability"
 
-  COMPRESS_BZIP2=("$(which bzip2)" -z)
-  COMPRESS_GZIP=("$(which gzip)" -c)
+  COMPRESS_BZIP=( "$( which bzip2 )" -z )
+  COMPRESS_GZIP=( "$( which gzip )" -c )
 
   COMPRESS=()
   compressExt=
 
   # auto compress default bzip2 gzip none
   if (command -v bzip2 >/dev/null 2>&1); then
-    COMPRESS=( "${COMPRESS_BZIP2[@]}" )
+    COMPRESS=( "${COMPRESS_BZIP[@]}" )
     compressExt='.bz2'
   elif( command -v gzip >/dev/null 2>&1); then
     COMPRESS=( "${COMPRESS_GZIP[@]}" )
@@ -54,7 +46,7 @@ init() {
 
   # auto nice and ionice if they can be found in path
   NICE=()
-  command -v nice >/dev/null 2>&1 && NICE+=( nice )
+  command -v nice >/dev/null 2>&1   && NICE+=( nice )
   command -v ionice >/dev/null 2>&1 && NICE+=( ionice -c3 )
 
   BORG=( borg )
@@ -65,21 +57,16 @@ init() {
 }
 
 initUtils() {
-
-  # DRYRUN=(dryRun)
-  dryRun() {
-    # cat > /dev/null;
-    >&2 echo "DRYRUN: $@";
-  }
-
   info() { >&2 printf "\n%s %s\n\n" "$( LC_ALL=C date )" "$*"; }
 
-  now() { date +"%Y-%m-%dT%H-%M-%S%z"; } # avoid ':' in filenames
+  # Ex: DRYRUN=dryRun
+  dryRun() { >&2 echo "DRYRUN: $@"; }
+
+  now()    { date +"%Y-%m-%dT%H-%M-%S%z"; } # avoiding ':' for filenames
   nowIso() { date --iso-8601=seconds; }
 
   # returns max of two numbers
-  # max2() { printf '%d' $(( $1 > $2 ? $1 : $2 )) ; }
-
+  # max2() { printf '%d' $(( $1 > $2 ? $1 : $2 )); }
   max2() { max "$@"; }
 
   # max of n numbers
@@ -121,10 +108,7 @@ initUtils() {
     # human format
     local humanSize="$( numfmt --to=iec-i --suffix=B --format="$format" $number )" && {
       printf "%s" "$humanSize";
-    } || {
-      info "Warning: not a number (or missing 'numfmt' in path?)"
-      printf "%s" "$number";
-    }
+    } || { info "Warning: not a number (or missing 'numfmt' in path?)"; printf "%s" $number; }
   }
 
   ##
@@ -154,7 +138,6 @@ initUtils() {
     local re='^[0-9]+$'; [[ ${1-} =~ $re ]] && { emptyRc=$1; shift; }
 
     IFS='' read -r line
-
     readRc=$?
 
     [ -n "${line:+_}" ] || {
@@ -180,7 +163,6 @@ initUtils() {
       "${NICE[@]}" "${TEE[@]}"
     }
   }
-
 
   compress() {
     (( ${#COMPRESS[@]} == 0 )) && COMPRESS=( cat );
@@ -236,20 +218,17 @@ initUtils() {
       }
     }
 
-    # info "Info: storing to local '$file'"
-
-    [[ $DRYRUN == "" ]] && { cat > "$file"; } || {
+    # On dry run we stop here
+    [[ $DRYRUN == "" ]] || {
       $DRYRUN output '>' "$file"; cat > /dev/null;
+      return
     }
 
+    cat > "$file";
+    
     rc=$?
 
     (( $rc == 0 )) && fileSize=$( fileSize "$file" ) && {
-      # storeLocalTotal="$( sum ${storeLocalTotal-0} $fileSize 10000000000 )"
-
-      # printf -v storeLocalTotal
-      # printf -v storeLocalTotal '%d' "${storeLocalTotal}"
-
       info "Success: stored '$file' ($( humanSize $fileSize ))"
     } || {
       info "Error: could note size backup to file."
