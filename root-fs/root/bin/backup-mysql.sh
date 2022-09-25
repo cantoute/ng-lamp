@@ -19,13 +19,9 @@ SCRIPT_NAME_NO_EXT="${SCRIPT_NAME%.*}"
 
 source "${SCRIPT_DIR}/backup-common.sh";
 
-init && initUtils || {
-  >2& echo "Failed to init"
-  exit 2;
-}
+init && initUtils || { >&2 echo "Failed to init"; exit 2; }
 
 exitRc=0
-
 
 # debug
 # NICE=( dryRun )
@@ -108,31 +104,17 @@ mysqlListDbLike() {
   )
 
   # db names don't have spaces so safe to split on spaces as no ""
-  like+=(${@//,/ })
-
-  local Database="\`Database\`"
+  like+=( ${@//,/ } )
 
   for db in "${like[@]}"; do
-    [[ "$db" == -* ]] && {
-      # db name starts with '-' => NOT LIKE
-      andWhere+=("${Database} NOT LIKE '${db:1}'")
-    } || {
-      andWhere+=("${Database} LIKE '${db}'")
+      # db name starting with '-' => NOT LIKE
+    [[ "$db" == -* ]] && { andWhere+=("\`Database\` NOT LIKE '${db:1}'"); } || {
+      andWhere+=("\`Database\` LIKE '${db}'")
     }
   done
 
-  local sql="
-    SHOW DATABASES
-      WHERE
-        $(joinBy ' AND ' "${andWhere[@]}")
-        ;"
-
-  echo "$sql" | "${mysqlExecSql[@]}"
-
-  # echo ${like[@]}
-  # echo $sql
-
-  return $?
+  echo "SHOW DATABASES WHERE $( joinBy ' AND ' "${andWhere[@]}" );" |
+    "${mysqlExecSql[@]}"
 }
 
 
@@ -145,13 +127,14 @@ dump() {
 
   rc=$?
 
-  [[ $rc == 1 ]] && rc=2
+  # this would not be a warning. Raise to error.
+  (( $rc == 1 )) && rc=2
 
   return $rc
 }
 
 backup-all() {
-  local name="$(backupMysqlName 'all')"
+  local name="$( backupMysqlName all )"
 
   while (( $# > 0 )); do
     case "$1" in
@@ -169,7 +152,7 @@ backup-all() {
   dump "${dumpArgs[@]}" "${dumpAllArgs[@]}" "$@" |
     onEmptyReturn 2 store "all" "${name}.sql"
 
-  return $?
+  return $( max ${PIPESTATUS[@]} )
 }
 
 backup-db() {
@@ -185,34 +168,32 @@ backup-db() {
         ;;
       
       *)
+        # split on commas
         dbNames+=(${1//,/ })
         shift
     esac
   done
 
+  local nb=${#dbNames[@]}
 
-  local plural=
-  (( "${#dbNames[@]}" > 1 )) && {
-    plural="s"
-  }
-
-  info "Info: backing up database$plural: ${dbNames[@]@Q}"
-
-  # info "Info: backing up db ${dbNames[@]@Q}"
-
-  # store "single" "$(backupMysqlName "$dbName")" compress dump "$dbName" "${dumpDbArgs[@]}" "$@"
+  if (( $nb == 0 )); then
+    info "Warning: no database to backup"
+    rc=$( max 1 $rc )
+  elif (( $nb == 1 )); then
+    info "Info: Backing up 1 database: ${dbNames[@]@Q}"
+  else
+    info "Info: Backing up ${#dbNames[@]} databases: ${dbNames[@]@Q}"
+  fi
 
   for db in "${dbNames[@]}"; do
     info "Info: Backing up database: '$db'"
+
     dump "${dumpArgs[@]}" "${dumpDbArgs[@]}" "$@" "$db" |
       onEmptyReturn 2 store "single" "$(backupMysqlName "$db").sql"
 
     dumpRc=$?
     rc=$( max $dumpRc $rc )
-
   done
-
-  # info "Info: stored a total of $( humanSize $storeLocalTotal )"
 
   return $rc
 }
@@ -258,10 +239,6 @@ backup-single() {
   }
 
   backup-db "${dbNames[@]}" -- "$@"
-
-  rc=$?
-
-  return $rc
 }
 
 backup() {
@@ -270,6 +247,12 @@ backup() {
       --debug)
         shift
         DRYRUN="dryRun"
+        ;;
+      
+      --dir)
+        backupMysqlLocalDir="$2"
+        STORE=( store-local "${backupMysqlLocalDir}" )
+        shift 2
         ;;
 
       single|--single)
@@ -318,10 +301,6 @@ backup() {
   info "Starting ${BACKUP[@]} $@"
 
   "${BACKUP[@]}" "$@"
-
-  rc=$?
-
-  return $rc
 }
 
 #################

@@ -45,8 +45,8 @@ init() {
     COMPRESS=( "${COMPRESS_BZIP2[@]}" )
     compressExt='.bz2'
   elif( command -v gzip >/dev/null 2>&1); then
-    COMPRESS=( "${COMPRESS_GZIP[@]}" );
-    compressExt='.gz';
+    COMPRESS=( "${COMPRESS_GZIP[@]}" )
+    compressExt='.gz'
   else
     COMPRESS=()
     compressExt=
@@ -74,13 +74,13 @@ initUtils() {
 
   info() { >&2 printf "\n%s %s\n\n" "$( LC_ALL=C date )" "$*"; }
 
-  now() { date +"%Y-%m-%dT%H-%M-%S%z" ; } # avoid ':' in filenames
-  nowIso() { date --iso-8601=seconds ; }
+  now() { date +"%Y-%m-%dT%H-%M-%S%z"; } # avoid ':' in filenames
+  nowIso() { date --iso-8601=seconds; }
 
   # returns max of two numbers
   # max2() { printf '%d' $(( $1 > $2 ? $1 : $2 )) ; }
 
-  max2() { max "$@" ; }
+  max2() { max "$@"; }
 
   # max of n numbers
   max() {
@@ -92,23 +92,21 @@ initUtils() {
     local max=$1
     shift
 
-    for n in $@; do
-      max=$(( $n > $max ? $n : $max ))
-    done
+    for n in $@; do max=$(( $n > $max ? $n : $max )); done
 
     printf '%d' $max
   }
 
-  sum() { printf "%d" "$((${@/%/+}0))" ; }
+  # sum of integers
+  # Ex: sum 1 2 -3 #0
+  sum() { printf "%d" "$((${@/%/+}0))"; }
 
   # Ex: join_by , a b c #a,b,c
   # https://stackoverflow.com/questions/1527049/how-can-i-join-elements-of-an-array-in-bash
   function joinBy {
     local d="${1-}" f="${2-}"
 
-    if shift 2; then
-      printf %s "$f" "${@/#/$d}"
-    fi
+    shift 2 && printf %s "$f" "${@/#/$d}"
   }
 
   fileSize() { stat -c%s "$1" ; }
@@ -118,18 +116,14 @@ initUtils() {
     local format
     local number=$1
 
-    (( $number > 1024 )) && {
-      format='%.1f'
-    } || {
-      format='%f'
-    }
+    (( $number > 1024 )) && { format='%.1f'; } || { format='%f'; }
 
     # human format
     local humanSize="$( numfmt --to=iec-i --suffix=B --format="$format" $number )" && {
-      printf "%s" "$humanSize"
+      printf "%s" "$humanSize";
     } || {
       info "Warning: not a number (or missing 'numfmt' in path?)"
-      printf "%s" "$number"
+      printf "%s" "$number";
     }
   }
 
@@ -152,49 +146,46 @@ initUtils() {
   #
   # arg1: returned status on empty - optional default: 1
   onEmptyReturn() {
-    local rc
     local readRc
     local line
     local emptyRc=1
-    local re='^[0-9]+$'
-    [[ ${1-} =~ $re ]] && { emptyRc=$1; shift; }
+    
+    # if first arg is a number we consume it
+    local re='^[0-9]+$'; [[ ${1-} =~ $re ]] && { emptyRc=$1; shift; }
 
     IFS='' read -r line
 
     readRc=$?
 
-    [ -n "${line:+_}" ] || { >&2 echo "Error: stdin is empty. (${0##*/})"; return $emptyRc; }
+    [ -n "${line:+_}" ] || {
+      >&2 echo "Error: stdin is empty, not piping. (${0##*/})"
+      return $emptyRc
+    }
 
-    { printf '%s\n' "$line"; cat; } | "$@"
+    { printf '%s\n' "$line"; cat; } | "$@";
 
-    rc=$?
-
-    return $( max $rc $readRc )
+    return $( max $readRc ${PIPESTATUS[@]} )
   }
 
 
   # takes 0 or n filenames where the stdin will be copied to (appended)
   logToFile() {
-    if (( $# > 0 )); then
+    (( $# == 0 )) && { cat; } || {
+      local TEE=( tee --output-error=warn )
+      local file
+
       # assuming all args are names of files we append to
-      local file TEE=(tee --output-error=warn)
       for file in "$@"; do TEE+=( -a "$file" ); done
 
-      ## consider `ionice -c3` for disk output niceness
       "${NICE[@]}" "${TEE[@]}"
-    else
-      # simply pipe stdin to stdout
-      cat
-    fi
+    }
   }
 
 
   compress() {
-    (( ${#COMPRESS[@]} == 0 )) && COMPRESS=(cat);
+    (( ${#COMPRESS[@]} == 0 )) && COMPRESS=( cat );
 
     "${COMPRESS[@]}"
-    
-    return $?
   }
 
   store() {
@@ -202,11 +193,9 @@ initUtils() {
     local name="$2"
     shift 2
 
-    # >&2 echo "COMPRESS:${COMPRESS[@]}"
-
     cat | "${COMPRESS[@]}" | "${STORE[@]}" "${path}" "${name}${compressExt}"
 
-    return $?
+    return $( max ${PIPESTATUS[@]} )
   }
 
   store-local() {
@@ -216,6 +205,7 @@ initUtils() {
     shift 3
 
     local rc
+    local mkdirRc
     local exitRc=0
     local fileSize
 
@@ -228,7 +218,7 @@ initUtils() {
     [[ -d "$dir" ]] || {
       info "Missing local dir: $dir"
 
-      exitRc=$( max $exitRc 1 ) # warning
+      exitRc=$( max 1 $exitRc ) # warning
 
       # lets try create it
 
@@ -237,41 +227,38 @@ initUtils() {
       } || {
         local mkdirRc=$?
 
-        exitRc=$( max $exitRc $mkdirRc )
+        exitRc=$( max $mkdirRc $exitRc )
 
         info "Error: could not create dir $dir"
 
-        exit $exitRc
+        # As dir missing and could not create no point to continue?
+        # exit $exitRc
       }
     }
 
     # info "Info: storing to local '$file'"
 
-    if [[ $DRYRUN == "" ]]; then
-      cat > "$file"
-    else
-      cat > /dev/null
-      $DRYRUN "output > '$file'"
-    fi
+    [[ $DRYRUN == "" ]] && { cat > "$file"; } || {
+      $DRYRUN output '>' "$file"; cat > /dev/null;
+    }
 
     rc=$?
 
-    (( $rc == 0 )) && fileSize=$(fileSize "$file") && {
+    (( $rc == 0 )) && fileSize=$( fileSize "$file" ) && {
       # storeLocalTotal="$( sum ${storeLocalTotal-0} $fileSize 10000000000 )"
 
       # printf -v storeLocalTotal
       # printf -v storeLocalTotal '%d' "${storeLocalTotal}"
 
-      info "Success: stored '$file' ($( humanSize ${fileSize} ))"
+      info "Success: stored '$file' ($( humanSize $fileSize ))"
     } || {
-      info "Error: failed to write backup to file. (or to read it's size)"
+      info "Error: could note size backup to file."
 
-      # returned rc=1
-      # in here rc=1 => warning
-      rc=$( max $rc 2 )
+      # Error returning rc=1
+      # We escalade to 2, not able to size on local drive is a backup error.
+      rc=$( max 2 $rc )
     }
 
-    exitRc=$( max $rc $exitRc )
-    return $exitRc
+    return $( max $rc $exitRc )
   }
 }

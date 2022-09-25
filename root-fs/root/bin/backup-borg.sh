@@ -1,6 +1,4 @@
 #!/bin/bash
-#!/usr/bin/env bash
-# had some cases where second line would not work in cron (old debian)
 
 set -u
 set -o pipefail
@@ -84,12 +82,14 @@ while (( $# > 0 )); do
       shift
       ;;
     
-    --mysql-single-like)
+    --mysql-single-like|--mysql-like)
+      # Takes affect only for --single
       backupMysqlSingleArgs+=( --like "$2" )
       shift 2
       ;;
     
-    --mysql-single-not-like)
+    --mysql-single-not-like|--mysql-not-like)
+      # Takes affect only for --single
       backupMysqlSingleArgs+=( --not-like "$2" )
       shift 2
       ;;
@@ -135,7 +135,7 @@ while (( $# > 0 )); do
       ;;
 
     *)
-      info "Error: unknown argument '$1'"
+      info "Error: unknown argument '$1'. Did you forget '--' that should precede label names?"
       exit 1
       ;;
 
@@ -148,55 +148,15 @@ done
 
 ##############################################
 
+# Don't call directly, use doBorgCreate
 doBorgCreateWrapped() {
-  # never call directly, only via doBorgCreate
+  # >&2 echo "BORG_REPO: $BORG_REPO"
+  # >&2 echo "BORG_PASSPHRASE: $BORG_PASSPHRASE"
+
   $DRYRUN "${NICE[@]}" "${BORG_CREATE[@]}" "$@"
-  return $?
 }
 
-#debug
-# bb_borg_create_wrapper() {
-#   "$@" --exclude '**/node_modules'
-#   return $?
-# }
-
-# bb_borg_create_wrapper_home() {
-#   "$@" --exclude '**/node_modules_home'
-#   return $?
-# }
-
-# bb_borg_create_wrapper_dell-aio() {
-#   local args=(
-#     --compression auto,zstd,11
-#     --upload-ratelimit 30720  # ~25Mo/s
-#     --upload-buffer 50        # 50Mo
-#   )
-
-#   "$@" "${args[@]}"
-# }
-
-# bb_label_dabao-home() {
-
-#   local args=("$@" )
-  
-#   args+=(
-#     --exclude 'home/postgresql/data'
-#     --exclude 'home/backups/mysql-dabao'
-#     --exclude 'home/bmag' 
-#   )
-
-#   # backup home in a separate repo dabao-home
-#   doBorgCreate      \
-#     "home" /home    \
-#     "${args[@]}"
-
-#   local rc=$?
-
-#   return $rc
-# }
-
 doBorgCreate() {
-  local rs
   local wrapper
   local wrappers=()
   local label="$1"
@@ -211,28 +171,21 @@ doBorgCreate() {
   )
 
   for wrapper in "${bbWrappers[@]}"; do
-    [[ "$(LC_ALL=C type -t "$wrapper" )" == "function" ]] && {
+    [[ "$( LC_ALL=C type -t "$wrapper" )" == "function" ]] && {
       wrappers+=("$wrapper" )
     }
   done
 
   "${wrappers[@]}" doBorgCreateWrapped "$@" "${borgCreateArgs[@]}"
-
-  rc=$?
-
-  return $rc
 }
 
-doBackupMysql() {
-  $DRYRUN "${NICE[@]}" "${BACKUP_MYSQL[@]}" "$@"
-  return $?
-}
+doBackupMysql() { $DRYRUN "${NICE[@]}" "${BACKUP_MYSQL[@]}" "$@"; }
 
 ##############################################
 
 doBackup() {
-  local exitStatus=0
-  local thisStatus=0
+  local exitRc=0
+  local thisRc=0
   local split
 
   while (( $# > 0 )); do
@@ -242,37 +195,41 @@ doBackup() {
         break
         ;;
 
+      -*)
+        break
+        ;;
+
       '')
         info "Warning: got empty backup label"
-        exitStatus=$( max $exitStatus 1 )
+        exitRc=$( max $exitRc 1 )
         shift
         break
         ;;
 
-      --*:*)
-        info "local backup hook '${1}'"
+      # --*:*)
+      #   info "local backup hook '${1}'"
 
-        # removes first 2 chars and splits :
-        split=(${1:2//\:/ })
+      #   # removes first 2 chars and splits :
+      #   split=(${1:2//\:/ })
 
-        bb_hook_${split[0]} "${split[0]}" "${split[1]}"
+      #   bb_hook_${split[0]} "${split[0]}" "${split[1]}"
 
-        thisStatus=$?
-        exitStatus=$( max "$thisStatus" "$exitStatus" )
+      #   thisRc=$?
+      #   exitRc=$( max "$thisRc" "$exitRc" )
 
-        shift
-        ;;
+      #   shift
+      #   ;;
 
-      --*)
-        bbLabel="${1:2}"
+      # --*)
+      #   bbLabel="${1:2}"
 
-        "bb_hook_${bbLabel}"
+      #   "bb_hook_${bbLabel}"
 
-        thisStatus=$?
-        exitStatus=$( max "$thisStatus" "$exitStatus" )
+      #   thisRc=$?
+      #   exitRc=$( max "$thisRc" "$exitRc" )
 
-        shift
-        ;;
+      #   shift
+      #   ;;
 
       *:*)
         bbLabel="$1"
@@ -285,8 +242,8 @@ doBackup() {
 
         "bb_label_${split[0]}" "${split[0]}" "${split[1]}"
 
-        thisStatus=$?
-        exitStatus=$( max "$thisStatus" "$exitStatus" )
+        thisRc=$?
+        exitRc=$( max "$thisRc" "$exitRc" )
         ;;
 
       *)
@@ -294,20 +251,20 @@ doBackup() {
 
         "bb_label_${bbLabel}" "${bbLabel}" ""
 
-        thisStatus=$?
-        exitStatus=$( max "$thisStatus" "$exitStatus" )
+        thisRc=$?
+        exitRc=$( max "$thisRc" "$exitRc" )
 
         shift
         ;;
     esac
 
 
-    if (( $thisStatus == 0 )); then
+    if (( $thisRc == 0 )); then
       info "Info: borg backup labeled '${borgCreateLabel}' succeeded"
-    elif (( $thisStatus == 1 )); then
-        info "Warning: backup labeled '${bbLabel}' returned status $thisStatus"
+    elif (( $thisRc == 1 )); then
+        info "Warning: backup labeled '${bbLabel}' returned status $thisRc"
     else
-      info "Error: backup labeled '${bbLabel}' returned status ${thisStatus}"
+      info "Error: backup labeled '${bbLabel}' returned status ${thisRc}"
       
       
       [[ "$onErrorStop" == "" ]] || {
@@ -317,71 +274,122 @@ doBackup() {
     fi
   done
 
-  return $exitStatus
+  return $exitRc
 }
 
-backupMysqlAndBorgCreate() {
-  local exitStatus=0
-  local thisStatus=
-  local label
+# Obsolete
+backupMysqlAndBorgCreate() { backupMysql "$@"; }
 
-  doBackupMysql "$@" "${backupMysqlArgs[@]}"
+backupMysql() {
+  local mysqlRc
+  local borgRc
+  local label="mysql"
+  local dir="$backupMysqlLocalDir"
+  local args=()
 
-  thisStatus=$?
-  exitStatus=$( max "$thisStatus" "$exitStatus" )
+  while (( $# > 0 )); do
+    case "$1" in
+      --label|--borg-label)
+        label="$2"
+        shift 2
+        ;;
 
-  (( $thisStatus == 0 )) || info "${bbLabel}:mysqldump returned status: ${thisStatus}"
+      --dir)
+        dir="$2"
+        args+=( "$1" "$2" )
+        shift 2
+        ;;
 
-  # of course we upload backup even if dump returned errors
-  label="mysql"
-  doBorgCreate "$label" "$backupMysqlLocalDir"
+      *)
+        args+=( "$1" )
+        shift
+        ;;
+    esac
+  done
+
+  doBackupMysql "${args[@]}" "${backupMysqlArgs[@]}"
+
+  mysqlRc=$?
+  (( $mysqlRc == 0 )) || info "${bbLabel}:mysqldump returned status: ${mysqlRc}"
+
+  doBorgCreate "${label-mysql}" "$dir"
   
-  thisStatus=$?
-  exitStatus=$( max "$thisStatus" "$exitStatus" )
+  borgRc=$?
+  (( $borgRc == 0 )) || info "$label:borgCreate returned status: ${borgRc}"
 
-  [[ "$thisStatus" == 0 ]] || info "$label:borgCreate returned status: ${thisStatus}"
-
-  return $exitStatus
+  return $( max $mysqlRc $borgRc )
 }
 
 createLogrotate() {
-  local conf="# created by $0 on $(nowIso)"
+  local conf="# created by $0 on $( nowIso )"
 
-  conf+="\n${logFile} {
+  conf+="
+${logFile} {
     daily
-    delaycompress
     rotate 14
     compress
-    notifempty
+    delaycompress
+    nocreate
+    nomissingok     # default
+
     # generate an error on missing
     # 24h without any logs is not normal
-    nocreate
-    nomissingok #default
+    notifempty
     errors ${alertEmail}
-  }
-  "
+}
+"
+
   [[ $DRYRUN == "" ]] || {
     echo "DryRun: not creating file ${logrotateConf}"
-    echo "${conf}"
+    echo "$conf"
 
     return
   }
 
-  if [[ "$doLogrotateCreate" == "true" ]];
-  then 
-    info "Creating ${logrotateConf}"
-    printf "%s" "$conf" > "$logrotateConf"
-    local exitStatus=$?
+  info "Info: missing '${logrotateConf}' use --logrotate-conf"
 
-    return $exitStatus
-  fi
+  >&2 echo "$conf" 
+
+  # printf "%s" "$conf" > "$logrotateConf"
+}
+
+
+# Will look for vars BORG_REPO-$1
+# and will restaure default BORG_REPO BORG_PASSPHRASE before terminating
+usingRepo() {
+  local repo="$1"
+  shift
+
+  local BORG_REPO_ORIG
+  local BORG_PASSPHRASE_ORIG
+  local rc
+  local var
+
+  [[ -v 'BORG_REPO' ]]       && BORG_REPO_ORIG="$BORG_REPO"
+  [[ -v 'BORG_PASSPHRASE' ]] && BORG_PASSPHRASE_ORIG="$BORG_PASSPHRASE"
+
+  var="BORG_REPO_${repo}"
+  [[ -v "$var" ]] && export BORG_REPO="${!var}"
+
+  var="BORG_PASSPHRASE_${repo}"
+  [[ -v "$var" ]] && export BORG_PASSPHRASE="${!var}"
+
+  "$@"
+
+  rc=$?
+
+  # Restore previous values
+  [[ -v 'BORG_REPO_ORIG' ]]       && export BORG_REPO="${BORG_REPO_ORIG}"             || unset BORG_REPO
+  [[ -v 'BORG_PASSPHRASE_ORIG' ]] && export BORG_PASSPHRASE="${BORG_PASSPHRASE_ORIG}" || unset BORG_PASSPHRASE
+
+  return $rc
 }
 
 subRepo() {
   local repoSuffix="$1"
   shift
 
-  local exitStatus=
+  local exitRc=
 
   [[ -v 'BORG_REPO' ]] || {
     info "Error: subRepo requires BORG_REPO"
@@ -409,7 +417,7 @@ subRepo() {
 
   "$@"
 
-  exitStatus=$?
+  exitRc=$?
 
   export BORG_REPO="${BORG_REPO_ORIG}"
 
@@ -417,7 +425,7 @@ subRepo() {
     export BORG_PASSPHRASE="${BORG_PASSPHRASE_ORIG}"
   }
 
-  return $exitStatus
+  return $exitRc
 }
 
 setRepo() {
@@ -440,13 +448,13 @@ setRepo() {
 
   "$@"
 
-  exitStatus=$?
+  exitRc=$?
 
   # unset
   export BORG_REPO=
   export BORG_PASSPHRASE=
 
-  return $exitStatus
+  return $exitRc
 }
 
 swapRepo() {
@@ -454,7 +462,7 @@ swapRepo() {
   local pass="$2"
   shift 2
 
-  local exitStatus=
+  local exitRc=
 
   local BORG_REPO_SWITCHED="${BORG_REPO-unset}"
   local BORG_PASSPHRASE_SWITCHED="${BORG_PASSPHRASE-unset}"
@@ -465,7 +473,7 @@ swapRepo() {
   # do
   "$@"
 
-  exitStatus=$?
+  exitRc=$?
 
 
   [[ "${BORG_REPO_SWITCHED}" != "${BORG_REPO}" ]] && {
@@ -488,7 +496,7 @@ swapRepo() {
     }
   }
 
-  return $exitStatus
+  return $exitRc
 }
 
 
@@ -509,7 +517,9 @@ for conf in "${localConf[@]}"; do
     
     (( $? == 0 )) && {
       >&2 echo "Info: loaded local config ${conf}";
-      break;
+
+      # should we stop at first conf found?
+      # break;
     } || {
       >&2 echo "Warning: found '${conf}' but failed to load it."
     }
@@ -522,10 +532,14 @@ done
 # )
 # doBackup "$@" 2>&1 | "${logTo[@]}" "$logFile"
 
-
+call=( "$SCRIPT_NAME" "$@" )
 
 doBackup "$@" 2>&1 | logToFile "$logFile"
 
-exitRc=$?
+rc=$( max ${PIPESTATUS[@]} )
 
-exit $exitRc
+if   (( $rc == 0 )); then info "Success: '${call[@]}' finished successfully. rc $rc"
+elif (( $rc == 1 )); then info "Warning: '${call[@]}' finished with warnings. rc $rc"
+else info "Error: '${call[@]}' finished with errors. rc $rc"; fi
+
+exit $rc
