@@ -148,18 +148,18 @@ done
 
 ##############################################
 
-# Don't call directly, use doBorgCreate
-doBorgCreateWrapped() {
+# Don't call directly, use borgCreate
+_borgCreate() {
   # >&2 echo "BORG_REPO: $BORG_REPO"
   # >&2 echo "BORG_PASSPHRASE: $BORG_PASSPHRASE"
 
   $DRYRUN "${NICE[@]}" "${BORG_CREATE[@]}" "$@"
 }
 
-doBorgCreate() {
-  local wrapper
+borgCreate() {
   local wrappers=()
   local label="$1"
+  local wrapper
 
   borgCreateLabel="${label}"
 
@@ -176,14 +176,14 @@ doBorgCreate() {
     }
   done
 
-  "${wrappers[@]}" doBorgCreateWrapped "$@" "${borgCreateArgs[@]}"
+  "${wrappers[@]}" _borgCreate "$@" "${borgCreateArgs[@]}"
 }
 
-doBackupMysql() { $DRYRUN "${NICE[@]}" "${BACKUP_MYSQL[@]}" "$@"; }
+_backupMysql() { $DRYRUN "${NICE[@]}" "${BACKUP_MYSQL[@]}" "$@"; }
 
 ##############################################
 
-doBackup() {
+backupBorg() {
   local exitRc=0
   local thisRc=0
   local split
@@ -205,31 +205,6 @@ doBackup() {
         shift
         break
         ;;
-
-      # --*:*)
-      #   info "local backup hook '${1}'"
-
-      #   # removes first 2 chars and splits :
-      #   split=(${1:2//\:/ })
-
-      #   bb_hook_${split[0]} "${split[0]}" "${split[1]}"
-
-      #   thisRc=$?
-      #   exitRc=$( max "$thisRc" "$exitRc" )
-
-      #   shift
-      #   ;;
-
-      # --*)
-      #   bbLabel="${1:2}"
-
-      #   "bb_hook_${bbLabel}"
-
-      #   thisRc=$?
-      #   exitRc=$( max "$thisRc" "$exitRc" )
-
-      #   shift
-      #   ;;
 
       *:*)
         bbLabel="$1"
@@ -258,19 +233,10 @@ doBackup() {
         ;;
     esac
 
-
-    if (( $thisRc == 0 )); then
-      info "Info: borg backup labeled '${borgCreateLabel}' succeeded"
-    elif (( $thisRc == 1 )); then
-        info "Warning: backup labeled '${bbLabel}' returned status $thisRc"
-    else
-      info "Error: backup labeled '${bbLabel}' returned status ${thisRc}"
-      
-      
-      [[ "$onErrorStop" == "" ]] || {
-        echo "We stop here (--on-error-stop invoked)"
-        break
-      }
+    if   (( $thisRc == 0 )); then info "Info: borg backup labeled '${borgCreateLabel}' succeeded"
+    elif (( $thisRc == 1 )); then info "Warning: backup labeled '${bbLabel}' returned status $thisRc"
+    else info "Error: backup labeled '${bbLabel}' returned status ${thisRc}"
+      [[ "$onErrorStop" == "" ]] || { echo "We stop here (--on-error-stop invoked)"; break; }
     fi
   done
 
@@ -307,12 +273,12 @@ backupMysql() {
     esac
   done
 
-  doBackupMysql "${args[@]}" "${backupMysqlArgs[@]}"
+  _backupMysql "${args[@]}" "${backupMysqlArgs[@]}"
 
   mysqlRc=$?
   (( $mysqlRc == 0 )) || info "${bbLabel}:mysqldump returned status: ${mysqlRc}"
 
-  doBorgCreate "${label-mysql}" "$dir"
+  borgCreate "${label-mysql}" "$dir"
   
   borgRc=$?
   (( $borgRc == 0 )) || info "$label:borgCreate returned status: ${borgRc}"
@@ -530,11 +496,11 @@ done
 # logTo+=(
 #   tee --output-error=warn -a 
 # )
-# doBackup "$@" 2>&1 | "${logTo[@]}" "$logFile"
+# backupBorg "$@" 2>&1 | "${logTo[@]}" "$logFile"
 
 call=( "$SCRIPT_NAME" "$@" )
 
-doBackup "$@" 2>&1 | logToFile "$logFile"
+backupBorg "$@" 2>&1 | logToFile "$logFile"
 
 rc=$( max ${PIPESTATUS[@]} )
 

@@ -10,12 +10,15 @@ bb_label_home() {
   local bbArg="$2"
   shift 2
 
-  doBorgCreate "home" /home --exclude "home/vmail" --exclude "$backupMysqlLocalDir" "$@"
+  borgCreate "home" /home --exclude "home/vmail" --exclude "$backupMysqlLocalDir" "$@"
 }
 
 bb_label_home_no-exclude() {
-  doBorgCreate "home" /home "$@"
-  return $?
+  local self="$1"
+  local bbArg="$2"
+  shift 2
+
+  borgCreate "home" /home "$@"
 }
 
 bb_label_home_vmail() {
@@ -23,7 +26,7 @@ bb_label_home_vmail() {
   local bbArg="$2"
   shift 2
 
-  doBorgCreate "vmail" /home/vmail "$@"
+  borgCreate "vmail" /home/vmail "$@"
 }
 
 bb_label_sys() {
@@ -31,7 +34,7 @@ bb_label_sys() {
   local bbArg="$2"
   shift 2
 
-  doBorgCreate "sys" /etc /usr/local /root "$@"
+  borgCreate "sys" /etc /usr/local /root "$@"
 }
 
 bb_label_etc() {
@@ -39,7 +42,7 @@ bb_label_etc() {
   local bbArg="$2"
   shift 2
 
-  doBorgCreate "sys" /etc "$@"
+  borgCreate "sys" /etc "$@"
 }
 
 bb_label_usr-local() {
@@ -47,7 +50,7 @@ bb_label_usr-local() {
   local bbArg="$2"
   shift 2
 
-  doBorgCreate "sys" /usr/local "$@"
+  borgCreate "sys" /usr/local "$@"
 }
 
 bb_label_var() {
@@ -55,7 +58,7 @@ bb_label_var() {
   local bbArg="$2"
   shift 2
 
-  doBorgCreate "var" /var --exclude 'var/www/vhosts' "$@"
+  borgCreate "var" /var --exclude 'var/www/vhosts' "$@"
 }
 
 bb_label_mysql() {
@@ -80,7 +83,7 @@ bb_label_mysql() {
       ;;
   esac
 
-  backupMysqlAndBorgCreate "${args[@]}" "$@"
+  backupMysql "${args[@]}" "$@"
 
   return $?
 }
@@ -94,8 +97,6 @@ bb_label_sleep() {
   info "Sleeping ${sleep}s..."
 
   sleep $sleep
-  
-  return $?
 }
 
 bb_label_test() {
@@ -103,23 +104,5 @@ bb_label_test() {
   local bbArg="$2"
   shift 2
 
-  # [[ -v 2 ]] && {
-  #   [[ "$2" == "ok" || "$2" == "" ]] && return 0 || return 128
-  # } || return 0
-
-  [[ "$bbArg" == "ok" ]] && {
-    return 0
-  } || {
-    return 128
-  } 
-
-
-  # [[  ! -v 2 || (-v 2 && ("$2" == "ok" || "$2" == ""))  ]] && {
-  #   return 0
-  # } || return 128
+  [[ "$bbArg" == "ok" ]] && { return 0; } || { return 128; }
 }
-
-
-# error handling: (Ctrl-C)
-
-# trap 'echo $( date ) Backup interrupted >&2; exit 2' INT TERM
