@@ -28,7 +28,7 @@ initMunin() {
   ln -s php-fpm  php-fpm-time
 
   cd -
-  service munin-node restart
+  systemctl restart munin-node
 }
 
 initMunin
