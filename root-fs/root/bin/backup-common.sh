@@ -71,10 +71,7 @@ initUtils() {
 
   # max of n numbers
   max() {
-    (( $# > 0 )) || {
-      echo "Error: max takes minimum one argument"
-      return 1
-    }
+    (( $# > 0 )) || { echo "Error: max takes minimum one argument"; return 1; }
 
     local max=$1
     shift
@@ -100,15 +97,17 @@ initUtils() {
 
   # arg1: filename (required)
   humanSize() {
-    local format
-    local number=$1
+    local FRM=( numfmt --to=iec-i --suffix=B )
+    local str number=$1
+    shift
+    
+    # No decimals on Bites
+    (( $number > 1024 )) && { FRM+=( --format='%.1f' ); } || { FRM+=( --format='%f' ); }
 
-    (( $number > 1024 )) && { format='%.1f'; } || { format='%f'; }
-
-    # human format
-    local humanSize="$( numfmt --to=iec-i --suffix=B --format="$format" $number )" && {
-      printf "%s" "$humanSize";
-    } || { info "Warning: not a number (or missing 'numfmt' in path?)"; printf "%s" $number; }
+    # Human format
+    str="$( "${FRM[@]}" $number )" && { printf "%s" "$str"; } || {
+      info "Warning: not a number (or missing 'numfmt' in path?)"; printf "%s" $number;
+    }
   }
 
   ##
@@ -130,19 +129,17 @@ initUtils() {
   #
   # arg1: returned status on empty - optional default: 1
   onEmptyReturn() {
-    local readRc
-    local line
-    local emptyRc=1
+    local readRc line emptyRc=1
     
     # if first arg is a number we consume it
     local re='^[0-9]+$'; [[ ${1-} =~ $re ]] && { emptyRc=$1; shift; }
 
     IFS='' read -r line
+    
     readRc=$?
 
-    [ -n "${line:+_}" ] || {
-      >&2 echo "Error: stdin is empty, not piping. (${0##*/})"
-      return $emptyRc
+    [ -n "${line:+_}" ] || { >&2 echo "Error: stdin is empty, not piping. (${0##*/})"; #??
+      return $emptyRc;
     }
 
     { printf '%s\n' "$line"; cat; } | "$@";
@@ -181,12 +178,19 @@ initUtils() {
         rc=$?
         ;;
 
+      # is in charge of compressing and adding $compressExt to filename
       create)
-        local path="$1"
-        local name="$2"
-        shift 2
+        (( $# > 0 )) || { info "Error: create requires at least one arg, the filename"; return $( max 2 $rd ); }
+
+        # get last arg and right shift $@
+        local filename="${@:$#}"
+        set -- "${@:1:$#-1}" #remove last arg
+
+        # unset 'args@[$#args - 1]'
         
-        cat | "${COMPRESS[@]}" | "${STORE[@]}" "$cmd" "$path" "${name}${compressExt}" "$@"
+        # $@ are dirs that will be joinBy '/' to create path
+        cat | "${COMPRESS[@]}" | "${STORE[@]}" 'create' "$@" "${filename}${compressExt}"
+
         rc=$( max ${PIPESTATUS[@]} )
         ;;
 
@@ -219,32 +223,26 @@ initUtils() {
         ;;
       
       *)
-        info "Error: storeLocal: unknown command '$cmd' - accepts init|create|prune"
+        info "Error: storeLocal: unknown command '$cmd' - accepts: init|create|prune"
+        >&2 echo "storeLocal $@"
         return 2
         ;;
     esac
 
-    run+=( "$dir" "$@" )
-
-    "${run[@]}"
+    "${run[@]}" "$dir" "$@"
   }
 
   storeLocalInit() {
     local dir="$1"
-    local mkdirRc
     local rc=0
 
     $DRYRUN mkdir -p "$dir"
     
-    mkdirRc=$?
-
-    rc=$( max $mkdirRc $rc )
+    rc=$?
     
-    (( $mkdirRc == 0 )) && { info "Info: successfully created $dir";  } || {
-      info "Error: could not create dir $dir"
-
-      (( $mkdirRc == 1 )) && rc=$( max 2 $rc ) # Escalade to error
-    }
+    if (( $rc == 0 )); then info "Info: successfully created $dir"
+    else info "Error: could not create dir $dir"; rc=$( max 2 $rc ); # Escalade to error
+    fi
 
     return $rc
   }
@@ -252,44 +250,40 @@ initUtils() {
   # Streams stdin to file
   storeLocalCreate() {
     local storeDir="$1" # set in $STORE
-    local path="$2"
-    local filename="$3"
-    shift 3
+    shift
 
-    local rc
-    local mkdirRc
-    local exitRc=0
-    local fileSize
+    local rc mkdirRc fileSize exitRc=0
 
-    local dir="$storeDir/$path"
-    local file="$dir/$filename"
+    local path="$( joinBy '/' "$@" )"
+    local dir="${path%/*}"
+    local filename="${path##*/}"
+    local name="${filename%.*}" # removes after last dot
+    # local fileExt=
 
-    # cat > /dev/null; # end of the story
-    # echo "> $filename"
+    # abs path to final store file
+    local localPath="$( joinBy '/' "$storeDir" "$path" )"
+    local localDir="${localPath%/*}"
 
-    [[ -d "$storeDir" ]] || {
-      info "Missing repo base dir: $storeDir"
+    # local debug=( path "$path" dir "$dir" filename "$filename" name "$name" localPath "$localPath" localDir "$localDir" )
+    # info "Debug: ${debug[@]@Q}"
 
+    [[ -d "$storeDir" ]] || { info "Missing repo base dir: $storeDir"
       storeLocal "$storeDir" init
       
-      local storeInitRc=$?
+      local storeLocalInitRc=$?
       
-      if (( $storeInitRc == 0 )); then
-        info "Local store init succeed: '$storeDir'"
-      else
-        info "Error: failed to init local store '$storeDir' rc = $?";
-      fi
+      if (( $storeLocalInitRc == 0 )); then info "Local store init succeed: '$storeDir'"
+      else info "Error: failed to init local store '$storeDir' rc = $?"; fi
     }
 
-    [[ -d "$dir" ]] || {
-      info "Missing local dir: $dir"
+    # storeLocal requires directory to exist
+    [[ -d "$localDir" ]] || {
+      info "Missing local dir: $localDir"
 
       exitRc=$( max 1 $exitRc ) # warning
 
-      $DRYRUN mkdir -p "$dir" && {
-        info "Info: created dir '$dir'"
-      } || {
-        info "Error: failed to create dir '$dir'"
+      $DRYRUN mkdir -p "$localDir" && { $DRYRUN info "Info: created dir '$localDir'"; } || {
+        info "Error: failed to create dir '$localDir'"
 
         exitRc=$( max 2 $exitRc ) # error
       }
@@ -297,17 +291,15 @@ initUtils() {
 
     # On dry run we stop here
     [[ $DRYRUN == "" ]] || {
-      $DRYRUN output '>' "$file"; cat > /dev/null;
+      $DRYRUN output '>' "$localPath"; cat > /dev/null;
       return $exitRc
     }
 
-    cat > "$file";
+    cat > "$localPath";
     
     rc=$?
 
-    (( $rc == 0 )) && fileSize=$( fileSize "$file" ) && {
-      info "Success: stored '$file' ($( humanSize $fileSize ))"
-    } || {
+    (( $rc == 0 )) && fileSize=$( fileSize "$localPath" ) && { info "Success: stored '$localPath' ($( humanSize $fileSize ))"; } || {
       info "Error: could note size backup to file."
 
       # Error returning rc=1

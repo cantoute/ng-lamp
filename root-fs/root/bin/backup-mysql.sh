@@ -59,11 +59,18 @@ dumpAllArgs=(
   --all-databases
 )
 
+# Aka store path prefix
+# will be appended ( all ) or ( single ) accordingly
+storePath=()
+
 backupMysqlPruneArgs=()
+
 
 ########################################################
 # defaults
 #
+
+backupMysqlMode='all'
 
 BACKUP=( backupAll )
 DUMP=( dump )
@@ -195,7 +202,7 @@ backupDb() {
 backupSingle() {
   local dbNames=()
   local like=()
-  local n notLike=()
+  local nl notLike=()
 
   while (( $# > 0 )); do
     case "$1" in
@@ -223,7 +230,7 @@ backupSingle() {
   done
 
   # Add notLike as like with a '-' 
-  for n in "${notLike[@]}"; do like+=( "-$n" ); done
+  for nl in "${notLike[@]}"; do like+=( "-$nl" ); done
 
   # Get a list of databases from local server
   dbNames+=( $( mysqlListDbLike "${like[@]}" ) )
@@ -238,34 +245,15 @@ backupMysql() {
   local backupRc
   local rc=0
 
-  while (( $# > 0 )); do
+  # backupMysqlMode="$1"
+  # shift
+
+  if (( $# > 0 )); then
     case "$1" in
-      --debug)
-        shift
-        DRYRUN="dryRun"
-        ;;
-      
-      --dir)
-        backupMysqlLocalDir="$2"
-        STORE=( storeLocal "${backupMysqlLocalDir}" )
-        shift 2
-        ;;
-
-      single|--single)
-        shift
-
-        BACKUP=( backupSingle )
-        ;;
-
-      all|full|--full)
-        shift
-
-        BACKUP=( backupAll ) # default
-        ;;
-
       db)
-        local dbNames=()
         shift
+        backupMysqlMode=db
+        local dbNames=()
         
         while (( $# > 0 )); do
           case "$1" in
@@ -281,19 +269,45 @@ backupMysql() {
         done
 
         BACKUP=( backupDb "${dbNames[@]}" -- )
-        ;;
+      ;;
 
-      --)
+      single)
         shift
-        break
+        backupMysqlMode=single
+        BACKUP=( backupSingle )
         ;;
 
-      *)
-        break
+      all)
+        shift
+        backupMysqlMode=all
+        BACKUP=( backupAll )
         ;;
+
+      *) ;; # Assuming default all following args are kept
+    esac
+  fi
+
+  while (( $# > 0 )); do
+    case "$1" in
+      --dir|--store-local-dir)
+      # TODO : wrap store load?
+        backupMysqlLocalDir="$2"
+        shift 2
+
+        STORE=( storeLocal "${backupMysqlLocalDir}" )
+
+        #TODO : use this
+        # STORE_LOCAL=( storeLocal "${backupMysqlLocalDir}" )
+        ;;
+
+      --debug) shift; DRYRUN="dryRun";;
+      --) shift; break;;
+      *) break;;
     esac
   done
   
+  storePath+=( "$backupMysqlMode" )
+
   info "Starting ${BACKUP[@]} $@"
 
   "${BACKUP[@]}" "$@"
@@ -330,10 +344,9 @@ if   (( $exitRc  > 1 )); then info "Error: '${trace[@]}' failed with rc: $exitRc
 elif (( $exitRc == 1 )); then info "Warning: '${trace[@]}' ended with warnings rc: $exitRc";
   exit $exitRc;
 elif (( $exitRc == 0 )); then info "Success: '${trace[@]}' completed successfully rc: $exitRc";
-  # ok we continue with prune
 fi
 
-# Now errors have been intercepted we can delete old backups
+# No errors, we can prune.
 
 backupMysqlPrune "${backupMysqlPruneArgs[@]}";
 
