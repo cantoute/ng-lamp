@@ -198,9 +198,9 @@ initUtils() {
       create)
         (( $# > 0 )) || { info "Error: create requires at least one arg, the filename"; return $( max 2 $rd ); }
 
-        # get last arg and right shift $@
+        # get last arg
         local filename="${@:$#}"
-        set -- "${@:1:$#-1}" #remove last arg
+        set -- "${@:1:$#-1}" # right shift
 
         # unset 'args@[$#args - 1]'
         
@@ -324,6 +324,10 @@ initUtils() {
     }
 
     return $( max $rc $exitRc )
+  }
+
+  storeLocalPrune() {
+    echo "$@"
   }
 
 
