@@ -261,8 +261,8 @@ initUtils() {
     
     rc=$?
     
-    if (( $rc == 0 )); then info "Info: successfully created $dir"
-    else info "Error: could not create dir $dir"; rc=$( max 2 $rc ); # Escalade to error
+    if (( $rc == 0 )); then info "Info: storeLocalInit: successfully created $dir"
+    else info "Error: storeLocalInit: could not create dir $dir"; rc=$( max 2 $rc ); # Escalade to error
     fi
 
     return $rc
@@ -288,13 +288,12 @@ initUtils() {
     # local debug=( path "$path" dir "$dir" filename "$filename" name "$name" localPath "$localPath" localDir "$localDir" )
     # info "Debug: ${debug[@]@Q}"
 
-    [[ -d "$storeDir" ]] || { info "Missing repo base dir: $storeDir"
+    [[ -d "$storeDir" ]] || { info "Missing repo base dir: '$storeDir' we will try init the store."
+
       storeLocal "$storeDir" init
       
-      local storeLocalInitRc=$?
-      
-      if (( $storeLocalInitRc == 0 )); then info "Local store init succeed: '$storeDir'"
-      else info "Error: failed to init local store '$storeDir' rc = $?"; fi
+      local storeLocalInitRc=$?  
+      (( $storeLocalInitRc == 0 )) || info "Error: failed to init local store '$storeDir' rc = $?"
     }
 
     # storeLocal requires directory to exist
@@ -311,17 +310,14 @@ initUtils() {
     }
 
     # On dry run we stop here
-    [[ $DRYRUN == "" ]] || {
-      $DRYRUN output '>' "$localPath"; cat > /dev/null;
-      return $exitRc
-    }
+    [[ $DRYRUN == "" ]] || { $DRYRUN output '>' "$localPath"; cat > /dev/null; return $exitRc; }
 
     cat > "$localPath";
     
     rc=$?
 
-    (( $rc == 0 )) && fileSize=$( fileSize "$localPath" ) && { info "Success: stored '$localPath' ($( humanSize $fileSize ))"; } || {
-      info "Error: could note size backup to file."
+    (( $rc == 0 )) && fileSize=$( fileSize "$localPath" ) && { info "Success: storeLocalCreate: Stored '$localPath' ($( humanSize $fileSize ))"; } || {
+      info "Error: storeLocalCreate: could note size backup to file."
 
       # Error returning rc=1
       # We escalade to 2, not able to size on local drive is a backup error.
@@ -355,13 +351,13 @@ initUtils() {
           ;;
         
         *)
-          info "Error: unknown store local prune arg '$1'"
+          info "Error: storeLocalPrune: unknown store local prune arg '$1'"
           return 2
           ;;
       esac
     done
 
-    (( ${#finds[@]} > 0 )) || { info "Error: prune without a find pattern (--find '*' for all) is not accepted"; return 2; }
+    (( ${#finds[@]} > 0 )) || { info "Error: storeLocalPrune: prune without a find pattern (--find '*' for all) is not accepted"; return 2; }
 
     for find in "${finds[@]}"; do
       localFind=$( joinBy '/' "$storeDir" "$find" )
@@ -376,28 +372,24 @@ initUtils() {
       _find=( find "$localFindDir" -type f -name "$findName" -mtime +$keepDays )
       # >&2 echo "${_find[@]}"
 
-      mapfile -d $'\0' found < <( "${_find[@]}" -print0 )
+      mapfile -d $'\0' found < <( "${NICE[@]}" "${_find[@]}" -print0 )
 
       (( ${#found[@]} > 0 )) && {
-        info "Info: found ${#found[@]} files to prune"
+        info "Info: storeLocalPrune: found ${#found[@]} files to prune"
 
-        for f in "${found[@]}"; do
-          >&2 echo "Info: prune '$f'"
-        done
+        for f in "${found[@]}"; do >&2 echo "Info: storeLocalPrune: pruning '$f'"; done
 
-        $DRYRUN "${_find[@]}" -exec rm {} \;
+        $DRYRUN "${NICE[@]}" "${_find[@]}" -exec rm {} \;
 
         rmRc=$?
         rc=$( max $? $rc )
 
         (( $rmRc == 0 )) && {
-          info "Info: files deleted"
+          info "Info: storeLocalPrune: Files deleted"
         } || {
-          info "Warning: failed to delete files."
+          info "Warning: storeLocalPrune: Failed to delete files."
         }
-      } || {
-        info "Info: found no files to prune"
-      }
+      } || { info "Info: storeLocalPrune: No files to prune."; }
     done
 
     return $rc
@@ -411,18 +403,18 @@ initUtils() {
     var="BORG_REPO_${repo}" 
     [[ -v "$var" ]] && {
       export BORG_REPO="${!var}"
-      info "Info: Loaded $var"
+      info "Info: setRepo: Loaded $var"
     } || {
-      info "Warning: not found $var"
+      info "Warning: setRepo: not found $var"
       rc=1
     }
 
     "BORG_PASSPHRASE_${repo}"
     [[ -v "$var" ]] && {
       export BORG_PASSPHRASE="${!var}"
-      info "Info: Loaded $var"
+      info "Info: setRepo: Loaded $var"
     } || {
-      info "Warning: not found $var"
+      info "Warning: setRepo: not found $var"
       rc=1
     }
   }

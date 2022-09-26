@@ -185,8 +185,8 @@ backupDb() {
 
   local nb=${#dbNames[@]}
 
-  if   (( $nb == 0 )); then info "Warning: no database to backup"; rc=$( max 1 $rc )
-  elif (( $nb == 1 )); then info "Info: Backing up 1 database: ${dbNames[@]@Q}"
+  if   (( $nb == 0 )); then info "Warning: backupMysql: no database to backup"; rc=$( max 1 $rc )
+  elif (( $nb == 1 )); then info "Info: backupMysql: Backing up 1 database: ${dbNames[@]@Q}"
   else info "Info: Backing up ${#dbNames[@]} databases: ${dbNames[@]@Q}"; fi
 
   for db in "${dbNames[@]}"; do info "Info: Backing up database: '$db'"
@@ -238,7 +238,7 @@ backupSingle() {
   # Get a list of databases from local server
   dbNames+=( $( mysqlListDbLike "${like[@]}" ) )
 
-  (( ${#dbNames[@]} > 0 )) || { info "Warning: no database to backup" return 1; }
+  (( ${#dbNames[@]} > 0 )) || { info "Warning: backupMysql: no database to backup" return 1; }
 
   backupDb "${dbNames[@]}" -- "$@"
 }
@@ -311,7 +311,7 @@ backupMysql() {
   
   storePath+=( "$backupMysqlMode" )
 
-  info "Starting ${BACKUP[@]} $@"
+  info "backupMysql: Starting ${BACKUP[@]} $@"
 
   "${BACKUP[@]}" "$@"
 
@@ -319,7 +319,7 @@ backupMysql() {
 
   rc=$( max $backupRc $rc )
 
-  (( $rc == 0 )) || { info "Mysql backup returned non-zero status. Skipping old backups delete."; }
+  (( $rc == 0 )) || { info "backupMysql: Mysql backup returned non-zero status. Skipping old backups delete."; }
 
   return $rc
 }
@@ -350,7 +350,7 @@ backupMysqlPrune() {
   local find pruneArgs modeArgs var mode="$1"
   shift
 
-  info "Info: called prune for '$mode' backups."
+  info "Info: backupMysql: called prune for '$mode' backups."
 
   case $mode in
     all|db|single)
@@ -375,7 +375,7 @@ backupMysqlPrune() {
       ;;
 
     *)
-      info "Warning: Skipping backupMysql prune unknown: '$backupMysqlMode'"
+      info "Warning: backupMysql: Skipping backupMysql prune unknown: '$backupMysqlMode'"
       exitRc=$( max 1 $exitRc )
       ;;
   esac
