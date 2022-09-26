@@ -62,6 +62,22 @@ initUtils() {
   # Ex: DRYRUN=dryRun
   dryRun() { >&2 echo "DRYRUN: $@"; }
 
+  # eval "$(direnv hook bash)"
+  # dotenv ~/.env.backup
+  dotenv() {
+    local rc file="${1-~/.env}"
+
+    [[ -f "$file" ]] && {
+      set -o allexport; source "$file"; set +o allexport;
+      rc=$?
+
+      local fileMode=$( stat -c %A "$file" )
+      [[ "$fileMode" == *------ ]] || { >&2 echo "Doing: chmod go-rwx on '$file'"; chmod go-rwx "$file"; }
+    } || { >&2 echo "Error: no such file '$file'"; rc=1; }
+
+    return $rc
+  }
+
   now()    { date +"%Y-%m-%dT%H-%M-%S%z"; } # avoiding ':' for filenames
   nowIso() { date --iso-8601=seconds; }
 
@@ -308,5 +324,113 @@ initUtils() {
     }
 
     return $( max $rc $exitRc )
+  }
+
+
+  # Will look for vars BORG_REPO-$1
+  # and will restaure default BORG_REPO BORG_PASSPHRASE before terminating
+  usingRepo() {
+    local repo="$1"
+    shift
+
+    local BORG_REPO_ORIG
+    local BORG_PASSPHRASE_ORIG
+    local rc
+    local var
+
+    [[ -v 'BORG_REPO' ]]       && BORG_REPO_ORIG="$BORG_REPO"
+    [[ -v 'BORG_PASSPHRASE' ]] && BORG_PASSPHRASE_ORIG="$BORG_PASSPHRASE"
+
+    var="BORG_REPO_${repo}"
+    [[ -v "$var" ]] && export BORG_REPO="${!var}"
+
+    var="BORG_PASSPHRASE_${repo}"
+    [[ -v "$var" ]] && export BORG_PASSPHRASE="${!var}"
+
+    "$@"
+
+    rc=$?
+
+    # Restore previous values
+    [[ -v 'BORG_REPO_ORIG' ]]       && export BORG_REPO="${BORG_REPO_ORIG}"             || unset BORG_REPO
+    [[ -v 'BORG_PASSPHRASE_ORIG' ]] && export BORG_PASSPHRASE="${BORG_PASSPHRASE_ORIG}" || unset BORG_PASSPHRASE
+
+    return $rc
+  }
+
+  subRepo() {
+    local repoSuffix="$1"
+    shift
+
+    local exitRc=
+
+    [[ -v 'BORG_REPO' ]] || {
+      info "Error: subRepo requires BORG_REPO"
+      return 2
+    }
+
+    local BORG_REPO_ORIG
+    local BORG_PASSPHRASE_ORIG
+
+    BORG_REPO_ORIG="${BORG_REPO}"
+
+    # append repoSuffix to default repo
+    export BORG_REPO="${BORG_REPO}-${repoSuffix}"
+
+    local subRepoPassVar="BORG_PASSPHRASE_${repoSuffix}"
+    
+    [[ -v "${subRepoPassVar}" ]] && {
+
+      [[ -v 'BORG_PASSPHRASE' ]] && {
+        BORG_PASSPHRASE_ORIG="${BORG_PASSPHRASE}"
+      }
+
+      export BORG_PASSPHRASE="${!subRepoPassVar}"
+    }
+
+    "$@"
+
+    exitRc=$?
+
+    export BORG_REPO="${BORG_REPO_ORIG}"
+
+    [[ -v 'BORG_PASSPHRASE_ORIG' ]] && {
+      export BORG_PASSPHRASE="${BORG_PASSPHRASE_ORIG}"
+    }
+
+    return $exitRc
+  }
+
+  createLogrotate() {
+    local conf="# created by $0 on $( nowIso )"
+
+    conf+="
+  ${logFile} {
+      daily
+      rotate 14
+      compress
+      delaycompress
+      nocreate
+      nomissingok     # default
+
+      # generate an error on missing
+      # 24h without any logs is not normal
+      notifempty
+      errors ${alertEmail}
+  }
+  "
+
+    [[ $DRYRUN == "" ]] || {
+      echo "DryRun: not creating file ${logrotateConf}"
+      echo "$conf"
+
+      return
+    }
+
+    info "Info: missing '${logrotateConf}' use --logrotate-conf"
+
+    >&2 echo "$conf" 
+
+    # printf "%s" "$conf" > "$logrotateConf"
   }
 }
