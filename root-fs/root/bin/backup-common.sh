@@ -336,7 +336,7 @@ initUtils() {
     local keepDays=10
     local finds=()
 
-    local rmRc _find found localFind localFindDir findName
+    local findRc rmRc FOUND found localFind localFindDir findName
 
     while (( $# > 0 )); do
       case "$1" in
@@ -369,17 +369,21 @@ initUtils() {
         return 2
       }
 
-      _find=( find "$localFindDir" -type f -name "$findName" -mtime +$keepDays )
-      # >&2 echo "${_find[@]}"
+      FOUND=( "$FIND" "$localFindDir" -type f -name "$findName" -mtime +$keepDays )
 
-      mapfile -d $'\0' found < <( "${NICE[@]}" "${_find[@]}" -print0 )
+      mapfile -d $'\0' found < <( "${NICE[@]}" "${FOUND[@]}" -print0 )
 
-      (( ${#found[@]} > 0 )) && {
+      findRc=$?
+      rc=$( max $findRc $rc )
+
+      if (( ${#found[@]} == 0 )); then info "Info: storeLocalPrune: No file to prune."
+      else
         info "Info: storeLocalPrune: found ${#found[@]} files to prune"
 
         for f in "${found[@]}"; do >&2 echo "Info: storeLocalPrune: pruning '$f'"; done
 
-        $DRYRUN "${NICE[@]}" "${_find[@]}" -exec rm {} \;
+        # $DRYRUN "${NICE[@]}" "${FOUND[@]}" -exec rm -f {} \;
+        $DRYRUN "${NICE[@]}" "${FOUND[@]}" -delete
 
         rmRc=$?
         rc=$( max $? $rc )
@@ -389,7 +393,7 @@ initUtils() {
         } || {
           info "Warning: storeLocalPrune: Failed to delete files."
         }
-      } || { info "Info: storeLocalPrune: No files to prune."; }
+      fi
     done
 
     return $rc
