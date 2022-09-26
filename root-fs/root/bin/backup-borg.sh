@@ -29,14 +29,16 @@ logrotateConf="/etc/logrotate.d/backup-borg"
 BORG_CREATE=( "${SCRIPT_DIR}/backup-borg-create.sh" )
 BACKUP_MYSQL=( "${SCRIPT_DIR}/backup-mysql.sh" )
 
+# used for silent
+bbWrappers=()
+
 exitRc=0
 onErrorStop=
 doLogrotateCreate=
 doInit=
 
-bbLabel=
-borgCreateLabel=
-
+bbLabel
+borgCreateLabel
 
 borgCreateArgs=()
 
@@ -51,16 +53,6 @@ backupMysqlSingleArgs=()
 
 while (( $# > 0 )); do
   case "$1" in
-    --nice)
-      NICE+=( nice )
-      shift
-      ;;
-
-    --io-nice)
-      NICE+=( ionice -c3 )
-      shift
-      ;;
-
     --dry-run)
       DRYRUN=dryRun
       
@@ -71,10 +63,7 @@ while (( $# > 0 )); do
       ;;
 
     --borg-dry-run)
-      # borgCreateArgs+=(--dry-run)
-      # pushing it as first arg, seemed safer but brakes access to $bbLabel as $2 in wrappers (shifting)
       BORG_CREATE+=( --dry-run )
-
       shift
       ;;
 
@@ -130,20 +119,16 @@ while (( $# > 0 )); do
       shift 2
       ;;
 
-    --)
-      shift
-      break
-      ;;
+    # Now done automatically
+    --nice) NICE+=( nice ); shift ;;
+    --io-nice) NICE+=( ionice -c3 ) shift ;;
+
+    --) shift; break ;;
 
     *)
       info "Error: unknown argument '$1'. Did you forget '--' that should precede label names?"
       exit 1
       ;;
-
-    # *)
-    #   # not sure this is smart... as misspelled args here could be tricky to debug
-    #   break
-    #   ;;
   esac
 done
 
@@ -160,9 +145,8 @@ _borgCreate() {
 _backupMysql() { $DRYRUN "${NICE[@]}" "${BACKUP_MYSQL[@]}" "$@"; }
 
 borgCreate() {
-  local wrappers=()
   local label="$1"
-  local wrapper
+  local wrapper wrappers=()
 
   borgCreateLabel="${label}"
 
@@ -192,21 +176,10 @@ backupBorg() {
 
   while (( $# > 0 )); do
     case "$1" in
-      --)
-        shift
-        break
-        ;;
+      --) shift; break ;;
+      -*) break ;;
 
-      -*)
-        break
-        ;;
-
-      '')
-        info "Warning: got empty backup label"
-        exitRc=$( max $exitRc 1 )
-        shift
-        break
-        ;;
+      '') info "Warning: got empty backup label"; exitRc=$( max 1 $exitRc ) shift; break ;;
 
       *:*)
         bbLabel="$1"
@@ -231,8 +204,7 @@ backupBorg() {
         thisRc=$?
         exitRc=$( max "$thisRc" "$exitRc" )
 
-        shift
-        ;;
+        shift ;;
     esac
 
     if   (( $thisRc == 0 )); then info "Info: borg backup labeled '${borgCreateLabel}' succeeded"

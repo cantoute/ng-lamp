@@ -400,6 +400,29 @@ initUtils() {
     return $rc
   }
 
+  # Set repo as default
+  setRepo() {
+    local var repo="$1"
+    shift
+
+    var="BORG_REPO_${repo}" 
+    [[ -v "$var" ]] && {
+      export BORG_REPO="${!var}"
+      info "Info: Loaded $var"
+    } || {
+      info "Warning: not found $var"
+      rc=1
+    }
+
+    "BORG_PASSPHRASE_${repo}"
+    [[ -v "$var" ]] && {
+      export BORG_PASSPHRASE="${!var}"
+      info "Info: Loaded $var"
+    } || {
+      info "Warning: not found $var"
+      rc=1
+    }
+  }
 
   # Will look for vars BORG_REPO-$1
   # and will restaure default BORG_REPO BORG_PASSPHRASE before terminating
@@ -430,49 +453,6 @@ initUtils() {
     [[ -v 'BORG_PASSPHRASE_ORIG' ]] && export BORG_PASSPHRASE="${BORG_PASSPHRASE_ORIG}" || unset BORG_PASSPHRASE
 
     return $rc
-  }
-
-  subRepo() {
-    local repoSuffix="$1"
-    shift
-
-    local exitRc=
-
-    [[ -v 'BORG_REPO' ]] || {
-      info "Error: subRepo requires BORG_REPO"
-      return 2
-    }
-
-    local BORG_REPO_ORIG
-    local BORG_PASSPHRASE_ORIG
-
-    BORG_REPO_ORIG="${BORG_REPO}"
-
-    # append repoSuffix to default repo
-    export BORG_REPO="${BORG_REPO}-${repoSuffix}"
-
-    local subRepoPassVar="BORG_PASSPHRASE_${repoSuffix}"
-    
-    [[ -v "${subRepoPassVar}" ]] && {
-
-      [[ -v 'BORG_PASSPHRASE' ]] && {
-        BORG_PASSPHRASE_ORIG="${BORG_PASSPHRASE}"
-      }
-
-      export BORG_PASSPHRASE="${!subRepoPassVar}"
-    }
-
-    "$@"
-
-    exitRc=$?
-
-    export BORG_REPO="${BORG_REPO_ORIG}"
-
-    [[ -v 'BORG_PASSPHRASE_ORIG' ]] && {
-      export BORG_PASSPHRASE="${BORG_PASSPHRASE_ORIG}"
-    }
-
-    return $exitRc
   }
 
   createLogrotate() {
@@ -507,4 +487,48 @@ initUtils() {
 
     # printf "%s" "$conf" > "$logrotateConf"
   }
+
+
+  # subRepo() {
+  #   local repoSuffix="$1"
+  #   shift
+
+  #   local exitRc=
+
+  #   [[ -v 'BORG_REPO' ]] || {
+  #     info "Error: subRepo requires BORG_REPO"
+  #     return 2
+  #   }
+
+  #   local BORG_REPO_ORIG
+  #   local BORG_PASSPHRASE_ORIG
+
+  #   BORG_REPO_ORIG="${BORG_REPO}"
+
+  #   # append repoSuffix to default repo
+  #   export BORG_REPO="${BORG_REPO}-${repoSuffix}"
+
+  #   local subRepoPassVar="BORG_PASSPHRASE_${repoSuffix}"
+    
+  #   [[ -v "${subRepoPassVar}" ]] && {
+
+  #     [[ -v 'BORG_PASSPHRASE' ]] && {
+  #       BORG_PASSPHRASE_ORIG="${BORG_PASSPHRASE}"
+  #     }
+
+  #     export BORG_PASSPHRASE="${!subRepoPassVar}"
+  #   }
+
+  #   "$@"
+
+  #   exitRc=$?
+
+  #   export BORG_REPO="${BORG_REPO_ORIG}"
+
+  #   [[ -v 'BORG_PASSPHRASE_ORIG' ]] && {
+  #     export BORG_PASSPHRASE="${BORG_PASSPHRASE_ORIG}"
+  #   }
+
+  #   return $exitRc
+  # }
 }
