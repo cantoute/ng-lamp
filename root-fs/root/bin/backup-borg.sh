@@ -45,34 +45,23 @@ borgCreateLabel=
 
 while (( $# > 0 )); do
   case "$1" in
-    --)     shift; break ;;
-    --log)  logFile="$2"; shift 2 ;;
-    --cron) beSilentOnSuccess="true"; shift ;;
-
-    --verbose|--progress)
-      borgCreateArgs+=( "$1" )
-      shift ;;
-
-    --exclude|--include)
-      borgCreateArgs+=( "$1" "$2" )
-      shift 2 ;;
-
-    --do-init|--init) doInit="true"; shift ;;
-    --on-error-stop|--stop) onErrorStop="true"; shift ;;
-
-    --dry-run)
-      DRYRUN=dryRun
-      BORG_CREATE+=( --dry-run )  # just in case
-      shift ;;
-
-    --borg-dry-run)
-      BORG_CREATE+=( --dry-run )
-      shift ;;
+    --)                          shift; break ;;
+    --log)  logFile="$2";             shift 2 ;;
+    --cron) beSilentOnSuccess="true";   shift ;;
 
     # nice|io-nice is auto added if in PATH
-    --no-nice) NICE=();               shift ;;
-    --io-nice) NICE+=( ionice -c3 );  shift ;;
-    --nice)    NICE+=( nice );        shift ;;
+    --no-nice) NICE=();                 shift ;;
+    --io-nice) NICE+=( ionice -c3 );    shift ;;
+    --nice)    NICE+=( nice );          shift ;;
+
+    --verbose|--progress) borgCreateArgs+=( "$1" );       shift ;;
+    --exclude|--include) borgCreateArgs+=( "$1" "$2" ); shift 2 ;;
+
+    --do-init|--init) doInit="true";                      shift ;;
+    --on-error-stop|--stop) onErrorStop="true";           shift ;;
+
+    --dry-run) DRYRUN=dryRun; BORG_CREATE+=( --dry-run ); shift ;;
+    --borg-dry-run) BORG_CREATE+=( --dry-run );           shift ;;
 
     --mysql-single-like|--mysql-like)
       # Takes affect only for mode 'single'
@@ -141,28 +130,17 @@ backupBorg() {
       -*) break ;;
       '') info "Warning: got empty backup label"; exitRc=$( max 1 $exitRc ) shift; break ;;
 
-      *:*)
-        bbLabel="$1"; shift
+      *) bbLabel="$1"; shift; split=( ${bbLabel//\:/ } ); info "backupBorg: proceeding label '${bbLabel}'"
 
-        info "local backup label '${bbLabel}'"
+        "bb_label_${split[0]}" "${split[0]}" "${split[1]}";
 
-        # splits :
-        split=( ${bbLabel//\:/ } )
+        thisRc=$?; exitRc=$( max "$thisRc" "$exitRc" ) ;;
 
-        "bb_label_${split[0]}" "${split[0]}" "${split[1]}"
+      # *) bbLabel="$1"; shift; info "backupBorg: proceeding label '${bbLabel}'"
 
-        thisRc=$?
-        exitRc=$( max "$thisRc" "$exitRc" )
-        ;;
+      #   "bb_label_${bbLabel}" "${bbLabel}" "";
 
-      *)
-        bbLabel="$1"; shift
-
-        "bb_label_${bbLabel}" "${bbLabel}" ""
-
-        thisRc=$?
-        exitRc=$( max "$thisRc" "$exitRc" )
-        ;;
+      #   thisRc=$?; exitRc=$( max "$thisRc" "$exitRc" ) ;;
     esac
 
     if   (( $thisRc == 0 )); then info "Info: borg backup labeled '${borgCreateLabel}' succeeded"
