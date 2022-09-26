@@ -63,7 +63,10 @@ dumpAllArgs=(
 # will be appended ( all ) or ( single ) accordingly
 storePath=()
 
-backupMysqlPruneArgs=()
+backupPruneArgs=()
+backupPruneArgs_db=(     --keep-days 2 )
+backupPruneArgs_all=(    --keep-days 2 )
+backupPruneArgs_single=( --keep-days 2 )
 
 
 ########################################################
@@ -321,12 +324,6 @@ backupMysql() {
   return $rc
 }
 
-backupMysqlPrune() {
-  info "Info: Pruning old backups. $@"
-
-
-}
-
 #################
 # backup-mysql
 
@@ -348,9 +345,42 @@ fi
 
 # No errors, we can prune.
 
-backupMysqlPrune "${backupMysqlPruneArgs[@]}";
 
-backupMysqlPruneRc=$?
-exitRc=$( max $backupMysqlPruneRc $exitRc )
+backupMysqlPrune() {
+  local find pruneArgs modeArgs var mode="$1"
+  shift
+
+  case $mode in
+    all|db|single)
+      pruneArgs="${backupPruneArgs[@]}"
+
+      # add args for $mode
+      modeArgs="backupPruneArgs_${mode}"
+      
+      [[ -v "$modeArgs" ]] && {
+        var="${modeArgs}[@]"
+        pruneArgs+=( "${!var}" )
+      }
+
+      # limit to
+      find="$mode/*.sql$compressExt"
+      pruneArgs+=( --find "$find" )
+
+      $DRYRUN store prune "${pruneArgs[@]}";
+
+      pruneRc=$?
+      exitRc=$( max $pruneRc $exitRc )
+      ;;
+
+    *)
+      info "Warning: Skipping backupMysql prune unknown: '$backupMysqlMode'"
+      exitRc=$( max 1 $exitRc )
+      ;;
+  esac
+}
+
+backupMysqlPrune "$backupMysqlMode"
+
+
 
 exit $exitRc
