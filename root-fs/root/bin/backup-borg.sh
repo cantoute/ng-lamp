@@ -131,8 +131,9 @@ backupBorg() {
       '') info "Warning: got empty backup label"; exitRc=$( max 1 $exitRc ) shift; break ;;
 
       *) bbLabel="$1"; shift; split=( ${bbLabel//\:/ } ); info "backupBorg: proceeding label '${bbLabel}'"
+        local l1=${split[0]} l2=${split[1]-}
 
-        "bb_label_${split[0]}" "${split[0]}" "${split[1]}";
+        "bb_label_$l1" "$l1" "$l2";
 
         thisRc=$?; exitRc=$( max "$thisRc" "$exitRc" ) ;;
 
