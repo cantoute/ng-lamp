@@ -29,21 +29,14 @@ logrotateConf="/etc/logrotate.d/backup-borg"
 BORG_CREATE=( "${SCRIPT_DIR}/backup-borg-create.sh" )
 BACKUP_MYSQL=( "${SCRIPT_DIR}/backup-mysql.sh" )
 
-# used for silent
-bbWrappers=()
-
 exitRc=0
 onErrorStop=
 doLogrotateCreate=
 doInit=
+beSilentOnSuccess=
 
-bbLabel
-borgCreateLabel
-
-borgCreateArgs=()
-
-backupMysqlArgs=()
-backupMysqlSingleArgs=()
+bbLabel=
+borgCreateLabel=
 
 # Debug
 # logFile="/tmp/backup-borg.log2"
@@ -53,56 +46,31 @@ backupMysqlSingleArgs=()
 
 while (( $# > 0 )); do
   case "$1" in
-    --dry-run)
-      DRYRUN=dryRun
-      
-      borgCreateArgs+=( --dry-run )
-      backupMysqlArgs+=( --dry-run )
-
-      shift
-      ;;
-
-    --borg-dry-run)
-      BORG_CREATE+=( --dry-run )
-      shift
-      ;;
-
-    --mysqldump-dry-run|--mysql-dry-run)
-      backupMysqlArgs+=( --dry-run )
-      shift
-      ;;
-    
     --mysql-single-like|--mysql-like)
       # Takes affect only for --single
       backupMysqlSingleArgs+=( --like "$2" )
-      shift 2
-      ;;
+      shift 2 ;;
     
     --mysql-single-not-like|--mysql-not-like)
       # Takes affect only for --single
       backupMysqlSingleArgs+=( --not-like "$2" )
-      shift 2
-      ;;
+      shift 2 ;;
 
     --verbose)
       borgCreateArgs+=( "$1" )
-      shift
-      ;;
+      shift ;;
 
     --progress)
       borgCreateArgs+=( "$1" )
-      shift
-      ;;
+      shift ;;
 
     --exclude|--include)
       borgCreateArgs+=( "$1" "$2" )
-      shift 2
-      ;;
+      shift 2 ;;
 
     --on-error-stop|--stop)
       onErrorStop="true"
-      shift
-      ;;
+      shift ;;
 
     --do-init|--init)
       doInit="true"
@@ -111,13 +79,29 @@ while (( $# > 0 )); do
 
     --log)
       logFile="$2"
-      shift 2
-      ;;
+      shift 2 ;;
 
     --conf)
       localConf=( "$2" )
-      shift 2
-      ;;
+      shift 2 ;;
+
+    --cron)
+      beSilentOnSuccess="true"
+      shift ;;
+
+    --dry-run)
+      DRYRUN=dryRun
+      borgCreateArgs+=(  --dry-run )
+      backupMysqlArgs+=( --dry-run )
+      shift ;;
+
+    --borg-dry-run)
+      BORG_CREATE+=( --dry-run )
+      shift ;;
+
+    --mysqldump-dry-run|--mysql-dry-run)
+      backupMysqlArgs+=( --dry-run )
+      shift ;;
 
     # Now done automatically
     --nice) NICE+=( nice ); shift ;;
@@ -178,17 +162,15 @@ backupBorg() {
     case "$1" in
       --) shift; break ;;
       -*) break ;;
-
       '') info "Warning: got empty backup label"; exitRc=$( max 1 $exitRc ) shift; break ;;
 
       *:*)
-        bbLabel="$1"
-        shift
+        bbLabel="$1"; shift
 
         info "local backup label '${bbLabel}'"
 
         # splits :
-        split=(${bbLabel//\:/ })
+        split=( ${bbLabel//\:/ } )
 
         "bb_label_${split[0]}" "${split[0]}" "${split[1]}"
 
@@ -197,14 +179,13 @@ backupBorg() {
         ;;
 
       *)
-        bbLabel="$1"
+        bbLabel="$1"; shift
 
         "bb_label_${bbLabel}" "${bbLabel}" ""
 
         thisRc=$?
         exitRc=$( max "$thisRc" "$exitRc" )
-
-        shift ;;
+        ;;
     esac
 
     if   (( $thisRc == 0 )); then info "Info: borg backup labeled '${borgCreateLabel}' succeeded"
@@ -259,16 +240,24 @@ backupBorgMysql() {
 
 ###################################################
 # Main
+main() {
+  local rc trace=( "$SCRIPT_NAME" "$@" )
 
+  backupBorg "$@" 2>&1 | logToFile "$logFile"
 
-trace=( "$SCRIPT_NAME" "$@" )
+  rc=$( max ${PIPESTATUS[@]} )
 
-backupBorg "$@" 2>&1 | logToFile "$logFile"
+  if   (( $rc == 0 )); then info "Success: '${trace[@]}' finished successfully. rc $rc"
+  elif (( $rc == 1 )); then info "Warning: '${trace[@]}' finished with warnings. rc $rc"
+  else info "Error: '${trace[@]}' finished with errors. rc $rc"; fi
 
-rc=$( max ${PIPESTATUS[@]} )
+  return $rc
+}
 
-if   (( $rc == 0 )); then info "Success: '${trace[@]}' finished successfully. rc $rc"
-elif (( $rc == 1 )); then info "Warning: '${trace[@]}' finished with warnings. rc $rc"
-else info "Error: '${trace[@]}' finished with errors. rc $rc"; fi
+set -- main "$@"
 
-exit $rc
+[[ "$beSilentOnSuccess" == "true" ]] && {
+  OUTPUT=`"$@" 2>&1` || { rc=$?; echo "$OUTPUT"; exit $rc; }
+} || {
+  "$@"
+}

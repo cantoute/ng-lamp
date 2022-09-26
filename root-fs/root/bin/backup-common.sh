@@ -8,7 +8,7 @@
 # storeLocalTotal=0
 
 init() {
-  [[ -v 'INIT' ]] && { >&2 echo "Warning: init already loaded"; return; }
+  [[ -v 'INIT' ]] && { >&2 echo "Info: init already loaded"; return; }
   INIT=init
 
   umask 027
@@ -53,7 +53,10 @@ init() {
 
   DRYRUN=
 
-  # storeLocalTotal=0
+  borgCreateArgs=()
+
+  backupMysqlArgs=()
+  backupMysqlSingleArgs=()
 }
 
 initUtils() {
@@ -488,6 +491,14 @@ initUtils() {
     # printf "%s" "$conf" > "$logrotateConf"
   }
 
+  # seems to brake return status 
+  # silentOnSuccess() {
+  #   # local rc OUTPUT=`"$@"; return \\$? 2>&1` || { rc=$?; echo "$OUTPUT"; return $rc; }
+
+  #   local rc=0 OUTPUT=`$( "$@" ) 2>&1;` || { rc=$?; rc=$( max $rc ${PIPESTATUS[@]} ); echo "$OUTPUT"; }
+  #   # local rc=0 OUTPUT=`"$@" 2>&1` || { rc=$?; echo "$OUTPUT"; }
+  #   return $rc
+  # }
 
   # subRepo() {
   #   local repoSuffix="$1"
