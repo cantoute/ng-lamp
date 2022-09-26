@@ -3,16 +3,21 @@
 set -u
 set -o pipefail
 
-SCRIPT_DIR="${0%/*}"
-SCRIPT_NAME="${0##*/}"
-SCRIPT_NAME_NO_EXT="${SCRIPT_NAME%.*}"
+[[ -v 'INIT' ]] || {
 
-source "${SCRIPT_DIR}/backup-common.sh";
-init && initUtils
+  SCRIPT_DIR="${0%/*}"
+  SCRIPT_NAME="${0##*/}"
+  SCRIPT_NAME_NO_EXT="${SCRIPT_NAME%.*}"
 
-source "${SCRIPT_DIR}/backup-borg-labels.sh";
+  source "${SCRIPT_DIR}/backup-common.sh";
+  init && initUtils
 
-loadDotEnv() { source "~/.env.borg"; }
+  source "${SCRIPT_DIR}/backup-borg-labels.sh";
+
+  loadDotEnv() { source "~/.env.borg"; }
+
+  localConf=( "${SCRIPT_DIR}/${SCRIPT_NAME_NO_EXT}-${hostname}.sh" )
+}
 
 # your email@some.co
 # only used for logrotate 
@@ -23,9 +28,6 @@ logrotateConf="/etc/logrotate.d/backup-borg"
 
 BORG_CREATE=( "${SCRIPT_DIR}/backup-borg-create.sh" )
 BACKUP_MYSQL=( "${SCRIPT_DIR}/backup-mysql.sh" )
-
-
-localConf=( "${SCRIPT_DIR}/${SCRIPT_NAME_NO_EXT}-${hostname}.sh" )
 
 exitRc=0
 onErrorStop=
@@ -155,6 +157,8 @@ _borgCreate() {
   $DRYRUN "${NICE[@]}" "${BORG_CREATE[@]}" "$@"
 }
 
+_backupMysql() { $DRYRUN "${NICE[@]}" "${BACKUP_MYSQL[@]}" "$@"; }
+
 borgCreate() {
   local wrappers=()
   local label="$1"
@@ -178,7 +182,6 @@ borgCreate() {
   "${wrappers[@]}" _borgCreate "$@" "${borgCreateArgs[@]}"
 }
 
-_backupMysql() { $DRYRUN "${NICE[@]}" "${BACKUP_MYSQL[@]}" "$@"; }
 
 ##############################################
 
@@ -242,10 +245,7 @@ backupBorg() {
   return $exitRc
 }
 
-# Obsolete
-backupMysqlAndBorgCreate() { backupMysql "$@"; }
-
-backupMysql() {
+backupBorgMysql() {
   local mysqlRc
   local borgRc
   local label="mysql"
@@ -285,226 +285,18 @@ backupMysql() {
   return $( max $mysqlRc $borgRc )
 }
 
-createLogrotate() {
-  local conf="# created by $0 on $( nowIso )"
-
-  conf+="
-${logFile} {
-    daily
-    rotate 14
-    compress
-    delaycompress
-    nocreate
-    nomissingok     # default
-
-    # generate an error on missing
-    # 24h without any logs is not normal
-    notifempty
-    errors ${alertEmail}
-}
-"
-
-  [[ $DRYRUN == "" ]] || {
-    echo "DryRun: not creating file ${logrotateConf}"
-    echo "$conf"
-
-    return
-  }
-
-  info "Info: missing '${logrotateConf}' use --logrotate-conf"
-
-  >&2 echo "$conf" 
-
-  # printf "%s" "$conf" > "$logrotateConf"
-}
-
-
-# Will look for vars BORG_REPO-$1
-# and will restaure default BORG_REPO BORG_PASSPHRASE before terminating
-usingRepo() {
-  local repo="$1"
-  shift
-
-  local BORG_REPO_ORIG
-  local BORG_PASSPHRASE_ORIG
-  local rc
-  local var
-
-  [[ -v 'BORG_REPO' ]]       && BORG_REPO_ORIG="$BORG_REPO"
-  [[ -v 'BORG_PASSPHRASE' ]] && BORG_PASSPHRASE_ORIG="$BORG_PASSPHRASE"
-
-  var="BORG_REPO_${repo}"
-  [[ -v "$var" ]] && export BORG_REPO="${!var}"
-
-  var="BORG_PASSPHRASE_${repo}"
-  [[ -v "$var" ]] && export BORG_PASSPHRASE="${!var}"
-
-  "$@"
-
-  rc=$?
-
-  # Restore previous values
-  [[ -v 'BORG_REPO_ORIG' ]]       && export BORG_REPO="${BORG_REPO_ORIG}"             || unset BORG_REPO
-  [[ -v 'BORG_PASSPHRASE_ORIG' ]] && export BORG_PASSPHRASE="${BORG_PASSPHRASE_ORIG}" || unset BORG_PASSPHRASE
-
-  return $rc
-}
-
-subRepo() {
-  local repoSuffix="$1"
-  shift
-
-  local exitRc=
-
-  [[ -v 'BORG_REPO' ]] || {
-    info "Error: subRepo requires BORG_REPO"
-    return 2
-  }
-
-  local BORG_REPO_ORIG
-  local BORG_PASSPHRASE_ORIG
-
-  BORG_REPO_ORIG="${BORG_REPO}"
-
-  # append repoSuffix to default repo
-  export BORG_REPO="${BORG_REPO}-${repoSuffix}"
-
-  local subRepoPassVar="BORG_PASSPHRASE_${repoSuffix}"
-  
-  [[ -v "${subRepoPassVar}" ]] && {
-
-    [[ -v 'BORG_PASSPHRASE' ]] && {
-      BORG_PASSPHRASE_ORIG="${BORG_PASSPHRASE}"
-    }
-
-    export BORG_PASSPHRASE="${!subRepoPassVar}"
-  }
-
-  "$@"
-
-  exitRc=$?
-
-  export BORG_REPO="${BORG_REPO_ORIG}"
-
-  [[ -v 'BORG_PASSPHRASE_ORIG' ]] && {
-    export BORG_PASSPHRASE="${BORG_PASSPHRASE_ORIG}"
-  }
-
-  return $exitRc
-}
-
-setRepo() {
-  case "$1" in
-    --dot-env)
-      loadDotEnv
-      shift
-      ;;
-    *)
-      BORG_REPO="$1"
-      BORG_PASSPHRASE="$2"
-      shift 2
-      ;;
-  esac
-
-  export BORG_REPO
-  export BORG_PASSPHRASE
-
-  echo "Info: set BORG_REPO: ${BORG_REPO}"
-
-  "$@"
-
-  exitRc=$?
-
-  # unset
-  export BORG_REPO=
-  export BORG_PASSPHRASE=
-
-  return $exitRc
-}
-
-swapRepo() {
-  local repo="$1"
-  local pass="$2"
-  shift 2
-
-  local exitRc=
-
-  local BORG_REPO_SWITCHED="${BORG_REPO-unset}"
-  local BORG_PASSPHRASE_SWITCHED="${BORG_PASSPHRASE-unset}"
-
-  export BORG_REPO="${repo}"
-  export BORG_PASSPHRASE="${pass}"
-  
-  # do
-  "$@"
-
-  exitRc=$?
-
-
-  [[ "${BORG_REPO_SWITCHED}" != "${BORG_REPO}" ]] && {
-    [[ "$BORG_REPO_SWITCHED" == "unset" ]] && {
-      export BORG_REPO=
-      echo "Info: cleared BORG_REPO"
-    } || {
-      export BORG_REPO="$BORG_REPO_SWITCHED"
-      echo "Info: restored BORG_REPO: ${BORG_REPO}"
-    }
-  }
-
-  [[ "${BORG_PASSPHRASE_SWITCHED}" != "${BORG_PASSPHRASE}" ]] && {
-    [[ "$BORG_PASSPHRASE_SWITCHED" == "unset" ]] && {
-      export BORG_PASSPHRASE=
-      echo "Info: cleared BORG_PASSPHRASE"
-    } || {
-      export BORG_REPO="$BORG_PASSPHRASE_SWITCHED"
-      echo "Info: restored BORG_PASSPHRASE"
-    }
-  }
-
-  return $exitRc
-}
-
-
-
 ###################################################
 # Main
 
-[[ -e "$logrotateConf" ]] || {
-  createLogrotate || {
-    info "Warning: failed to create logrotate ${logrotateConf}"
-  }
-}
 
-for conf in "${localConf[@]}"; do
-  [[ -f "$conf" ]] && {
-    # first one we find, we source
-    source "$conf"
-    
-    (( $? == 0 )) && {
-      >&2 echo "Info: loaded local config ${conf}";
-
-      # should we stop at first conf found?
-      # break;
-    } || {
-      >&2 echo "Warning: found '${conf}' but failed to load it."
-    }
-  }
-done
-
-# logTo=("${NICE[@]}" )
-# logTo+=(
-#   tee --output-error=warn -a 
-# )
-# backupBorg "$@" 2>&1 | "${logTo[@]}" "$logFile"
-
-call=( "$SCRIPT_NAME" "$@" )
+trace=( "$SCRIPT_NAME" "$@" )
 
 backupBorg "$@" 2>&1 | logToFile "$logFile"
 
 rc=$( max ${PIPESTATUS[@]} )
 
-if   (( $rc == 0 )); then info "Success: '${call[@]}' finished successfully. rc $rc"
-elif (( $rc == 1 )); then info "Warning: '${call[@]}' finished with warnings. rc $rc"
-else info "Error: '${call[@]}' finished with errors. rc $rc"; fi
+if   (( $rc == 0 )); then info "Success: '${trace[@]}' finished successfully. rc $rc"
+elif (( $rc == 1 )); then info "Warning: '${trace[@]}' finished with warnings. rc $rc"
+else info "Error: '${trace[@]}' finished with errors. rc $rc"; fi
 
 exit $rc

@@ -74,7 +74,7 @@ bb_label_mysql() {
 
     single)
       # mysql:single
-      args+=( --single "${backupMysqlSingleArgs[@]}" )
+      args+=( single "${backupMysqlSingleArgs[@]}" )
       ;;
     
     *)
@@ -83,7 +83,7 @@ bb_label_mysql() {
       ;;
   esac
 
-  backupMysql "${args[@]}" "$@"
+  backupBorgMysql "${args[@]}" "$@"
 }
 
 bb_label_sleep() {
