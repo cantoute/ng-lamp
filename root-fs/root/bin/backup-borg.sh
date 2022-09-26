@@ -4,19 +4,18 @@ set -u
 set -o pipefail
 
 [[ -v 'INIT' ]] || {
+  # Only when called directly
 
   SCRIPT_DIR="${0%/*}"
   SCRIPT_NAME="${0##*/}"
   SCRIPT_NAME_NO_EXT="${SCRIPT_NAME%.*}"
 
-  source "${SCRIPT_DIR}/backup-common.sh";
+  . "${SCRIPT_DIR}/backup-common.sh";
   init && initUtils
 
-  source "${SCRIPT_DIR}/backup-borg-labels.sh";
-
-  loadDotEnv() { source "~/.env.borg"; }
-
-  localConf=( "${SCRIPT_DIR}/${SCRIPT_NAME_NO_EXT}-${hostname}.sh" )
+  # Obsolete?
+  # . "${SCRIPT_DIR}/backup-borg-labels.sh";
+  # localConf=( "${SCRIPT_DIR}/${SCRIPT_NAME_NO_EXT}-${hostname}.sh" )
 }
 
 # your email@some.co
@@ -46,21 +45,11 @@ borgCreateLabel=
 
 while (( $# > 0 )); do
   case "$1" in
-    --mysql-single-like|--mysql-like)
-      # Takes affect only for --single
-      backupMysqlSingleArgs+=( --like "$2" )
-      shift 2 ;;
-    
-    --mysql-single-not-like|--mysql-not-like)
-      # Takes affect only for --single
-      backupMysqlSingleArgs+=( --not-like "$2" )
-      shift 2 ;;
+    --)     shift; break ;;
+    --log)  logFile="$2"; shift 2 ;;
+    --cron) beSilentOnSuccess="true"; shift ;;
 
-    --verbose)
-      borgCreateArgs+=( "$1" )
-      shift ;;
-
-    --progress)
+    --verbose|--progress)
       borgCreateArgs+=( "$1" )
       shift ;;
 
@@ -68,46 +57,32 @@ while (( $# > 0 )); do
       borgCreateArgs+=( "$1" "$2" )
       shift 2 ;;
 
-    --on-error-stop|--stop)
-      onErrorStop="true"
-      shift ;;
-
-    --do-init|--init)
-      doInit="true"
-      shift
-      ;;
-
-    --log)
-      logFile="$2"
-      shift 2 ;;
-
-    --conf)
-      localConf=( "$2" )
-      shift 2 ;;
-
-    --cron)
-      beSilentOnSuccess="true"
-      shift ;;
+    --do-init|--init) doInit="true"; shift ;;
+    --on-error-stop|--stop) onErrorStop="true"; shift ;;
 
     --dry-run)
       DRYRUN=dryRun
-      borgCreateArgs+=(  --dry-run )
-      backupMysqlArgs+=( --dry-run )
+      BORG_CREATE+=( --dry-run )  # just in case
       shift ;;
 
     --borg-dry-run)
       BORG_CREATE+=( --dry-run )
       shift ;;
 
-    --mysqldump-dry-run|--mysql-dry-run)
-      backupMysqlArgs+=( --dry-run )
-      shift ;;
+    # nice|io-nice is auto added if in PATH
+    --no-nice) NICE=();               shift ;;
+    --io-nice) NICE+=( ionice -c3 );  shift ;;
+    --nice)    NICE+=( nice );        shift ;;
 
-    # Now done automatically
-    --nice) NICE+=( nice ); shift ;;
-    --io-nice) NICE+=( ionice -c3 ) shift ;;
-
-    --) shift; break ;;
+    --mysql-single-like|--mysql-like)
+      # Takes affect only for mode 'single'
+      backupMysqlSingleArgs+=( --like "$2" )
+      shift 2 ;;
+    
+    --mysql-single-not-like|--mysql-not-like)
+      # Takes affect only for mode 'single'
+      backupMysqlSingleArgs+=( --not-like "$2" )
+      shift 2 ;;
 
     *)
       info "Error: unknown argument '$1'. Did you forget '--' that should precede label names?"
@@ -134,6 +109,7 @@ borgCreate() {
 
   borgCreateLabel="${label}"
 
+  # If those functions are found
   local bbWrappers=(
     "bb_borg_create_wrapper"
     "bb_borg_create_wrapper_${label}"
@@ -143,10 +119,11 @@ borgCreate() {
 
   for wrapper in "${bbWrappers[@]}"; do
     [[ "$( LC_ALL=C type -t "$wrapper" )" == "function" ]] && {
-      wrappers+=("$wrapper" )
+      wrappers+=( "$wrapper" )
     }
   done
 
+  # Call them in front. Aka wrap.
   "${wrappers[@]}" _borgCreate "$@" "${borgCreateArgs[@]}"
 }
 
@@ -240,6 +217,7 @@ backupBorgMysql() {
 
 ###################################################
 # Main
+
 main() {
   local rc trace=( "$SCRIPT_NAME" "$@" )
 
@@ -258,6 +236,4 @@ set -- main "$@"
 
 [[ "$beSilentOnSuccess" == "true" ]] && {
   OUTPUT=`"$@" 2>&1` || { rc=$?; echo "$OUTPUT"; exit $rc; }
-} || {
-  "$@"
-}
+} || { "$@"; }
