@@ -350,9 +350,11 @@ backupMysqlPrune() {
   local find pruneArgs modeArgs var mode="$1"
   shift
 
+  info "Info: called prune for '$mode' backups."
+
   case $mode in
     all|db|single)
-      pruneArgs="${backupPruneArgs[@]}"
+      pruneArgs=( "${backupPruneArgs[@]}" )
 
       # add args for $mode
       modeArgs="backupPruneArgs_${mode}"
@@ -363,10 +365,10 @@ backupMysqlPrune() {
       }
 
       # limit to
-      find="$mode/*.sql$compressExt"
+      find="$mode/dump-$hostname-*.sql$compressExt"
       pruneArgs+=( --find "$find" )
 
-      $DRYRUN store prune "${pruneArgs[@]}";
+      store prune "${pruneArgs[@]}";
 
       pruneRc=$?
       exitRc=$( max $pruneRc $exitRc )
@@ -380,7 +382,5 @@ backupMysqlPrune() {
 }
 
 backupMysqlPrune "$backupMysqlMode"
-
-
 
 exit $exitRc

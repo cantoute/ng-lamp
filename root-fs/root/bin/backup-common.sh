@@ -62,10 +62,12 @@ initUtils() {
   # Ex: DRYRUN=dryRun
   dryRun() { >&2 echo "DRYRUN: $@"; }
 
-  # eval "$(direnv hook bash)"
-  # dotenv ~/.env.backup
   dotenv() {
     local rc file="${1-~/.env}"
+
+    # Alternatives
+    # eval "$(direnv hook bash)"
+    # dotenv ~/.env.backup
 
     [[ -f "$file" ]] && {
       set -o allexport; source "$file"; set +o allexport;
@@ -327,7 +329,75 @@ initUtils() {
   }
 
   storeLocalPrune() {
-    echo "$@"
+    local storeDir="$1"
+    shift
+
+    local rc=0
+    # defaults
+    local keepDays=10
+    local finds=()
+
+    local rmRc _find found localFind localFindDir findName
+
+    while (( $# > 0 )); do
+      case "$1" in
+        --keep-days)
+          keepDays="$2"
+          shift 2
+          ;;
+
+        --find)
+          finds+=("$2")
+          shift 2
+          ;;
+        
+        *)
+          info "Error: unknown store local prune arg '$1'"
+          return 2
+          ;;
+      esac
+    done
+
+    (( ${#finds[@]} > 0 )) || { info "Error: prune without a find pattern (--find '*' for all) is not accepted"; return 2; }
+
+    for find in "${finds[@]}"; do
+      localFind=$( joinBy '/' "$storeDir" "$find" )
+      localFindDir="${localFind%/*}"
+      findName="${localFind##*/}"
+
+      [[ "$localFindDir" == '' || "$localFindDir" == '/' ]] && {
+        info "Error: won't prune from '$localFindDir'"
+        return 2
+      }
+
+      _find=( find "$localFindDir" -type f -name "$findName" -mtime +$keepDays )
+      # >&2 echo "${_find[@]}"
+
+      mapfile -d $'\0' found < <( "${_find[@]}" -print0 )
+
+      (( ${#found[@]} > 0 )) && {
+        info "Info: found ${#found[@]} files to prune"
+
+        for f in "${found[@]}"; do
+          >&2 echo "Info: prune '$f'"
+        done
+
+        $DRYRUN "${_find[@]}" -exec rm {} \;
+
+        rmRc=$?
+        rc=$( max $? $rc )
+
+        (( $rmRc == 0 )) && {
+          info "Info: files deleted"
+        } || {
+          info "Warning: failed to delete files."
+        }
+      } || {
+        info "Info: found no files to prune"
+      }
+    done
+
+    return $rc
   }
 
 
