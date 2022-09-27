@@ -66,19 +66,34 @@ initUtils() {
   dryRun() { >&2 echo "DRYRUN: $@"; }
 
   dotenv() {
-    local rc file="${1-~/.env}"
+    local rc=1 file
 
     # Alternatives
     # eval "$(direnv hook bash)"
     # dotenv ~/.env.backup
 
-    [[ -f "$file" ]] && {
-      set -o allexport; source "$file"; set +o allexport;
-      rc=$?
+    # No arg we set default
+    (( $# == 0 )) && set -- .env ~/.env
 
-      local fileMode=$( stat -c %A "$file" )
-      [[ "$fileMode" == *------ ]] || { >&2 echo "Doing: chmod go-rwx on '$file'"; chmod go-rwx "$file"; }
-    } || { >&2 echo "Error: no such file '$file'"; rc=1; }
+    while (( $# > 0 )); do
+      file="$1"; shift
+
+      if [[ -f "$file" ]]; then
+        # Poor mans load .env file and export it's vars
+        set -o allexport; source "$file"; set +o allexport;
+        
+        rc=$?
+
+        (( $rc == 0 )) && { # Enforce env file is not group or others readable
+          local fileMode=$( stat -c %A "$file" )
+          [[ "$fileMode" == *------ ]] || {
+            >&2 echo "Doing: chmod go-rwx on '$file'"; chmod go-rwx "$file";
+          }
+        } || >&2 echo "Error: dotenv: failed to load '$file'"
+
+        break # Stop on first file found
+      fi
+    done
 
     return $rc
   }
@@ -331,10 +346,10 @@ initUtils() {
     local storeDir="$1"
     shift
 
-    local rc=0
-    # defaults
+    local rc=0 finds=()
+
+    # default 10days
     local keepDays=10
-    local finds=()
 
     local findRc rmRc FOUND found localFind localFindDir findName
 
@@ -371,6 +386,7 @@ initUtils() {
 
       FOUND=( "$FIND" "$localFindDir" -type f -name "$findName" -mtime +$keepDays )
 
+      # find result into found[]
       mapfile -d $'\0' found < <( "${NICE[@]}" "${FOUND[@]}" -print0 )
 
       findRc=$?
@@ -386,7 +402,7 @@ initUtils() {
         $DRYRUN "${NICE[@]}" "${FOUND[@]}" -delete
 
         rmRc=$?
-        rc=$( max $? $rc )
+        rc=$( max $rmRc $rc )
 
         (( $rmRc == 0 )) && {
           info "Info: storeLocalPrune: Files deleted"
@@ -486,56 +502,14 @@ initUtils() {
 
     # printf "%s" "$conf" > "$logrotateConf"
   }
-
-  # seems to brake return status 
-  # silentOnSuccess() {
-  #   # local rc OUTPUT=`"$@"; return \\$? 2>&1` || { rc=$?; echo "$OUTPUT"; return $rc; }
-
-  #   local rc=0 OUTPUT=`$( "$@" ) 2>&1;` || { rc=$?; rc=$( max $rc ${PIPESTATUS[@]} ); echo "$OUTPUT"; }
-  #   # local rc=0 OUTPUT=`"$@" 2>&1` || { rc=$?; echo "$OUTPUT"; }
-  #   return $rc
-  # }
-
-  # subRepo() {
-  #   local repoSuffix="$1"
-  #   shift
-
-  #   local exitRc=
-
-  #   [[ -v 'BORG_REPO' ]] || {
-  #     info "Error: subRepo requires BORG_REPO"
-  #     return 2
-  #   }
-
-  #   local BORG_REPO_ORIG
-  #   local BORG_PASSPHRASE_ORIG
-
-  #   BORG_REPO_ORIG="${BORG_REPO}"
-
-  #   # append repoSuffix to default repo
-  #   export BORG_REPO="${BORG_REPO}-${repoSuffix}"
-
-  #   local subRepoPassVar="BORG_PASSPHRASE_${repoSuffix}"
-    
-  #   [[ -v "${subRepoPassVar}" ]] && {
-
-  #     [[ -v 'BORG_PASSPHRASE' ]] && {
-  #       BORG_PASSPHRASE_ORIG="${BORG_PASSPHRASE}"
-  #     }
-
-  #     export BORG_PASSPHRASE="${!subRepoPassVar}"
-  #   }
-
-  #   "$@"
-
-  #   exitRc=$?
-
-  #   export BORG_REPO="${BORG_REPO_ORIG}"
-
-  #   [[ -v 'BORG_PASSPHRASE_ORIG' ]] && {
-  #     export BORG_PASSPHRASE="${BORG_PASSPHRASE_ORIG}"
-  #   }
-
-  #   return $exitRc
-  # }
 }
+
+
+# seems to brake return status 
+# silentOnSuccess() {
+#   # local rc OUTPUT=`"$@"; return \\$? 2>&1` || { rc=$?; echo "$OUTPUT"; return $rc; }
+
+#   local rc=0 OUTPUT=`$( "$@" ) 2>&1;` || { rc=$?; rc=$( max $rc ${PIPESTATUS[@]} ); echo "$OUTPUT"; }
+#   # local rc=0 OUTPUT=`"$@" 2>&1` || { rc=$?; echo "$OUTPUT"; }
+#   return $rc
+# }
