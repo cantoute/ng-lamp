@@ -1,10 +1,5 @@
 #!/bin/bash
 
-set -u
-set -o pipefail
-set -o noclobber # dont allow override existing files
-set -o noglob
-
 # storeLocalTotal=0
 # declare -ix storeLocalTotal=0
 # storeLocalTotal=0
@@ -12,6 +7,11 @@ set -o noglob
 init() {
   [[ -v 'INIT' ]] && { >&2 echo "Info: init already loaded"; return; }
   INIT=( init )
+
+  set -u
+  set -o pipefail
+  set -o noclobber  # Ban override of existing files
+  set -o noglob     # No magic substitutions *? etc...
 
   umask 027
   LC_ALL=C
@@ -243,9 +243,17 @@ initUtils() {
   }
 
   compress() {
-    (( ${#COMPRESS[@]} == 0 )) && COMPRESS=( cat );
+    local rc=0
 
-    "${COMPRESS[@]}"
+    [[ -v 'COMPRESS' && -v 'compressExt' ]] || { info "Warning: compress: missing var COMPRESS[] || compressExt"
+      COMPRESS=(); compressExt=''; rc=1;
+    }
+
+    (( ${#COMPRESS[@]} > 0 )) || COMPRESS=( cat );
+
+    "${COMPRESS[@]}";
+
+    return $( max $? $rc )
   }
 
   # Set repo as default
@@ -339,7 +347,7 @@ initUtils() {
 
 initStore() {
   INIT+=( initStore )
-  
+
   [[ -v 'SCRIPT_DIR' ]] || SCRIPT_DIR="${0%/*}"
   [[ -v 'SCRIPT_DIR' ]] || SCRIPT_NAME="${0##*/}"
 
