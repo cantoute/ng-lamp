@@ -16,9 +16,9 @@ createArgs=(
 )
 
 excludeArgs=(
-  --one-file-system # Don't backup mounted fs
-  --exclude-caches # See https://bford.info/cachedir/
-  --exclude '**/.config/borg/security' # creates annoying warnings
+  --one-file-system                     # Don't backup mounted fs
+  --exclude-caches                      # See https://bford.info/cachedir/
+  --exclude '**/.config/borg/security'  # creates annoying warnings
   --exclude '**/lost+found'
   --exclude '**/*nobackup*'
 
