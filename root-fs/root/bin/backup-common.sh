@@ -108,9 +108,7 @@ initUtils() {
   # max of n numbers
   max() {
     (( $# > 0 )) || { echo "Error: max takes minimum one argument"; return 1; }
-
-    local max=$1
-    shift
+    local max=$1; shift
 
     for n in $@; do max=$(( $n > $max ? $n : $max )); done
 
@@ -123,11 +121,7 @@ initUtils() {
 
   # Ex: join_by , a b c #a,b,c
   # https://stackoverflow.com/questions/1527049/how-can-i-join-elements-of-an-array-in-bash
-  function joinBy {
-    local d="${1-}" f="${2-}"
-
-    shift 2 && printf %s "$f" "${@/#/$d}"
-  }
+  function joinBy { local d="${1-}" f="${2-}"; shift 2 && printf %s "$f" "${@/#/$d}"; }
 
   fileSize() { stat -c%s "$1" ; }
 
