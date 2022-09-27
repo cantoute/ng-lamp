@@ -211,8 +211,8 @@ main() {
   return $rc
 }
 
-set -- main "$@"
+set -- main "$@" # Call main
 
-[[ "$beSilentOnSuccess" == "true" ]] && {
+[[ "$beSilentOnSuccess" == "true" ]] && { # Aka cron mode
   OUTPUT=`"$@" 2>&1` || { rc=$?; echo "$OUTPUT"; exit $rc; }
 } || { "$@"; }
