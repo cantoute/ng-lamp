@@ -1,27 +1,32 @@
 #!/bin/bash
 
-set -u
-
-# important
-# set -e
-set -o pipefail
-
-# dont allow override existing files
-set -o noclobber
-
 # debug
 #set -o xtrace
 
+exitRc=0
+
 SCRIPT_NAME="${0##*/}"
 SCRIPT_DIR="${0%/*}"
-
 SCRIPT_NAME_NO_EXT="${SCRIPT_NAME%.*}"
 
 source "${SCRIPT_DIR}/backup-common.sh";
 
-init && initUtils || { >&2 echo "Failed to init"; exit 2; }
+########################################################
+# defaults
+#
 
-exitRc=0
+backupMysqlMode='all'
+
+BACKUP=( backupAll )
+DUMP=( dump )
+
+
+
+init && initUtils && {
+  [[ -v 'STORE' ]] || STORE=( storeLocal "$backupMysqlLocalDir" )
+  
+  initStore 
+} || { >&2 echo "Failed to init"; exit 2; }
 
 # debug
 # NICE=( dryRun )
@@ -67,17 +72,6 @@ backupPruneArgs=()
 backupPruneArgs_db=(     --keep-days 2 )
 backupPruneArgs_all=(    --keep-days 2 )
 backupPruneArgs_single=( --keep-days 2 )
-
-
-########################################################
-# defaults
-#
-
-backupMysqlMode='all'
-
-BACKUP=( backupAll )
-DUMP=( dump )
-STORE=( storeLocal "$backupMysqlLocalDir" )
 
 ########################################################
 # Utils

@@ -1,7 +1,9 @@
 #!/bin/bash
 
-# set -u
-# set -o pipefail
+set -u
+set -o pipefail
+set -o noclobber # dont allow override existing files
+set -o noglob
 
 # storeLocalTotal=0
 # declare -ix storeLocalTotal=0
@@ -9,18 +11,15 @@
 
 init() {
   [[ -v 'INIT' ]] && { >&2 echo "Info: init already loaded"; return; }
-  INIT=init
+  INIT=( init )
 
   umask 027
-
   LC_ALL=C
   # LANG="en_US.UTF-8"
 
-  hostname=$( hostname -s )
-
-  # for now hard coded
-  # TODO: accept a arg to set --local-dir
-  backupMysqlLocalDir="/home/backups/mysql-${hostname}"
+  [[ -v 'DRYRUN' ]]               || DRYRUN=
+  [[ -v 'hostname' ]]             || hostname=$( hostname -s )
+  [[ -v 'backupMysqlLocalDir' ]]  || backupMysqlLocalDir="/home/backups/mysql-${hostname}"
 
   MYSQLDUMP="$( which mysqldump )"
   FIND="$( which find )"
@@ -29,8 +28,7 @@ init() {
   COMPRESS_BZIP=( "$( which bzip2 )" -z )
   COMPRESS_GZIP=( "$( which gzip )" -c )
 
-  COMPRESS=()
-  compressExt=
+  [[ -v 'COMPRESS' ]] || { COMPRESS=(); compressExt=; }
 
   # auto compress default bzip2 gzip none
   if (command -v bzip2 >/dev/null 2>&1); then
@@ -51,15 +49,53 @@ init() {
 
   BORG=( borg )
 
-  DRYRUN=
-
   borgCreateArgs=()
 
   backupMysqlArgs=()
   backupMysqlSingleArgs=()
+
+  RCLONE=( "$( which rclone )" )
 }
 
 initUtils() {
+  INIT+=( initUtils )
+
+  # Test if array contains element.
+  # Usage 
+  containsElement()   { local s="$1"; shift; printf '%s\0' "$@" | grep -F -x -z -- "$s"; }
+  containsStartWith() { local s="$1"; shift; case "$@" in  *"two"*) echo "found" ;; esac;  }
+  containsEndsWith()  { case "${myarray[@]}" in  *"two"*) echo "found" ;; esac; }
+  
+  # WIP: not tested
+  # Will wildcard any string '*' and has only 4 modes. Aka startWith endWith StartEndWith & '*' Any (alias $#>0)
+  simpleMatch() {
+    local m="$1"; shift
+
+    for e in "$@"; do
+      case "$m" in
+        # '')  return 1 ;; # Not matching an empty string
+        '*') return ;; # Any. We got element so ok
+        *'*') case "$e" in "${e::-1}"*) return ;; esac ;; # Starts with
+        '*'*) case "$e" in   *"${e:1}") return ;; esac ;; # Ends with
+        *'*'*'*'*) >&2 echo "Error: Not acceptable pattern: '$m"; return 10 ;;
+        *'*'*) # Starts and ends with
+          s1="${s%%'*'*}" # get up to first
+          # s1="${s%'*'*}" # up to last
+          # s2="${s##*'*'}" # gets after last
+          s2="${s#*'*'}" # gets after first so $s == "$s1*$s2"
+          
+          # s1="${s%"*$s2"*}"
+
+          # IFS='*' read -r -a array <<< "$2"; unset IFS # Or was it set just for the call?
+
+          case "$e" in "$s1"*"$s2") return ;; esac
+          ;;
+      esac
+    done
+
+    return 1
+  }
+  
   info() { >&2 printf "\n%s %s\n\n" "$( LC_ALL=C date )" "$*"; }
 
   # Ex: DRYRUN=dryRun
@@ -121,7 +157,22 @@ initUtils() {
 
   # Ex: join_by , a b c #a,b,c
   # https://stackoverflow.com/questions/1527049/how-can-i-join-elements-of-an-array-in-bash
-  function joinBy { local d="${1-}" f="${2-}"; shift 2 && printf %s "$f" "${@/#/$d}"; }
+  joinBy() { local d="${1-}" f="${2-}"; shift 2 && printf %s "$f" "${@/#/$d}"; }
+
+  # joinSplit() {
+  #   local array d="$1"; shift;
+  #   IFS="$d"
+  #   read -r -a array <<< "$( joinBy "$d" "$@" )";
+  #   printf %s "${array[@]}";
+  #   unset IFS;
+    
+  # }
+
+  # a="someletters_12345_moreleters.ext"
+  # IFS="_"
+  # set $a
+  # echo $2
+  # # prints 12345
 
   fileSize() { stat -c%s "$1" ; }
 
@@ -197,218 +248,6 @@ initUtils() {
     "${COMPRESS[@]}"
   }
 
-  store() {
-    local rc
-    local cmd="$1"
-    shift
-
-    case "$cmd" in
-      init|prune)
-        "${STORE[@]}" "$cmd" "$@" 
-        rc=$?
-        ;;
-
-      # is in charge of compressing and adding $compressExt to filename
-      create)
-        (( $# > 0 )) || { info "Error: create requires at least one arg, the filename"; return $( max 2 $rd ); }
-
-        # get last arg
-        local filename="${@:$#}"
-        set -- "${@:1:$#-1}" # right shift
-
-        # unset 'args@[$#args - 1]'
-        
-        # $@ are dirs that will be joinBy '/' to create path
-        cat | "${COMPRESS[@]}" | "${STORE[@]}" 'create' "$@" "${filename}${compressExt}"
-
-        rc=$( max ${PIPESTATUS[@]} )
-        ;;
-
-      *)
-        info "Error: storeLocal: unknown command '$cmd' - accepts init|create|prune"
-        rc=2
-        ;;
-    esac
-
-    return $rc
-  }
-
-  storeLocal() {
-    local run
-    local dir="$1"
-    local cmd="$2"
-    shift 2
-
-    case "$cmd" in
-      init)
-        run=( storeLocalInit )
-        ;;
-
-      create)
-        run=( storeLocalCreate )
-        ;;
-
-      prune)
-        run=( storeLocalPrune )
-        ;;
-      
-      *)
-        info "Error: storeLocal: unknown command '$cmd' - accepts: init|create|prune"
-        >&2 echo "storeLocal $@"
-        return 2
-        ;;
-    esac
-
-    "${run[@]}" "$dir" "$@"
-  }
-
-  storeLocalInit() {
-    local dir="$1"
-    local rc=0
-
-    $DRYRUN mkdir -p "$dir"
-    
-    rc=$?
-    
-    if (( $rc == 0 )); then info "Info: storeLocalInit: successfully created $dir"
-    else info "Error: storeLocalInit: could not create dir $dir"; rc=$( max 2 $rc ); # Escalade to error
-    fi
-
-    return $rc
-  }
-
-  # Streams stdin to file
-  storeLocalCreate() {
-    local storeDir="$1" # set in $STORE
-    shift
-
-    local rc mkdirRc fileSize exitRc=0
-
-    local path="$( joinBy '/' "$@" )"
-    local dir="${path%/*}"
-    local filename="${path##*/}"
-    local name="${filename%.*}" # removes after last dot
-    # local fileExt=
-
-    # abs path to final store file
-    local localPath="$( joinBy '/' "$storeDir" "$path" )"
-    local localDir="${localPath%/*}"
-
-    # local debug=( path "$path" dir "$dir" filename "$filename" name "$name" localPath "$localPath" localDir "$localDir" )
-    # info "Debug: ${debug[@]@Q}"
-
-    [[ -d "$storeDir" ]] || { info "Missing repo base dir: '$storeDir' we will try init the store."
-
-      storeLocal "$storeDir" init
-      
-      local storeLocalInitRc=$?  
-      (( $storeLocalInitRc == 0 )) || info "Error: failed to init local store '$storeDir' rc = $?"
-    }
-
-    # storeLocal requires directory to exist
-    [[ -d "$localDir" ]] || {
-      info "Missing local dir: $localDir"
-
-      exitRc=$( max 1 $exitRc ) # warning
-
-      $DRYRUN mkdir -p "$localDir" && { $DRYRUN info "Info: created dir '$localDir'"; } || {
-        info "Error: failed to create dir '$localDir'"
-
-        exitRc=$( max 2 $exitRc ) # error
-      }
-    }
-
-    # On dry run we stop here
-    [[ $DRYRUN == "" ]] || { $DRYRUN output '>' "$localPath"; cat > /dev/null; return $exitRc; }
-
-    cat > "$localPath";
-    
-    rc=$?
-
-    (( $rc == 0 )) && fileSize=$( fileSize "$localPath" ) && { info "Success: storeLocalCreate: Stored '$localPath' ($( humanSize $fileSize ))"; } || {
-      info "Error: storeLocalCreate: could note size backup to file."
-
-      # Error returning rc=1
-      # We escalade to 2, not able to size on local drive is a backup error.
-      rc=$( max 2 $rc )
-    }
-
-    return $( max $rc $exitRc )
-  }
-
-  storeLocalPrune() {
-    local storeDir="$1"
-    shift
-
-    local rc=0 finds=()
-
-    # default 10days
-    local keepDays=10
-
-    local findRc rmRc FOUND found localFind localFindDir findName
-
-    while (( $# > 0 )); do
-      case "$1" in
-        --keep-days)
-          keepDays="$2"
-          shift 2
-          ;;
-
-        --find)
-          finds+=("$2")
-          shift 2
-          ;;
-        
-        *)
-          info "Error: storeLocalPrune: unknown store local prune arg '$1'"
-          return 2
-          ;;
-      esac
-    done
-
-    (( ${#finds[@]} > 0 )) || { info "Error: storeLocalPrune: prune without a find pattern (--find '*' for all) is not accepted"; return 2; }
-
-    for find in "${finds[@]}"; do
-      localFind=$( joinBy '/' "$storeDir" "$find" )
-      localFindDir="${localFind%/*}"
-      findName="${localFind##*/}"
-
-      [[ "$localFindDir" == '' || "$localFindDir" == '/' ]] && {
-        info "Error: won't prune from '$localFindDir'"
-        return 2
-      }
-
-      FOUND=( "$FIND" "$localFindDir" -type f -name "$findName" -mtime +$keepDays )
-
-      # find result into found[]
-      mapfile -d $'\0' found < <( "${NICE[@]}" "${FOUND[@]}" -print0 )
-
-      findRc=$?
-      rc=$( max $findRc $rc )
-
-      if (( ${#found[@]} == 0 )); then info "Info: storeLocalPrune: No file to prune."
-      else
-        info "Info: storeLocalPrune: found ${#found[@]} files to prune"
-
-        for f in "${found[@]}"; do >&2 echo "Info: storeLocalPrune: pruning '$f'"; done
-
-        # $DRYRUN "${NICE[@]}" "${FOUND[@]}" -exec rm -f {} \;
-        $DRYRUN "${NICE[@]}" "${FOUND[@]}" -delete
-
-        rmRc=$?
-        rc=$( max $rmRc $rc )
-
-        (( $rmRc == 0 )) && {
-          info "Info: storeLocalPrune: Files deleted"
-        } || {
-          info "Warning: storeLocalPrune: Failed to delete files."
-        }
-      fi
-    done
-
-    return $rc
-  }
-
   # Set repo as default
   setRepo() {
     local var repo="$1"
@@ -458,7 +297,7 @@ initUtils() {
     rc=$?
 
     # Restore previous values
-    [[ -v 'BORG_REPO_ORIG' ]]       && export BORG_REPO="${BORG_REPO_ORIG}"             || unset BORG_REPO
+    [[ -v 'BORG_REPO_ORIG' ]]       && export       BORG_REPO="${BORG_REPO_ORIG}"       || unset BORG_REPO
     [[ -v 'BORG_PASSPHRASE_ORIG' ]] && export BORG_PASSPHRASE="${BORG_PASSPHRASE_ORIG}" || unset BORG_PASSPHRASE
 
     return $rc
@@ -498,6 +337,20 @@ initUtils() {
   }
 }
 
+initStore() {
+  INIT+=( initStore )
+  
+  [[ -v 'SCRIPT_DIR' ]] || SCRIPT_DIR="${0%/*}"
+  [[ -v 'SCRIPT_DIR' ]] || SCRIPT_NAME="${0##*/}"
+
+  source "$SCRIPT_DIR/backup-store.sh"                \
+    && source "$SCRIPT_DIR/backup-store-local.sh"     \
+    && source "$SCRIPT_DIR/backup-store-rclone.sh"    \
+    && {
+      # set default store if required
+      [[ -v 'STORE' ]] || STORE=( storeLocal "/home/backup/${hostname}" )
+    } || return 1
+}
 
 # seems to brake return status 
 # silentOnSuccess() {

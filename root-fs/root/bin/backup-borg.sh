@@ -1,8 +1,5 @@
 #!/bin/bash
 
-set -u
-set -o pipefail
-
 [[ -v 'INIT' ]] || {
   # Only when called directly
 
@@ -54,14 +51,14 @@ while (( $# > 0 )); do
     --io-nice) NICE+=( ionice -c3 );    shift ;;
     --nice)    NICE+=( nice );          shift ;;
 
-    --verbose|--progress) borgCreateArgs+=( "$1" );       shift ;;
-    --exclude|--include) borgCreateArgs+=( "$1" "$2" ); shift 2 ;;
+    --verbose|--progress) borgCreateArgs+=( "$1" );         shift ;;
+    --exclude|--include)  borgCreateArgs+=( "$1" "$2" );  shift 2 ;;
 
-    --do-init|--init) doInit="true";                      shift ;;
-    --on-error-stop|--stop) onErrorStop="true";           shift ;;
+    --do-init|--init) doInit="true";                        shift ;;
+    --on-error-stop|--stop) onErrorStop="true";             shift ;;
 
-    --dry-run) DRYRUN=dryRun; BORG_CREATE+=( --dry-run ); shift ;;
-    --borg-dry-run) BORG_CREATE+=( --dry-run );           shift ;;
+    --dry-run) DRYRUN=dryRun; BORG_CREATE+=( --dry-run );   shift ;;
+    --borg-dry-run) BORG_CREATE+=( --dry-run );             shift ;;
 
     --mysql-single-like|--mysql-like)
       # Takes affect only for mode 'single'
@@ -130,8 +127,11 @@ backupBorg() {
       -*) break ;;
       '') info "Warning: got empty backup label"; exitRc=$( max 1 $exitRc ) shift; break ;;
 
-      *) bbLabel="$1"; shift; split=( ${bbLabel//\:/ } ); info "backupBorg: proceeding label '${bbLabel}'"
-        local l1=${split[0]} l2=${split[1]-}
+      *)
+        bbLabel="$1"; shift; split=( ${bbLabel//\:/ } );
+        local l1=${split[0]} l2=${split[1]-} #TODO: smarter split and replace :- etc to _
+
+        info "backupBorg: proceeding label '${bbLabel}'"
 
         "bb_label_$l1" "$l1" "$l2";
 
