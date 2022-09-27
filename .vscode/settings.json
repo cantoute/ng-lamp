@@ -63,6 +63,7 @@
     "numfmt",
     "postgresql",
     "ratelimit",
+    "rclone",
     "restic",
     "sqlite",
     "tmpdir",
