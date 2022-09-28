@@ -56,7 +56,7 @@ bb_label_mysql() {
     all|full|'') ;;
 
     single) # mysql:single
-      args+=( single "${backupMysqlSingleArgs[@]}" )
+      args+=( single "${backupBorgMysqlSingleArgs[@]}" )
       ;;
     
     *) info "Error: unknown argument: '$self:$bbArg'"; return 2 ;;

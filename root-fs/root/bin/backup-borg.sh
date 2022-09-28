@@ -23,7 +23,7 @@ logFile="/var/log/backup-borg.log"
 logrotateConf="/etc/logrotate.d/backup-borg"
 
 BORG_CREATE=( "${SCRIPT_DIR}/backup-borg-create.sh" )
-BACKUP_MYSQL=( "${SCRIPT_DIR}/backupMysql.sh" )
+BACKUP_MYSQL=( "${SCRIPT_DIR}/backup-mysql.sh" )
 
 exitRc=0
 onErrorStop=
@@ -210,5 +210,16 @@ main() {
 set -- main "$@" # Call main
 
 [[ "$beSilentOnSuccess" == "true" ]] && { # Aka cron mode
-  OUTPUT=`"$@" 2>&1` || { rc=$?; echo "$OUTPUT"; exit $rc; }
+  OUTPUT=`"$@" 2>&1` || {
+    rc=$?;
+    
+    (( $rc == 1 )) && echo "Warning"
+    (( $rc  > 1 )) && echo "Error"
+
+    >&2 echo "${OUTPUT##*$'\n'}" # Get last line
+    >&2 printf "\n\n%s\n\n" "######################"
+    
+    echo "$OUTPUT";
+    exit $rc;
+  }
 } || { "$@"; }
