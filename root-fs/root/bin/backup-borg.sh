@@ -23,7 +23,7 @@ logFile="/var/log/backup-borg.log"
 logrotateConf="/etc/logrotate.d/backup-borg"
 
 BORG_CREATE=( "${SCRIPT_DIR}/backup-borg-create.sh" )
-BACKUP_MYSQL=( "${SCRIPT_DIR}/backup-mysql.sh" )
+BACKUP_MYSQL=( "${SCRIPT_DIR}/backupMysql.sh" )
 
 exitRc=0
 onErrorStop=
@@ -62,12 +62,12 @@ while (( $# > 0 )); do
 
     --mysql-single-like|--mysql-like)
       # Takes affect only for mode 'single'
-      backupMysqlSingleArgs+=( --like "$2" )
+      backupBorgMysqlSingleArgs+=( --like "$2" )
       shift 2 ;;
     
     --mysql-single-not-like|--mysql-not-like)
       # Takes affect only for mode 'single'
-      backupMysqlSingleArgs+=( --not-like "$2" )
+      backupBorgMysqlSingleArgs+=( --not-like "$2" )
       shift 2 ;;
 
     *)
@@ -87,7 +87,7 @@ _borgCreate() {
   $DRYRUN "${NICE[@]}" "${BORG_CREATE[@]}" "$@"
 }
 
-_backupMysql() { $DRYRUN "${NICE[@]}" "${BACKUP_MYSQL[@]}" "$@"; }
+backupMysql() { $DRYRUN "${NICE[@]}" "${BACKUP_MYSQL[@]}" "$@"; }
 
 borgCreate() {
   local label="$1"
@@ -164,23 +164,20 @@ backupBorgMysql() {
     case "$1" in
       --label|--borg-label)
         label="$2"
-        shift 2
-        ;;
+        shift 2 ;;
 
       --dir)
         dir="$2"
         args+=( "$1" "$2" )
-        shift 2
-        ;;
+        shift 2 ;;
 
       *)
         args+=( "$1" )
-        shift
-        ;;
+        shift ;;
     esac
   done
 
-  _backupMysql "${args[@]}" "${backupMysqlArgs[@]}"
+  backupMysql "${args[@]}" "${backupBorgMysqlArgs[@]}"
 
   mysqlRc=$?
   (( $mysqlRc == 0 )) || info "${bbLabel}:mysqldump returned status: ${mysqlRc}"

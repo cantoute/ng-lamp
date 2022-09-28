@@ -51,8 +51,8 @@ init() {
 
   borgCreateArgs=()
 
-  backupMysqlArgs=()
-  backupMysqlSingleArgs=()
+  backupBorgMysqlArgs=()
+  backupBorgMysqlSingleArgs=()
 
   RCLONE=( "$( which rclone )" )
 }
