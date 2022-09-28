@@ -213,11 +213,11 @@ set -- main "$@" # Call main
   OUTPUT=`"$@" 2>&1` || {
     rc=$?;
     
-    (( $rc == 1 )) && echo "Warning"
-    (( $rc  > 1 )) && echo "Error"
+    (( $rc == 1 )) && >&2 echo "Warning"
+    (( $rc  > 1 )) && >&2 echo "Error"
 
-    >&2 echo "${OUTPUT##*$'\n'}" # Get last line
-    >&2 printf "\n\n%s\n\n" "######################"
+    >&2 echo  # Get last line
+    >&2 printf "%s\n\n%s\n\n" "${OUTPUT##*$'\n'}" "######################"
     
     echo "$OUTPUT";
     exit $rc;
