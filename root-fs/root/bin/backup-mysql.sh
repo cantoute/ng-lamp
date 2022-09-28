@@ -23,8 +23,8 @@ DUMP=( dump )
 
 
 init && initUtils && {
-  [[ -v 'STORE' ]] || STORE=( storeLocal "$backupMysqlLocalDir" )
-  
+  [[ -v 'STORE' ]] || STORE=( 'local' "$backupMysqlLocalDir" )
+
   initStore 
 } || { >&2 echo "Failed to init"; exit 2; }
 
@@ -195,36 +195,38 @@ backupDb() {
   return $rc
 }
 
+like=()
+notLike=()
+
 # Get database list from local server and calls backupDb dbNames[]
 backupSingle() {
   local dbNames=()
-  local like=()
-  local nl notLike=()
+  local nl
 
-  while (( $# > 0 )); do
-    case "$1" in
-      --like)
-        # split on comma or space
-        like+=( ${2//,/ } )
-        shift 2
-        ;;
+  # while (( $# > 0 )); do
+  #   case "$1" in
+  #     --like)
+  #       # split on comma or space
+  #       like+=( ${2//,/ } )
+  #       shift 2
+  #       ;;
 
-      --not-like)
-        # split on comma or space
-        notLike+=( ${2//,/ } )
-        shift 2
-        ;;
+  #     --not-like)
+  #       # split on comma or space
+  #       notLike+=( ${2//,/ } )
+  #       shift 2
+  #       ;;
         
-      --)
-        shift
-        break
-        ;;
+  #     --)
+  #       shift
+  #       break
+  #       ;;
       
-      *)
-        break
-        ;;
-    esac
-  done
+  #     *)
+  #       break
+  #       ;;
+  #   esac
+  # done
 
   # Add notLike as like with a '-' 
   for nl in "${notLike[@]}"; do like+=( "-$nl" ); done
@@ -291,15 +293,31 @@ backupMysql() {
         backupMysqlLocalDir="$2"
         shift 2
 
-        STORE=( storeLocal "${backupMysqlLocalDir}" )
+        STORE=( 'local' "${backupMysqlLocalDir}" )
 
         #TODO : use this
-        # STORE_LOCAL=( storeLocal "${backupMysqlLocalDir}" )
+        # STORE_LOCAL=( 'local' "${backupMysqlLocalDir}" )
+        ;;
+      
+      --like)
+        # split on comma or space
+        like+=( ${2//,/ } )
+        shift 2
         ;;
 
-      --debug) shift; DRYRUN="dryRun";;
-      --) shift; break;;
-      *) break;;
+      --not-like)
+        # split on comma or space
+        notLike+=( ${2//,/ } )
+        shift 2
+        ;;
+
+      --store)
+        STORE=( "$2" "$3" )
+        shift 3 ;;
+
+      --debug) shift; DRYRUN="dryRun" ;;
+      --) shift; break ;;
+      *) break ;;
     esac
   done
   
@@ -362,7 +380,7 @@ backupMysqlPrune() {
       find="$mode/dump-$hostname-*.sql$compressExt"
       pruneArgs+=( --find "$find" )
 
-      store prune "${pruneArgs[@]}";
+      store --store "${STORE[@]}" prune "${pruneArgs[@]}";
 
       pruneRc=$?
       exitRc=$( max $pruneRc $exitRc )

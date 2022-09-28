@@ -3,22 +3,23 @@
 set -u
 set -o pipefail
 
-storeS3() {
-  local cmd endpoint="$1" action="$2"; shift 2
+store-rclone() {
+  local endpoint="$1" cmd="$2"; shift 2
 
-  case "$action" in
-    init)   cmd=( storeS3Init )   ;;
-    create) cmd=( storeS3Create ) ;;
-    prune)  cmd=( storeS3Prune )  ;;
+  case "$cmd" in
+    init|create|prune)
+      set -- "store-rclone-$cmd" "$endpoint" "$@"
+      ;;
     
-    *) info "Error: storeS3: unknown command '$action' - accepts: init|create|prune"
-       >&2 echo "storeS3 $@"; return 2 ;;
+    *) info "Error: store-rclone: unknown command '$action' - accepts: init|create|prune"
+       >&2 echo "$0 $@";
+       return 2 ;;
   esac
 
-  "${cmd[@]}" "$endpoint" "$@"
+  "$@"
 }
 
-storeS3Init() {
+store-rclone-init() {
   local endpoint="$1"
   local rc=0
 
@@ -29,19 +30,19 @@ storeS3Init() {
 
   rc=$?
   
-  if (( $rc == 0 )); then info "Info: storeS3Init: successfully created $endpoint"
-  else info "Error: storeS3Init: failed to create bucket '$endpoint'"; rc=$( max 2 $rc ); # Escalade to error
+  if (( $rc == 0 )); then info "Info: store-rclone-init: successfully created $endpoint"
+  else info "Error: store-rclone-init: failed to create bucket '$endpoint'"; rc=$( max 2 $rc ); # Escalade to error
   fi
 
   return $rc
 }
 
 # Streams stdin to file
-storeS3Create() {
+store-rclone-create() {
   local endpoint="$1" # set in $STORE
   shift
 
-  local rc storeS3InitRc mkdirRc fileSize exitRc=0
+  local rc mkdirRc fileSize exitRc=0
 
   local path="$( joinBy '/' "$@" )"
   local dir="${path%/*}"
@@ -51,42 +52,52 @@ storeS3Create() {
   # abs path to final store file
   local target="$( joinBy '/' "$endpoint" "$path" )"
 
-  # On dry run we stop here
-  # [[ $DRYRUN == "" ]] || { $DRYRUN output '>' "$localPath"; cat > /dev/null; return $exitRc; }
 
-  local rcloneCat=( "${RCLONE[@]}" rcat "$target" )
-  [[ "$DRYRUN" == "" ]] || rcloneCat+=( --dry-run )
+  set -- "${RCLONE[@]}" rcat "$target"
+
+  [[ "$DRYRUN" == "" ]] || set -- --dry-run "$@"
   
-  "${rcloneCat[@]}"
+  # On dry run we stop here
+  [[ $DRYRUN == "" ]] || { $DRYRUN "$@"; cat > /dev/null; return $exitRc; }
+  
+  "$@"
   
   rc=$?
 
   if (( $rc == 0 )); then
-    fileSize=$( fileSize "$localPath" ) && {
-      info "Success: storeS3Create: Stored '$localPath' ($( humanSize $fileSize ))";
-    } || {
-      info "Error: storeS3Create: could note size backup file."
-      rc=$( max 2 $rc ) # Error
-    }
+    # fileSize=$( fileSize "$localPath" ) && {
+    #   info "Success: store-rclone-create: Stored '$localPath' ($( humanSize $fileSize ))";
+    # } || {
+    #   info "Error: store-rclone-create: could note size backup file."
+    #   rc=$( max 2 $rc ) # Error
+    # }
 
-    # Delete partial uploads older than 24h
-    local rcloneCleanup=( "${RCLONE[@]}" backend cleanup "$endpoint" )
-    [[ "$DRYRUN" == "" ]] || rcloneCleanup+=( --dry-run )
-    
-    "${rcloneCleanup[@]}" || {
-      info ""
-      cleanupRc=$?
-      rc=$( max $cleanupRc $rc )
-    }
+    # store-rclone-cleanup "$endpoint" || {
+    #   info ""
+    #   cleanupRc=$?
+    #   rc=$( max $cleanupRc $rc )
+    # }
+    rc=$rc
   else
-    info "Error: storeS3Create: failed to upload '$localPath'. rc $rc"
     rc=$( max 2 $rc ) # Error
+    info "Error: store-rclone-create: failed to upload '$target'. rc $rc"
   fi
 
   return $( max $rc $exitRc )
 }
 
-storeS3Prune() {
-  info "Info: storeS3 prune not implemented"
+# Delete partial uploads older than 24h
+store-rclone-cleanup() {
+  local bucket="$1";
+
+  set -- "${RCLONE[@]}" backend cleanup "$@"
+
+  [[ "$DRYRUN" == "" ]] || set -- --dry-run "$@"
+
+  "$@"
+}
+
+store-rclone-prune() {
+  info "Info: store-rclone prune not implemented"
   return
 }

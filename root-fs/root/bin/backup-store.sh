@@ -9,7 +9,7 @@
   init && initUtils && {
     [[ -v 'STORE' ]] || {
       # source "${SCRIPT_DIR}/backup-store-local.sh";
-      STORE=( storeLocal "/home/backup/${hostname}" );
+      STORE=( 'local' "/home/backup/${hostname}" );
       initStore
     }
   }
@@ -45,18 +45,37 @@
 #   command -v ionice >/dev/null 2>&1 && NICE+=( ionice -c3 )
 # }
 
-# STORE=( store-local /path/to/store )
+# STORE=( ''local' /path/to/store )
 
 store() {
-  local rc=0 cmd="$1"; shift
+  local rc=0 _STORE cmd
 
-  [[ -v 'STORE' ]] || { info "Error: store requires var STORE. Ex: STORE=( storeLocal /path/to/store )";
-    return 2
+  while (( $# > 0 )); do
+    case "$1" in
+      --store)
+        _STORE=( "$2" "$3" )
+        shift 3 ;;
+
+      *)
+        cmd="$1"; shift
+        break ;;
+    esac
+  done  
+
+  [[ -v '_STORE' ]] || {
+    [[ -v 'STORE' ]] || { info "Error: store requires var STORE or arg --store local /path/to/store";
+      return 2
+    }
+
+    _STORE=( "${STORE[@]}" )
   }
+
+  # >&2 echo "jjjjjj ${_STORE[@]}"
+  _STORE[0]="store-${_STORE[0]}"
 
   case "$cmd" in
     init|prune)
-      "${STORE[@]}" "$cmd" "$@" 
+      "${_STORE[@]}" "$cmd" "$@" 
       rc=$( max $? $rc )
       ;;
 
@@ -65,10 +84,14 @@ store() {
       (( $# > 0 )) || { info "Error: create requires at least one arg, the filename"; return $( max 2 $rc ); }
       local filename="${@:$#}" # get last arg
 
-      set -- "${@:1:$#-1}" # right shift
+      # right shift: "${@:1:$#-1}"
+      set -- "${_STORE[@]}" 'create' "${@:1:$#-1}" "${filename}${compressExt}"
       
-      # $@ are dirs that storeLocal will joinBy '/' to create path
-      compress | "${STORE[@]}" 'create' "$@" "${filename}${compressExt}"
+
+
+
+      # $@ are dirs that store-local will joinBy '/' to create path
+      compress | "$@"
 
       rc=$( max ${PIPESTATUS[@]} $rc )
       ;;
@@ -77,4 +100,6 @@ store() {
       info "Error: store: unknown command '$cmd' - accepts init|create|prune"
       rc=2 ;;
   esac
+
+  return $rc
 }

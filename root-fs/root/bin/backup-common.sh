@@ -1,9 +1,5 @@
 #!/bin/bash
 
-# storeLocalTotal=0
-# declare -ix storeLocalTotal=0
-# storeLocalTotal=0
-
 init() {
   [[ -v 'INIT' ]] && { >&2 echo "Info: init already loaded"; return; }
   INIT=( init )
@@ -365,7 +361,7 @@ initStore() {
     && source "$SCRIPT_DIR/backup-store-rclone.sh"    \
     && {
       # set default store if required
-      [[ -v 'STORE' ]] || STORE=( storeLocal "/home/backup/${hostname}" )
+      [[ -v 'STORE' ]] || STORE=( 'local' "/home/backup/${hostname}" )
     } || return 1
 }
 

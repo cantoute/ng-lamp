@@ -1,35 +1,23 @@
 #!/url/bin/env bash
 
-storeLocal() {
-  local run
-  local dir="$1"
-  local cmd="$2"
-  shift 2
+store-local() {
+  local dir="$1" cmd="$2"; shift 2
 
   case "$cmd" in
-    init)
-      run=( storeLocalInit )
-      ;;
-
-    create)
-      run=( storeLocalCreate )
-      ;;
-
-    prune)
-      run=( storeLocalPrune )
+    init|create|prune)
+      set -- "store-local-$cmd" "$dir" "$@"
       ;;
     
     *)
-      info "Error: storeLocal: unknown command '$cmd' - accepts: init|create|prune"
-      >&2 echo "storeLocal $@"
-      return 2
-      ;;
+      info "Error: store-local: unknown command '$cmd' - accepts: init|create|prune"
+      >&2 echo "$0 $@"
+      return 2 ;;
   esac
 
-  "${run[@]}" "$dir" "$@"
+  "$@"
 }
 
-storeLocalInit() {
+store-local-init() {
   local dir="$1"
   local rc=0
 
@@ -37,15 +25,15 @@ storeLocalInit() {
   
   rc=$?
   
-  if (( $rc == 0 )); then info "Info: storeLocalInit: successfully created $dir"
-  else info "Error: storeLocalInit: could not create dir $dir"; rc=$( max 2 $rc ); # Escalade to error
+  if (( $rc == 0 )); then info "Info: store-local-init: successfully created $dir"
+  else info "Error: store-local-init: could not create dir $dir"; rc=$( max 2 $rc ); # Escalade to error
   fi
 
   return $rc
 }
 
 # Streams stdin to file
-storeLocalCreate() {
+store-local-create() {
   local storeDir="$1" # set in $STORE
   shift
 
@@ -66,14 +54,14 @@ storeLocalCreate() {
   [[ -d "$storeDir" ]] || {
     info "Missing repo base dir: '$storeDir' we will try init the store."
 
-    storeLocal "$storeDir" init
+    store-local "$storeDir" init
     
     storeLocalInitRc=$? 
     (( $storeLocalInitRc == 0 )) || info "Error: failed to init local store '$storeDir' rc $storeLocalInitRc"
     rc=$( max 2 $storeLocalInitRc ) # Error
   }
 
-  # storeLocal requires directory to exist
+  # store-local requires directory to exist
   [[ -d "$localDir" ]] || {
     info "Missing local dir: $localDir"
 
@@ -95,20 +83,20 @@ storeLocalCreate() {
 
   if (( $rc == 0 )); then
     fileSize=$( fileSize "$localPath" ) && {
-      info "Success: storeLocalCreate: Stored '$localPath' ($( humanSize $fileSize ))";
+      info "Success: store-local-create: Stored '$localPath' ($( humanSize $fileSize ))";
     } || {
-      info "Error: storeLocalCreate: could note size backup file."
+      info "Error: store-local-create: could note size backup file."
       rc=$( max 2 $rc ) # Error
     }
   else
-    info "Error: storeLocalCreate: failed to write to '$localPath'. rc $rc"
+    info "Error: store-local-create: failed to write to '$localPath'. rc $rc"
     rc=$( max 2 $rc ) # Error
   fi
 
   return $( max $rc $exitRc )
 }
 
-storeLocalPrune() {
+store-local-prune() {
   local storeDir="$1"
   shift
 
@@ -132,13 +120,13 @@ storeLocalPrune() {
         ;;
       
       *)
-        info "Error: storeLocalPrune: unknown store local prune arg '$1'"
+        info "Error: store-local-prune: unknown store local prune arg '$1'"
         return 2
         ;;
     esac
   done
 
-  (( ${#finds[@]} > 0 )) || { info "Error: storeLocalPrune: prune without a find pattern (--find '*' for all) is not accepted"; return 2; }
+  (( ${#finds[@]} > 0 )) || { info "Error: store-local-prune: prune without a find pattern (--find '*' for all) is not accepted"; return 2; }
 
   for find in "${finds[@]}"; do
     localFind=$( joinBy '/' "$storeDir" "$find" )
@@ -158,11 +146,11 @@ storeLocalPrune() {
     findRc=$?
     rc=$( max $findRc $rc )
 
-    if (( ${#found[@]} == 0 )); then info "Info: storeLocalPrune: No file to prune."
+    if (( ${#found[@]} == 0 )); then info "Info: store-local-prune: No file to prune."
     else
-      info "Info: storeLocalPrune: found ${#found[@]} files to prune"
+      info "Info: store-local-prune: found ${#found[@]} files to prune"
 
-      for f in "${found[@]}"; do >&2 echo "Info: storeLocalPrune: pruning '$f'"; done
+      for f in "${found[@]}"; do >&2 echo "Info: store-local-prune: pruning '$f'"; done
 
       # $DRYRUN "${NICE[@]}" "${FOUND[@]}" -exec rm -f {} \;
       $DRYRUN "${NICE[@]}" "${FOUND[@]}" -delete
@@ -171,9 +159,9 @@ storeLocalPrune() {
       rc=$( max $rmRc $rc )
 
       (( $rmRc == 0 )) && {
-        info "Info: storeLocalPrune: Files deleted"
+        info "Info: store-local-prune: Files deleted"
       } || {
-        info "Warning: storeLocalPrune: Failed to delete files."
+        info "Warning: store-local-prune: Failed to delete files."
       }
     fi
   done
