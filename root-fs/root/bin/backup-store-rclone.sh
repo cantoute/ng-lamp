@@ -65,6 +65,7 @@ store-rclone-create() {
   rc=$?
 
   if (( $rc == 0 )); then
+    # info "Success: rclone stored '$target'";
     # fileSize=$( fileSize "$localPath" ) && {
     #   info "Success: store-rclone-create: Stored '$localPath' ($( humanSize $fileSize ))";
     # } || {

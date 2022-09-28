@@ -1,11 +1,11 @@
 #!/url/bin/env bash
 
 store-local() {
-  local dir="$1" cmd="$2"; shift 2
+  local endpoint="$1" cmd="$2"; shift 2
 
   case "$cmd" in
     init|create|prune)
-      set -- "store-local-$cmd" "$dir" "$@"
+      set -- "store-local-$cmd" "$endpoint" "$@"
       ;;
     
     *)
@@ -18,15 +18,15 @@ store-local() {
 }
 
 store-local-init() {
-  local dir="$1"
+  local endpoint="$1"
   local rc=0
 
-  $DRYRUN mkdir -p "$dir"
+  $DRYRUN mkdir -p "$endpoint"
   
   rc=$?
   
-  if (( $rc == 0 )); then info "Info: store-local-init: successfully created $dir"
-  else info "Error: store-local-init: could not create dir $dir"; rc=$( max 2 $rc ); # Escalade to error
+  if (( $rc == 0 )); then info "Info: store-local-init: successfully created $endpoint"
+  else info "Error: store-local-init: could not create endpoint $endpoint"; rc=$( max 2 $rc ); # Escalade to error
   fi
 
   return $rc
@@ -34,62 +34,63 @@ store-local-init() {
 
 # Streams stdin to file
 store-local-create() {
-  local storeDir="$1" # set in $STORE
+  local endpoint="$1" # set in $STORE
   shift
+
 
   local rc storeLocalInitRc mkdirRc fileSize exitRc=0
 
   local path="$( joinBy '/' "$@" )"
-  local dir="${path%/*}"
+  # local endpoint="${path%/*}"
   local filename="${path##*/}"
   local name="${filename%.*}" # removes after last dot
 
   # abs path to final store file
-  local localPath="$( joinBy '/' "$storeDir" "$path" )"
-  local localDir="${localPath%/*}"
-
-  # local debug=( path "$path" dir "$dir" filename "$filename" name "$name" localPath "$localPath" localDir "$localDir" )
+  local target="$( joinBy '/' "$endpoint" "$path" )"
+  local targetDir="${target%/*}"
+  
+  # local debug=( path "$path" endpoint "$endpoint" filename "$filename" name "$name" target "$target" targetDir "$targetDir" )
   # info "Debug: ${debug[@]@Q}"
 
-  [[ -d "$storeDir" ]] || {
-    info "Missing repo base dir: '$storeDir' we will try init the store."
+  [[ -d "$endpoint" ]] || {
+    info "Missing repo base endpoint: '$endpoint' we will try init the store."
 
-    store-local "$storeDir" init
+    store-local "$endpoint" init
     
     storeLocalInitRc=$? 
-    (( $storeLocalInitRc == 0 )) || info "Error: failed to init local store '$storeDir' rc $storeLocalInitRc"
+    (( $storeLocalInitRc == 0 )) || info "Error: failed to init local store '$endpoint' rc $storeLocalInitRc"
     rc=$( max 2 $storeLocalInitRc ) # Error
   }
 
-  # store-local requires directory to exist
-  [[ -d "$localDir" ]] || {
-    info "Missing local dir: $localDir"
+  # store-local requires existing directory
+  [[ -d "$targetDir" ]] || {
+    info "Missing local dir: $targetDir"
 
     exitRc=$( max 1 $exitRc ) # Warning
 
-    $DRYRUN mkdir -p "$localDir" && { $DRYRUN info "Info: created dir '$localDir'"; } || {
-      info "Error: failed to create dir '$localDir'"
+    $DRYRUN mkdir -p "$targetDir" && { $DRYRUN info "Info: created dir '$targetDir'"; } || {
+      info "Error: failed to create dir '$targetDir'"
 
       exitRc=$( max 2 $exitRc ) # Error
     }
   }
 
   # On dry run we stop here
-  [[ $DRYRUN == "" ]] || { $DRYRUN output '>' "$localPath"; cat > /dev/null; return $exitRc; }
+  [[ $DRYRUN == "" ]] || { $DRYRUN output '>' "$target"; cat > /dev/null; return $exitRc; }
 
-  cat > "$localPath";
+  cat > "$target";
   
   rc=$?
 
   if (( $rc == 0 )); then
-    fileSize=$( fileSize "$localPath" ) && {
-      info "Success: store-local-create: Stored '$localPath' ($( humanSize $fileSize ))";
+    fileSize=$( fileSize "$target" ) && {
+      info "Success: store-local-create: Stored '$target' ($( humanSize $fileSize ))";
     } || {
       info "Error: store-local-create: could note size backup file."
       rc=$( max 2 $rc ) # Error
     }
   else
-    info "Error: store-local-create: failed to write to '$localPath'. rc $rc"
+    info "Error: store-local-create: failed to write to '$target'. rc $rc"
     rc=$( max 2 $rc ) # Error
   fi
 
@@ -97,7 +98,7 @@ store-local-create() {
 }
 
 store-local-prune() {
-  local storeDir="$1"
+  local endpoint="$1"
   shift
 
   local rc=0 finds=()
@@ -129,7 +130,7 @@ store-local-prune() {
   (( ${#finds[@]} > 0 )) || { info "Error: store-local-prune: prune without a find pattern (--find '*' for all) is not accepted"; return 2; }
 
   for find in "${finds[@]}"; do
-    localFind=$( joinBy '/' "$storeDir" "$find" )
+    localFind=$( joinBy '/' "$endpoint" "$find" )
     localFindDir="${localFind%/*}"
     findName="${localFind##*/}"
 

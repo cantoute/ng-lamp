@@ -48,7 +48,8 @@
 # STORE=( ''local' /path/to/store )
 
 store() {
-  local rc=0 _STORE cmd
+  local rc=0 compressRc _STORE cmd storeModule
+  local endpoint target targetArray filename
 
   while (( $# > 0 )); do
     case "$1" in
@@ -71,7 +72,11 @@ store() {
   }
 
   # >&2 echo "jjjjjj ${_STORE[@]}"
-  _STORE[0]="store-${_STORE[0]}"
+
+  storeModule="${_STORE[0]}"
+  endpoint="${_STORE[1]}"
+
+  _STORE[0]="store-${storeModule}"
 
   case "$cmd" in
     init|prune)
@@ -82,18 +87,45 @@ store() {
     # is in charge of compressing and adding $compressExt to filename
     create)
       (( $# > 0 )) || { info "Error: create requires at least one arg, the filename"; return $( max 2 $rc ); }
-      local filename="${@:$#}" # get last arg
+      filename="${@:$#}" # get last arg
+
+      targetArray=( "${@:1:$#-1}" "${filename}${compressExt}" )
+      target=$( joinBy '/' "${targetArray[@]}" )
 
       # right shift: "${@:1:$#-1}"
-      set -- "${_STORE[@]}" 'create' "${@:1:$#-1}" "${filename}${compressExt}"
-      
-
-
+      set -- "${_STORE[@]}" 'create' "${targetArray[@]}"
 
       # $@ are dirs that store-local will joinBy '/' to create path
       compress | "$@"
 
+      compressRc=${PIPESTATUS[0]}
+
       rc=$( max ${PIPESTATUS[@]} $rc )
+
+      if (( $rc == 0 )); then
+        info "Success: ${storeModule}(${endpoint}): Stored '${target}' rc ${rc}"
+      elif (( $rc == 1 )); then
+        info "Warning: ${storeModule}(${endpoint}): Storing '${target}' rc ${rc}"
+      else
+        info "Error: ${storeModule}(${endpoint}): Failed to upload '${target}' rc ${rc}"
+        >&2 > echo "compress | $@"
+      fi
+###########
+
+  # if (( $rc == 0 )); then
+  #   fileSize=$( fileSize "$localPath" ) && {
+  #     info "Success: store-local-create: Stored '$localPath' ($( humanSize $fileSize ))";
+  #   } || {
+  #     info "Error: store-local-create: could note size backup file."
+  #     rc=$( max 2 $rc ) # Error
+  #   }
+  # else
+  #   info "Error: store-local-create: failed to write to '$localPath'. rc $rc"
+  #   rc=$( max 2 $rc ) # Error
+  # fi
+
+
+      ###########
       ;;
 
     *)
