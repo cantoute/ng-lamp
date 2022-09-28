@@ -67,7 +67,7 @@ initUtils() {
   containsEndsWith()  { case "${myarray[@]}" in  *"two"*) echo "found" ;; esac; }
   
   # WIP: not tested
-  # Will wildcard any string '*' and has only 4 modes. Aka startWith endWith StartEndWith & '*' Any (alias $#>0)
+  # Will wildcard any string '*' and has only 4 modes. StartWith EndWith StartEndWith '*' Any (alias $#>0)
   simpleMatch() {
     local m="$1"; shift
 
@@ -77,12 +77,21 @@ initUtils() {
         '*') return ;; # Any. We got element so ok
         *'*') case "$e" in "${e::-1}"*) return ;; esac ;; # Starts with
         '*'*) case "$e" in   *"${e:1}") return ;; esac ;; # Ends with
-        *'*'*'*'*) >&2 echo "Error: Not acceptable pattern: '$m"; return 10 ;;
+        *'*'*'*'*) >&2 echo "Error: Not acceptable pattern: '$m'"; return 10 ;;
         *'*'*) # Starts and ends with
-          s1="${s%%'*'*}" # get up to first
           # s1="${s%'*'*}" # up to last
           # s2="${s##*'*'}" # gets after last
-          s2="${s#*'*'}" # gets after first so $s == "$s1*$s2"
+          s1="${s%%'*'*}" # get up to first (drop the longest)
+          s2="${s#*'*'}" # gets after first so $s == "$s1*$s2" (drop le shortest)
+
+          # https://stackoverflow.com/questions/918886/how-do-i-split-a-string-on-a-delimiter-in-bash/15988793#15988793
+          # ${var#*SubStr}  # drops substring from start of string up to first occurrence of `SubStr`
+          # ${var##*SubStr} # drops substring from start of string up to last occurrence of `SubStr`
+          # ${var%SubStr*}  # drops substring from last occurrence of `SubStr` to end of string
+          # ${var%%SubStr*} # drops substring from first occurrence of `SubStr` to end of string
+
+          # # and % delete the shortest possible matching substring from the start and end of the string respectively, and
+          # ## and %% delete the longest possible matching substring.
           
           # s1="${s%"*$s2"*}"
 
