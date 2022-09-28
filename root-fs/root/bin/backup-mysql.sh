@@ -195,38 +195,26 @@ backupDb() {
   return $rc
 }
 
-like=()
-notLike=()
-
 # Get database list from local server and calls backupDb dbNames[]
 backupSingle() {
-  local dbNames=()
+  local dbNames=() lik=() notLike=()
   local nl
 
-  # while (( $# > 0 )); do
-  #   case "$1" in
-  #     --like)
-  #       # split on comma or space
-  #       like+=( ${2//,/ } )
-  #       shift 2
-  #       ;;
+  while (( $# > 0 )); do
+    case "$1" in
+      --like)
+        # split on comma or space
+        like+=( ${2//,/ } )
+        shift 2
+        ;;
 
-  #     --not-like)
-  #       # split on comma or space
-  #       notLike+=( ${2//,/ } )
-  #       shift 2
-  #       ;;
-        
-  #     --)
-  #       shift
-  #       break
-  #       ;;
-      
-  #     *)
-  #       break
-  #       ;;
-  #   esac
-  # done
+      --not-like)
+        # split on comma or space
+        notLike+=( ${2//,/ } )
+        shift 2
+        ;;
+    esac
+  done
 
   # Add notLike as like with a '-' 
   for nl in "${notLike[@]}"; do like+=( "-$nl" ); done
@@ -243,9 +231,6 @@ backupSingle() {
 backupMysql() {
   local backupRc
   local rc=0
-
-  # backupMysqlMode="$1"
-  # shift
 
   if (( $# > 0 )); then
     case "$1" in
@@ -299,15 +284,15 @@ backupMysql() {
         # STORE_LOCAL=( 'local' "${backupMysqlLocalDir}" )
         ;;
       
-      --like)
+      --like|not-like)
         # split on comma or space
-        like+=( ${2//,/ } )
-        shift 2
-        ;;
-
-      --not-like)
-        # split on comma or space
-        notLike+=( ${2//,/ } )
+        [[ "$backupMysqlMode" == "single" ]] && {
+          BACKUP+=( "$1" "$2" )
+        } || {
+          info "Error: $2: $1 argument only applies to 'single' backup mode."
+          rc=$( max 2 $rc )
+          return $rc
+        }
         shift 2
         ;;
 
@@ -348,12 +333,21 @@ backupMysql "$@"
 backupMysqlRc=$?
 exitRc=$( max $backupMysqlRc $exitRc )
 
-if   (( $exitRc  > 1 )); then info "Error: '${trace[@]}' failed with rc: $exitRc";
-  exit $exitRc;
-elif (( $exitRc == 1 )); then info "Warning: '${trace[@]}' ended with warnings rc: $exitRc";
-  exit $exitRc;
-elif (( $exitRc == 0 )); then info "Success: '${trace[@]}' completed successfully rc: $exitRc";
+if (( $exitRc == 0 )); then
+  info "Success: Backup completed successfully rc: $exitRc";
+  # info "Success: $0 completed successfully rc: $exitRc";
+elif (( $exitRc == 1 )); then
+  info "Warning: '${trace[@]}' ended with warnings rc: $exitRc";
+else
+  info "Error: '${trace[@]}' failed with rc: $exitRc";
 fi
+
+# TODO: on verbose only
+[[ "${verbose-}" == "true" ]] && { >&2 echo "${trace[@]};"; }
+
+# On errors we stop here
+(( $exitRc > 1 )) && exit $exitRc
+
 
 # No errors, we can prune.
 
