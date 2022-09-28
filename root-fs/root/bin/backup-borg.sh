@@ -117,32 +117,31 @@ borgCreate() {
 ##############################################
 
 backupBorg() {
-  local exitRc=0
-  local thisRc=0
-  local split
+  local rc=0 thisRc a c r
 
   while (( $# > 0 )); do
     case "$1" in
       --) shift; break ;;
       -*) break ;;
-      '') info "Warning: got empty backup label"; exitRc=$( max 1 $exitRc ) shift; break ;;
+      '') info "Warning: got empty backup label"; thisRc=1; shift ;;
 
       *)
-        bbLabel="$1"; shift; split=( ${bbLabel//\:/ } );
-        local l1=${split[0]} l2=${split[1]-} #TODO: smarter split and replace :- etc to _
+        bbLabel="$1"; shift; # Global bbLabel
 
-        info "backupBorg: proceeding label '${bbLabel}'"
+        c="${bbLabel%%\:*}" # up to first ':' is the command, the rest is argument
+        [[ "$c" == "$bbLabel" ]] && { a=''; } || { a="${bbLabel#*\:}"; }
+        
+        r=( "bb_label_$c" "$c" "$a" )
 
-        "bb_label_$l1" "$l1" "$l2";
+        info "backupBorg: proceeding label '${bbLabel}' (${r[@]})"
 
-        thisRc=$?; exitRc=$( max "$thisRc" "$exitRc" ) ;;
+        "${r[@]}";
 
-      # *) bbLabel="$1"; shift; info "backupBorg: proceeding label '${bbLabel}'"
-
-      #   "bb_label_${bbLabel}" "${bbLabel}" "";
-
-      #   thisRc=$?; exitRc=$( max "$thisRc" "$exitRc" ) ;;
+        thisRc=$?
+        ;;
     esac
+
+    rc=$( max "$rc" "$thisRc" )
 
     if   (( $thisRc == 0 )); then info "Info: borg backup labeled '${borgCreateLabel}' succeeded"
     elif (( $thisRc == 1 )); then info "Warning: backup labeled '${bbLabel}' returned status $thisRc"
@@ -151,7 +150,7 @@ backupBorg() {
     fi
   done
 
-  return $exitRc
+  return $rc
 }
 
 backupBorgMysql() {
