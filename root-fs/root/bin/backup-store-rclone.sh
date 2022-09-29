@@ -7,13 +7,14 @@ store-rclone() {
   local bucket="$1" cmd="$2"; shift 2
 
   case "$cmd" in
-    init|create|prune)
+    init|create|prune|size)
       set -- "store-rclone-$cmd" "$bucket" "$@"
       ;;
     
-    *) info "Error: store-rclone: unknown command '$action' - accepts: init|create|prune"
-       >&2 echo "$0 $@";
-       return 2 ;;
+    *)
+      info "Error: store-rclone: unknown command '$action' - accepts: init|create|prune"
+      >&2 echo "$0 $@";
+      return 2 ;;
   esac
 
   "$@"
@@ -101,4 +102,13 @@ store-rclone-cleanup() {
 store-rclone-prune() {
   info "Info: store-rclone prune not implemented"
   return
+}
+
+store-rclone-size() {
+  local rc bucket="$1"
+  local target="$( joinBy '/' "$@" )"
+
+  set -- "${RCLONE[@]}" size "$target"
+
+  "$@"
 }

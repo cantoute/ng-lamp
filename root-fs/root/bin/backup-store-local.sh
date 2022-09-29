@@ -4,7 +4,7 @@ store-local() {
   local bucket="$1" cmd="$2"; shift 2
 
   case "$cmd" in
-    init|create|prune)
+    init|create|prune|size)
       set -- "store-local-$cmd" "$bucket" "$@"
       ;;
     
@@ -82,19 +82,10 @@ store-local-create() {
   
   rc=$?
 
-  if (( $rc == 0 )); then
-
-    fileSize=$( store-local-size "$bucket" "$path" ) && {
-      info "Success: store-local-create: Stored '$target' ($fileSize)";
-    } || {
-      info "Error: store-local-create: could note size backup file."
-      rc=$( max 2 $rc ) # Error
-    }
-    
-  else
+  (( $rc == 0 )) || {
     info "Error: store-local-create: failed to write to '$target'. rc $rc"
     rc=$( max 2 $rc ) # Error
-  fi
+  }
 
   return $( max $rc $exitRc )
 }

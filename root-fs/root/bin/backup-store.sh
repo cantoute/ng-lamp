@@ -48,8 +48,8 @@
 # STORE=( ''local' /path/to/store )
 
 store() {
-  local rc=0 compressRc _STORE cmd storeModule
-  local endpoint target targetArray filename
+  local rc=0 cmd cmdRc compressRc _STORE storeModule
+  local endpoint target targetArray filename size sizeRc
 
   while (( $# > 0 )); do
     case "$1" in
@@ -79,9 +79,12 @@ store() {
   _STORE[0]="store-${storeModule}"
 
   case "$cmd" in
-    init|prune)
-      "${_STORE[@]}" "$cmd" "$@" 
-      rc=$( max $? $rc )
+    init|prune|size)
+      "${_STORE[@]}" "$cmd" "$@"
+
+      cmdRc=$?
+      (( $cmdRc == 0 )) || cmdRc=$( max 2 $cmdRc )
+      rc=$( max $cmdRc $rc )
       ;;
 
     # is in charge of compressing and adding $compressExt to filename
@@ -99,18 +102,35 @@ store() {
       compress | "$@"
 
       local pipeStatus=${PIPESTATUS[@]}
-      local compressRc=${pipeStatus[0]}
+
+      # echo "tttttt ${PIPESTATUS[@]}"
+      # local compressRc=${pipeStatus[0]}
+      # (( $compressRc == 0 )) || compressRc=$( max 2 $compressRc )
+      # rc=$( max ${pipeStatus[@]} $compressRc $rc )
 
       rc=$( max ${pipeStatus[@]} $rc )
 
+      (( $rc < 2 )) && { # We run now for having a size next to file in messages
+        size=$( "${_STORE[@]}" 'size' "${targetArray[@]}" )
+
+        sizeRc=$?
+        (( $sizeRc == 0 )) || {
+          sizeRc=$( max 2 $sizeRc ) # Error
+          # We will propagate this error later
+
+          size='error'
+        }
+      }
+
       if (( $rc == 0 )); then
-        info "Success: ${storeModule}(${endpoint}): Stored '${target}' rc ${rc}"
+        info "Success: ${storeModule}(${endpoint}): Stored '${target}' (${size}) rc ${rc}"
       elif (( $rc == 1 )); then
-        info "Warning: ${storeModule}(${endpoint}): Storing '${target}' rc ${rc}"
+        info "Warning: ${storeModule}(${endpoint}): Storing '${target}' (${size}) rc ${rc}"
       else
         info "Error: ${storeModule}(${endpoint}): Failed to upload '${target}' rc ${rc}"
         >&2 echo "compress | $@"
       fi
+
 ###########
 
   # if (( $rc == 0 )); then
