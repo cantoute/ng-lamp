@@ -143,7 +143,7 @@ backupBorg() {
 
     rc=$( max "$rc" "$thisRc" )
 
-    if   (( $thisRc == 0 )); then info "Info: borg backup labeled '${borgCreateLabel}' succeeded"
+    if   (( $thisRc == 0 )); then info "Info: borg backup labeled '${bbLabel}' succeeded"
     elif (( $thisRc == 1 )); then info "Warning: backup labeled '${bbLabel}' returned status $thisRc"
     else info "Error: backup labeled '${bbLabel}' returned status ${thisRc}"
       [[ "$onErrorStop" == "" ]] || { echo "We stop here (--on-error-stop invoked)"; break; }
