@@ -50,6 +50,9 @@ init() {
   backupBorgMysqlSingleArgs=()
 
   RCLONE=( "$( which rclone )" )
+
+  infoTmp=$(mktemp /tmp/backup-borg-info-XXXXXXX)
+  trap "rm -f $infoTmp" EXIT
 }
 
 initUtils() {
@@ -100,7 +103,22 @@ initUtils() {
     return 1
   }
   
-  info() { >&2 printf "\n%s %s\n\n" "$( LC_ALL=C date )" "$*"; }
+  # Usage: isArray BASH_VERSINFO && echo BASH_VERSINFO is an array
+  # https://stackoverflow.com/questions/14525296/how-do-i-check-if-variable-is-an-array
+  isArray() {
+    local variable_name=$1
+    [[ "$(declare -p $variable_name 2>/dev/null)" =~ "declare -a" ]]
+  }
+
+  info() {
+    echo "$( LC_ALL=C date ) $*" >> "$infoTmp"
+
+    >&2 printf "\n%s %s\n\n" "$( LC_ALL=C date )" "$*";
+  }
+
+  infoRecap() {
+    >&2 cat "$infoTmp"
+  }
 
   # Ex: DRYRUN=dryRun
   dryRun() { >&2 echo "DRYRUN: $@"; }

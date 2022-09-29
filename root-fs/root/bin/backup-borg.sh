@@ -143,9 +143,13 @@ backupBorg() {
 
     rc=$( max "$rc" "$thisRc" )
 
-    if   (( $thisRc == 0 )); then info "Info: borg backup labeled '${bbLabel}' succeeded"
-    elif (( $thisRc == 1 )); then info "Warning: backup labeled '${bbLabel}' returned status $thisRc"
-    else info "Error: backup labeled '${bbLabel}' returned status ${thisRc}"
+    if   (( $thisRc == 0 )); then
+      info "Info: borg backup labeled '${bbLabel}' succeeded"
+    elif (( $thisRc == 1 )); then
+      info "Warning: backup labeled '${bbLabel}' returned status $thisRc"
+    else
+      info "Error: backup labeled '${bbLabel}' returned status ${thisRc}"
+
       [[ "$onErrorStop" == "" ]] || { echo "We stop here (--on-error-stop invoked)"; break; }
     fi
   done
@@ -153,17 +157,17 @@ backupBorg() {
   return $rc
 }
 
+# This function will work only for local dir mysql backup
 backupBorgMysql() {
-  local mysqlRc
-  local borgRc
-  local label="mysql"
+  local mysqlRc borgRc txt
+  local borgLabel="mysql" # Default borg label
   local dir="$backupMysqlLocalDir"
   local args=()
 
   while (( $# > 0 )); do
     case "$1" in
       --label|--borg-label)
-        label="$2"
+        borgLabel="$2"
         shift 2 ;;
 
       --dir)
@@ -184,12 +188,21 @@ backupBorgMysql() {
   backupMysql "${args[@]}" "${backupBorgMysqlArgs[@]}"
 
   mysqlRc=$?
-  (( $mysqlRc == 0 )) || info "${bbLabel}:mysqldump returned status: ${mysqlRc}"
+  (( $mysqlRc == 0 )) || {
+    # txt=$(( $mysqlRc > 1 ? 'Error' : 'Warning' ))
+    txt='Error'; (( $borgRc == 1 )) && txt='Warning';
+    info "$txt: backupBorgMysql: ${bbLabel}:mysqldump returned status: ${mysqlRc}"
+    info "Command: backupMysql ${args[@]} ${backupBorgMysqlArgs[@]}"
+  }
 
-  borgCreate "${label-mysql}" "$dir"
+  borgCreate "${borgLabel-mysql}" "$dir"
   
   borgRc=$?
-  (( $borgRc == 0 )) || info "$label:borgCreate returned status: ${borgRc}"
+  (( $borgRc == 0 )) || {
+    txt='Error'; (( $borgRc == 1 )) && txt='Warning';
+    info "$txt: backupBorgMysql: $borgLabel:borgCreate returned status: ${borgRc}"
+    info "Command: borgCreate ${label-mysql} $dir"
+  }
 
   return $( max $mysqlRc $borgRc )
 }
@@ -220,10 +233,21 @@ set -- main "$@" # Call main
     (( $rc == 1 )) && >&2 echo "Warning"
     (( $rc  > 1 )) && >&2 echo "Error"
 
-    >&2 echo  # Get last line
-    >&2 printf "%s\n\n%s\n\n" "${OUTPUT##*$'\n'}" "######################"
+    >&2 echo 
     
+    # Get output last line
+    >&2 echo "${OUTPUT##*$'\n'}"
+    >&2 echo "##########################"
+    infoRecap
+    >&2 echo "##########################"
+
     echo "$OUTPUT";
     exit $rc;
   }
-} || { "$@"; }
+} || {
+  "$@";
+
+  >&2 echo "##########################"
+  infoRecap
+  >&2 echo "##########################"
+}
