@@ -108,7 +108,10 @@ store-local-size() {
       # Return nothing
     }
   elif [[ -d "$target" ]]; then
-      info "Info: store-local-size: function size not implemented for directories '$target'"
+      rc=0
+      # info "Info: store-local-size: function size not implemented for directories '$target'"
+
+      >&2 du -hs "$target"
   else
     # could it be symlink or dev ?
     info "Error: store-local-size: could note size: '$target'"

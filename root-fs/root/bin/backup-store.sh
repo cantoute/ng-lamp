@@ -115,6 +115,8 @@ store() {
 
         sizeRc=$?
         (( $sizeRc == 0 )) || {
+          info "Error: ${storeModule}(${endpoint}): Failed to size '${target}' rc ${sizeRc}"
+
           sizeRc=$( max 2 $sizeRc ) # Error
           # We will propagate this error later
 
@@ -123,14 +125,18 @@ store() {
       }
 
       if (( $rc == 0 )); then
-        info "Success: ${storeModule}(${endpoint}): Stored '${target}' (${size}) rc ${rc}"
+        info "Success: ${storeModule}(${endpoint}): Stored '${target}' rc ${rc}"
+        >&2 echo "Size: $size"
       elif (( $rc == 1 )); then
-        info "Warning: ${storeModule}(${endpoint}): Storing '${target}' (${size}) rc ${rc}"
+        info "Warning: ${storeModule}(${endpoint}): Storing '${target}' rc ${rc}"
+        >&2 echo "Size: $size"
       else
         info "Error: ${storeModule}(${endpoint}): Failed to upload '${target}' rc ${rc}"
         >&2 echo "compress | $@"
       fi
 
+      # Propagate size error
+      rc=$(max $rc $sizeRc )
 ###########
 
   # if (( $rc == 0 )); then

@@ -383,4 +383,18 @@ backupMysqlPrune() {
 
 backupMysqlPrune "$backupMysqlMode"
 
+
+#########
+# Backup folder size
+
+backupSize() {
+
+  store --store "${STORE[@]}" size "$@"
+}
+
+info "Info: Total size"
+
+backupSize
+backupSize "$backupMysqlMode"
+
 exit $exitRc
