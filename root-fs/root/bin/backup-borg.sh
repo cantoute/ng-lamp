@@ -133,7 +133,7 @@ backupBorg() {
         
         r=( "bb_label_$c" "$c" "$a" )
 
-        info "backupBorg: proceeding label '${bbLabel}' (${r[@]})"
+        info "Info: backupBorg: Executing label '${bbLabel}' (${r[@]})"
 
         "${r[@]}";
 
