@@ -4,11 +4,11 @@ set -u
 set -o pipefail
 
 store-rclone() {
-  local endpoint="$1" cmd="$2"; shift 2
+  local bucket="$1" cmd="$2"; shift 2
 
   case "$cmd" in
     init|create|prune)
-      set -- "store-rclone-$cmd" "$endpoint" "$@"
+      set -- "store-rclone-$cmd" "$bucket" "$@"
       ;;
     
     *) info "Error: store-rclone: unknown command '$action' - accepts: init|create|prune"
@@ -20,18 +20,18 @@ store-rclone() {
 }
 
 store-rclone-init() {
-  local endpoint="$1"
+  local bucket="$1"
   local rc=0
 
-  local rcloneInit=( "${RCLONE[@]}" mkdir "$endpoint" )
+  local rcloneInit=( "${RCLONE[@]}" mkdir "$bucket" )
   [[ "$DRYRUN" == "" ]] || rcloneInit+=( --dry-run )
   
   "${rcloneInit[@]}"
 
   rc=$?
   
-  if (( $rc == 0 )); then info "Info: store-rclone-init: successfully created $endpoint"
-  else info "Error: store-rclone-init: failed to create bucket '$endpoint'"; rc=$( max 2 $rc ); # Escalade to error
+  if (( $rc == 0 )); then info "Info: store-rclone-init: successfully created $bucket"
+  else info "Error: store-rclone-init: failed to create bucket '$bucket'"; rc=$( max 2 $rc ); # Escalade to error
   fi
 
   return $rc
@@ -39,7 +39,7 @@ store-rclone-init() {
 
 # Streams stdin to file
 store-rclone-create() {
-  local endpoint="$1" # set in $STORE
+  local bucket="$1" # set in $STORE
   shift
 
   local rc mkdirRc fileSize exitRc=0
@@ -50,7 +50,7 @@ store-rclone-create() {
   local name="${filename%.*}" # Removes after last dot. Ex: file.sql.gz => file.sql
 
   # abs path to final store file
-  local target="$( joinBy '/' "$endpoint" "$path" )"
+  local target="$( joinBy '/' "$bucket" "$path" )"
 
 
   set -- "${RCLONE[@]}" rcat "$target"
@@ -73,7 +73,7 @@ store-rclone-create() {
     #   rc=$( max 2 $rc ) # Error
     # }
 
-    # store-rclone-cleanup "$endpoint" || {
+    # store-rclone-cleanup "$bucket" || {
     #   info ""
     #   cleanupRc=$?
     #   rc=$( max $cleanupRc $rc )

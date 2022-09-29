@@ -98,9 +98,10 @@ store() {
       # $@ are dirs that store-local will joinBy '/' to create path
       compress | "$@"
 
-      compressRc=${PIPESTATUS[0]}
+      local pipeStatus=${PIPESTATUS[@]}
+      local compressRc=${pipeStatus[0]}
 
-      rc=$( max ${PIPESTATUS[@]} $rc )
+      rc=$( max ${pipeStatus[@]} $rc )
 
       if (( $rc == 0 )); then
         info "Success: ${storeModule}(${endpoint}): Stored '${target}' rc ${rc}"
@@ -108,7 +109,7 @@ store() {
         info "Warning: ${storeModule}(${endpoint}): Storing '${target}' rc ${rc}"
       else
         info "Error: ${storeModule}(${endpoint}): Failed to upload '${target}' rc ${rc}"
-        >&2 > echo "compress | $@"
+        >&2 echo "compress | $@"
       fi
 ###########
 

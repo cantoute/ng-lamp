@@ -1,11 +1,11 @@
 #!/url/bin/env bash
 
 store-local() {
-  local endpoint="$1" cmd="$2"; shift 2
+  local bucket="$1" cmd="$2"; shift 2
 
   case "$cmd" in
     init|create|prune)
-      set -- "store-local-$cmd" "$endpoint" "$@"
+      set -- "store-local-$cmd" "$bucket" "$@"
       ;;
     
     *)
@@ -18,15 +18,15 @@ store-local() {
 }
 
 store-local-init() {
-  local endpoint="$1"
+  local bucket="$1"
   local rc=0
 
-  $DRYRUN mkdir -p "$endpoint"
+  $DRYRUN mkdir -p "$bucket"
   
   rc=$?
   
-  if (( $rc == 0 )); then info "Info: store-local-init: successfully created $endpoint"
-  else info "Error: store-local-init: could not create endpoint $endpoint"; rc=$( max 2 $rc ); # Escalade to error
+  if (( $rc == 0 )); then info "Info: store-local-init: successfully created $bucket"
+  else info "Error: store-local-init: could not create bucket $bucket"; rc=$( max 2 $rc ); # Escalade to error
   fi
 
   return $rc
@@ -34,31 +34,31 @@ store-local-init() {
 
 # Streams stdin to file
 store-local-create() {
-  local endpoint="$1" # set in $STORE
+  local bucket="$1" # set in $STORE
   shift
 
 
   local rc storeLocalInitRc mkdirRc fileSize exitRc=0
 
   local path="$( joinBy '/' "$@" )"
-  # local endpoint="${path%/*}"
+  # local bucket="${path%/*}"
   local filename="${path##*/}"
   local name="${filename%.*}" # removes after last dot
 
   # abs path to final store file
-  local target="$( joinBy '/' "$endpoint" "$path" )"
+  local target="$( joinBy '/' "$bucket" "$path" )"
   local targetDir="${target%/*}"
   
-  # local debug=( path "$path" endpoint "$endpoint" filename "$filename" name "$name" target "$target" targetDir "$targetDir" )
+  # local debug=( path "$path" bucket "$bucket" filename "$filename" name "$name" target "$target" targetDir "$targetDir" )
   # info "Debug: ${debug[@]@Q}"
 
-  [[ -d "$endpoint" ]] || {
-    info "Missing repo base endpoint: '$endpoint' we will try init the store."
+  [[ -d "$bucket" ]] || {
+    info "Missing repo base bucket: '$bucket' we will try init the store."
 
-    store-local "$endpoint" init
+    store-local "$bucket" init
     
     storeLocalInitRc=$? 
-    (( $storeLocalInitRc == 0 )) || info "Error: failed to init local store '$endpoint' rc $storeLocalInitRc"
+    (( $storeLocalInitRc == 0 )) || info "Error: failed to init local store '$bucket' rc $storeLocalInitRc"
     rc=$( max 2 $storeLocalInitRc ) # Error
   }
 
@@ -83,12 +83,14 @@ store-local-create() {
   rc=$?
 
   if (( $rc == 0 )); then
-    fileSize=$( fileSize "$target" ) && {
-      info "Success: store-local-create: Stored '$target' ($( humanSize $fileSize ))";
+
+    fileSize=$( store-local-size "$bucket" "$path" ) && {
+      info "Success: store-local-create: Stored '$target' ($fileSize)";
     } || {
       info "Error: store-local-create: could note size backup file."
       rc=$( max 2 $rc ) # Error
     }
+    
   else
     info "Error: store-local-create: failed to write to '$target'. rc $rc"
     rc=$( max 2 $rc ) # Error
@@ -97,8 +99,36 @@ store-local-create() {
   return $( max $rc $exitRc )
 }
 
+store-local-size() {
+  local rc bucket="$1"
+  local target="$( joinBy '/' "$@" )"
+
+  if [[ -f "$target" ]]; then
+    fileSize=$( fileSize "$target" ) && {
+      rc=0
+
+      # failing humanSize will return bits
+      humanSize $fileSize || printf %d $fileSize
+
+    } || {
+      info "Error: store-local-size: could note size file: '$target'"
+      rc=2 # Error
+
+      # Return nothing
+    }
+  elif [[ -d "$target" ]]; then
+      info "Info: store-local-size: function size not implemented for directories '$target'"
+  else
+    # could it be symlink or dev ?
+    info "Error: store-local-size: could note size: '$target'"
+    rc=2 # Error
+  fi
+
+  return $rc
+}
+
 store-local-prune() {
-  local endpoint="$1"
+  local bucket="$1"
   shift
 
   local rc=0 finds=()
@@ -130,7 +160,7 @@ store-local-prune() {
   (( ${#finds[@]} > 0 )) || { info "Error: store-local-prune: prune without a find pattern (--find '*' for all) is not accepted"; return 2; }
 
   for find in "${finds[@]}"; do
-    localFind=$( joinBy '/' "$endpoint" "$find" )
+    localFind=$( joinBy '/' "$bucket" "$find" )
     localFindDir="${localFind%/*}"
     findName="${localFind##*/}"
 
