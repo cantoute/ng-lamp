@@ -213,6 +213,9 @@ backupSingle() {
         notLike+=( ${2//,/ } )
         shift 2
         ;;
+
+      --) shift; break ;;
+      *)  break ;;
     esac
   done
 
