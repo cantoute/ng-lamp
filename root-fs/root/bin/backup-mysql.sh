@@ -393,6 +393,6 @@ backupSize() {
 }
 
 info "Info: Total size"
-backupSize
+backupSize '/'
 
 exit $exitRc
