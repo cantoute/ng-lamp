@@ -28,9 +28,6 @@ init && initUtils && {
   initStore 
 } || { >&2 echo "Failed to init"; exit 2; }
 
-# debug
-# NICE=( dryRun )
-
 
 ########
 # Usage
@@ -124,9 +121,9 @@ mysqlListDbLike() {
 dump() {
   local rc
 
-  # >&2 echo "Executing: " $DRYRUN "${NICE[@]}" "$MYSQLDUMP" "$@"
+  # >&2 echo "Executing: " $DRYRUN "$MYSQLDUMP" "$@"
 
-  $DRYRUN "${NICE[@]}" "$MYSQLDUMP" "$@"
+  $DRYRUN "$MYSQLDUMP" "$@"
 
   rc=$?
 

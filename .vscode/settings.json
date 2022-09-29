@@ -65,6 +65,7 @@
     "ratelimit",
     "rcat",
     "rclone",
+    "renice",
     "restic",
     "sqlite",
     "tmpdir",

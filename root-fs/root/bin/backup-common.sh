@@ -38,10 +38,9 @@ init() {
     compressExt=
   fi
 
-  # auto nice and ionice if they can be found in path
-  NICE=()
-  command -v nice >/dev/null 2>&1   && NICE+=( nice )
-  command -v ionice >/dev/null 2>&1 && NICE+=( ionice -c3 )
+  # self nice and ionice if they can be found in path
+  command -v renice >/dev/null 2>&1 && renice -p $$ -n 10
+  command -v ionice >/dev/null 2>&1 && ionice -p $$ -c3
 
   BORG=( borg )
 
@@ -58,9 +57,9 @@ initUtils() {
 
   # Test if array contains element.
   # Usage 
-  containsElement()   { local s="$1"; shift; printf '%s\0' "$@" | grep -F -x -z -- "$s"; }
-  containsStartWith() { local s="$1"; shift; case "$@" in  *"two"*) echo "found" ;; esac;  }
-  containsEndsWith()  { case "${myarray[@]}" in  *"two"*) echo "found" ;; esac; }
+  # containsElement()   { local s="$1"; shift; printf '%s\0' "$@" | grep -F -x -z -- "$s"; }
+  # containsStartWith() { local s="$1"; shift; case "$@" in  *"two"*) echo "found" ;; esac;  }
+  # containsEndsWith()  { case "${myarray[@]}" in  *"two"*) echo "found" ;; esac; }
   
   # WIP: not tested
   # Will wildcard any string '*' and has only 4 modes. StartWith EndWith StartEndWith '*' Any (alias $#>0)
@@ -243,7 +242,7 @@ initUtils() {
       # assuming all args are names of files we append to
       for file in "$@"; do TEE+=( -a "$file" ); done
 
-      "${NICE[@]}" "${TEE[@]}"
+      "${TEE[@]}"
     }
   }
 
@@ -255,12 +254,8 @@ initUtils() {
       rc=1  # Warning
     }
 
-    [[ -v 'NICE' ]] || { info "Info: compress: optional var NICE[] not set"
-      local NICE=()
-    }
-
     (( ${#COMPRESS[@]} > 0 )) && {
-      "${NICE[@]}" "${COMPRESS[@]}";
+      "${COMPRESS[@]}";
       rc=$( max $? $rc )
     } || cat;
 

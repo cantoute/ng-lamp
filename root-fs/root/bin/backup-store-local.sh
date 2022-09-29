@@ -166,7 +166,7 @@ store-local-prune() {
     FOUND=( "$FIND" "$localFindDir" -type f -name "$findName" -mtime +$keepDays )
 
     # find result into found[]
-    mapfile -d $'\0' found < <( "${NICE[@]}" "${FOUND[@]}" -print0 )
+    mapfile -d $'\0' found < <( "${FOUND[@]}" -print0 )
 
     findRc=$?
     rc=$( max $findRc $rc )
@@ -177,8 +177,8 @@ store-local-prune() {
 
       for f in "${found[@]}"; do >&2 echo "Info: store-local-prune: pruning '$f'"; done
 
-      # $DRYRUN "${NICE[@]}" "${FOUND[@]}" -exec rm -f {} \;
-      $DRYRUN "${NICE[@]}" "${FOUND[@]}" -delete
+      # $DRYRUN "${FOUND[@]}" -exec rm -f {} \;
+      $DRYRUN "${FOUND[@]}" -delete
 
       rmRc=$?
       rc=$( max $rmRc $rc )

@@ -38,12 +38,6 @@
 #   fi
 # }
 
-# [[ -v 'NICE' ]] || {
-#   # auto nice and ionice if they can be found in path
-#   NICE=()
-#   command -v nice >/dev/null 2>&1   && NICE+=( nice )
-#   command -v ionice >/dev/null 2>&1 && NICE+=( ionice -c3 )
-# }
 
 # STORE=( ''local' /path/to/store )
 

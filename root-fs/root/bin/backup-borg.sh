@@ -47,9 +47,9 @@ while (( $# > 0 )); do
     --cron) beSilentOnSuccess="true";   shift ;;
 
     # nice|io-nice is auto added if in PATH
-    --no-nice) NICE=();                 shift ;;
-    --io-nice) NICE+=( ionice -c3 );    shift ;;
-    --nice)    NICE+=( nice );          shift ;;
+    # --no-nice) NICE=();                 shift ;;
+    # --io-nice) NICE+=( ionice -c3 );    shift ;;
+    # --nice)    NICE+=( nice );          shift ;;
 
     --verbose|--progress) borgCreateArgs+=( "$1" );         shift ;;
     --exclude|--include)  borgCreateArgs+=( "$1" "$2" );  shift 2 ;;
@@ -84,10 +84,10 @@ _borgCreate() {
   # >&2 echo "BORG_REPO: $BORG_REPO"
   # >&2 echo "BORG_PASSPHRASE: $BORG_PASSPHRASE"
 
-  $DRYRUN "${NICE[@]}" "${BORG_CREATE[@]}" "$@"
+  $DRYRUN "${BORG_CREATE[@]}" "$@"
 }
 
-backupMysql() { $DRYRUN "${NICE[@]}" "${BACKUP_MYSQL[@]}" "$@"; }
+backupMysql() { $DRYRUN "${BACKUP_MYSQL[@]}" "$@"; }
 
 borgCreate() {
   local label="$1"
