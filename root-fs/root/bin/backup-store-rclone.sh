@@ -108,7 +108,7 @@ store-rclone-size() {
   local rc bucket="$1"
   local target="$( joinBy '/' "$@" )"
 
-  set -- "${RCLONE[@]}" size --max-depth=2 "$target"
+  set -- "${RCLONE[@]}" size "$target"
 
   "$@"
 }

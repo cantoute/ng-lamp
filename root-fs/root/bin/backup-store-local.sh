@@ -111,7 +111,7 @@ store-local-size() {
       rc=0
       # info "Info: store-local-size: function size not implemented for directories '$target'"
 
-      >&2 du -h --max-depth=2 "$target"
+      >&2 du -hs "$target"
   else
     # could it be symlink or dev ?
     info "Error: store-local-size: could note size: '$target'"

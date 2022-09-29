@@ -392,7 +392,11 @@ backupSize() {
   store --store "${STORE[@]}" size "$@"
 }
 
-info "Info: Total size"
-backupSize '/'
+info "Info: Total bucket size"
+backupSize
+
+info "Info: Size of '$backupMysqlMode'"
+backupSize "$backupMysqlMode"
+
 
 exit $exitRc
