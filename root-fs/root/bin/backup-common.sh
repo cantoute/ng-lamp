@@ -220,21 +220,22 @@ initUtils() {
     # if first arg is a number we consume it
     local re='^[0-9]+$'; [[ ${1-} =~ $re ]] && { emptyRc=$1; shift; }
 
-    # IFS='' read -r line
+    IFS='' read -r line
     
-    # readRc=$?
+    readRc=$?
 
-    # [ -n "${line:+_}" ] || { >&2 echo "Error: stdin is empty, not piping. (${0##*/})"; #??
-    #   return $emptyRc;
-    # }
+    [ -n "${line:+_}" ] || { >&2 echo "Error: stdin is empty, not piping. (${0##*/})"; #??
+      return $emptyRc;
+    }
 
-    # { printf '%s\n' "$line"; cat; } | "$@";
-    # return $( max $readRc ${PIPESTATUS[@]} )
+    { printf '%s\n' "$line"; cat; } | "$@";
+    
+    return $( max $readRc ${PIPESTATUS[@]} )
 
-    cat | "$@";
+    # cat | "$@";
 
-    local pipeStatus=${PIPESTATUS[@]}
-    return $( max ${pipeStatus[@]} )
+    # local pipeStatus=${PIPESTATUS[@]}
+    # return $( max ${pipeStatus[@]} )
   }
 
 
