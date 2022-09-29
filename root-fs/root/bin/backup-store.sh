@@ -96,7 +96,7 @@ store() {
       set -- "${_STORE[@]}" 'create' "${targetArray[@]}"
 
       # $@ are dirs that store-local will joinBy '/' to create path
-      compress | "$@"
+      "${NICE[@]}" compress | "$@"
 
       local pipeStatus=${PIPESTATUS[@]}
       local compressRc=${pipeStatus[0]}
