@@ -171,6 +171,10 @@ backupBorgMysql() {
         args+=( "$1" "$2" )
         shift 2 ;;
 
+      --store) # Not tested TODO:
+        backupBorgMysqlArgs+=( "$1" "$2" "$3" )
+        shift 3 ;;
+
       *)
         args+=( "$1" )
         shift ;;
