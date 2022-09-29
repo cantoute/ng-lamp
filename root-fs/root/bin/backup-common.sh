@@ -229,13 +229,8 @@ initUtils() {
     }
 
     { printf '%s\n' "$line"; cat; } | "$@";
-    
+
     return $( max $readRc ${PIPESTATUS[@]} )
-
-    # cat | "$@";
-
-    # local pipeStatus=${PIPESTATUS[@]}
-    # return $( max ${pipeStatus[@]} )
   }
 
 
@@ -255,15 +250,21 @@ initUtils() {
   compress() {
     local rc=0
 
-    [[ -v 'COMPRESS' && -v 'compressExt' ]] || { info "Warning: compress: missing var COMPRESS[] || compressExt"
-      COMPRESS=(); compressExt=''; rc=1;
+    [[ -v 'COMPRESS' && -v 'compressExt' ]] || { info "Warning: compress: requires vars COMPRESS[] and compressExt"
+      local COMPRESS=() compressExt=''
+      rc=1  # Warning
     }
 
-    (( ${#COMPRESS[@]} > 0 )) || COMPRESS=( cat );
+    [[ -v 'NICE' ]] || { info "Info: compress: optional var NICE[] not set"
+      local NICE=()
+    }
 
-    "${NICE[@]}" "${COMPRESS[@]}";
+    (( ${#COMPRESS[@]} > 0 )) && {
+      "${NICE[@]}" "${COMPRESS[@]}";
+      rc=$( max $? $rc )
+    } || cat;
 
-    return $( max $? $rc )
+    return $rc
   }
 
   # Set repo as default
