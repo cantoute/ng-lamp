@@ -141,14 +141,8 @@ backupAll() {
 
   while (( $# > 0 )); do
     case "$1" in
-      --)
-        shift
-        break
-        ;;
-
-      *)
-        break
-        ;;
+      --) shift; break ;;
+      *)  break ;;
     esac
   done
 
@@ -165,10 +159,7 @@ backupDb() {
 
   while (( $# > 0 )); do
     case "$1" in
-      --)
-        shift
-        break
-        ;;
+      --) shift; break ;;
       
       *)
         # split on commas
