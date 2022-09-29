@@ -128,9 +128,14 @@ backupArgs=( "$@" )
 [[ -v 'BORG_REPO' ]] && {
   info "Using BORG_REPO: ${BORG_REPO}"
 } || {
-  info "Warning: BORG_REPO isn't set, loading: ~/.env.borg"
+  local tryDotenv=( ~/backup.$( hostname -s ).env /root/backup.$( hostname -s ).env )
+  
 
-  source ~/.env.borg
+  local dotenvFile=~/.backup.$( hostname -s ).env
+  [[ -f "$dotenvFile" ]] && {
+    info "Warning: BORG_REPO isn't set, loading: $dotFile"
+    set -o allexport; source "$dotenvFile"; set +o allexport;
+  }
 
   [[ -v 'BORG_REPO' ]] || {
     info "Error: Environnement BORG_REPO isn't set"
