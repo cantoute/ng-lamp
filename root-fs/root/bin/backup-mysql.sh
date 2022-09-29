@@ -393,8 +393,6 @@ backupSize() {
 }
 
 info "Info: Total size"
-
 backupSize
-backupSize "$backupMysqlMode"
 
 exit $exitRc
