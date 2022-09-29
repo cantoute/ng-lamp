@@ -256,7 +256,7 @@ initUtils() {
 
     (( ${#COMPRESS[@]} > 0 )) || COMPRESS=( cat );
 
-    "${COMPRESS[@]}";
+    "${NICE[@]}" "${COMPRESS[@]}";
 
     return $( max $? $rc )
   }
