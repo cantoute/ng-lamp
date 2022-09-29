@@ -55,7 +55,7 @@ dumpArgs=(
 # meaning I'de recommend running at least one daily backupAll
 # single
 dumpDbArgs=(
-  --skip-lock-tables
+  # --skip-lock-tables
 )
 
 # all
