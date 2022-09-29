@@ -39,8 +39,8 @@ init() {
   fi
 
   # self nice and ionice if they can be found in path
-  command -v renice >/dev/null 2>&1 && renice -p $$ -n 10
-  command -v ionice >/dev/null 2>&1 && ionice -p $$ -c3
+  command -v renice >/dev/null 2>&1 && renice -n 10 -p $$
+  command -v ionice >/dev/null 2>&1 && ionice -c3 -p $$
 
   BORG=( borg )
 
