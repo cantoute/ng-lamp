@@ -279,7 +279,6 @@ main() {
   elif (( $rc == 1 )); then info "Warning: '${trace[@]}' finished with warnings. rc $rc"
   else info "Error: '${trace[@]}' finished with errors. rc $rc"; fi
 
-  # echo "tttt ${pipeStatus[@]}"
   return $rc
 }
 
