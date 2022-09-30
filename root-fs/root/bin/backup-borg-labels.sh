@@ -94,6 +94,7 @@ bb_label_mysql() {
     
     single) # In single mode db becomes like
       [[ "$db" == "" ]] || myArgs+=( --like "$db" )
+      [[ -v 'mysqlSingleArgs' ]] && myArgs+=( "${mysqlSingleArgs[@]}" )
       ;;
 
     *) info "Error: unknown mode: '$mode'"; return 2 ;;
