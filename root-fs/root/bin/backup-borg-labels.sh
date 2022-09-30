@@ -58,19 +58,29 @@ bb_label_mysql() {
     [[ "$s" == "" ]] || {
       mode="${s%%:*}"; s=${s#"$mode"}; s=${s#:}
 
+      case "$mode" in
+        db|single)
+          [[ "$s" == "" ]] || {
+            db="${s%%:*}"; s=${s#"$db"};s=${s#:}
+          }
+          ;;
+      esac
+
       [[ "$s" == "" ]] || {
         keepDays="${s%%:*}"; s=${s#"$keepDays"};s=${s#:}
-        [[ "$s" == "" ]] || {
-          db="${s%%:*}"; s=${s#"$db"};s=${s#:}
-        }
       }
     }
   }
 
 
-  (( $keepDays > 1 || $keepDays == -1 )) || { keepDays=1; info "Warning: keeping minimum 1 day"; rc=$( max 1 $rc ); }
+  (( keepDays > 1 )) || { keepDays=-; info "Warning: keeping minimum 1 day. disabling prune"; rc=$( max 1 $rc ); }
 
-  local backupArgs=( --keep-days $keepDays )
+  local backupArgs=(
+    --keep-days $keepDays
+  )
+
+  [[ -v 'STORE_MYSQL' ]] && (( ${#STORE_MYSQL[@]} > 0 )) && backupArgs+=( --store "${STORE_MYSQL[@]}" )
+
   local myArgs=()
 
   case "$mode" in

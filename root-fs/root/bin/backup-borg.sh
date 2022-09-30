@@ -92,9 +92,9 @@ backupMysql() {
   $DRYRUN "$@";
   rc=$?
 
-  (( $rc == 0 )) && info "Success: backupMysql succeeded"
-  (( $rc == 1 )) && info "Warning: backupMysql returned warnings"
-  (( $rc >  1 )) && info "Error: backupMysql returned rc $rc"
+  (( rc == 0 )) && info "Success: backupMysql succeeded"
+  (( rc == 1 )) && info "Warning: backupMysql returned warnings"
+  (( rc >  1 )) && info "Error: backupMysql returned rc $rc"
 
   return $rc
 }
@@ -106,20 +106,20 @@ backupCreate() {
   info "Info: Starting backup label: $backupLabel"
   borgCreate "$backupLabel" "$@"
   createRc=$?;  rc=$( max $createRc $rc )
-  (( $createRc == 1 )) && info "Warning: Create: ${backupLabel} finished with warnings"
-  (( $createRc > 1  )) && info "Error: Create: ${backupLabel} finished with error rc $createRc"
+  (( createRc == 1 )) && info "Warning: Create: ${backupLabel} finished with warnings"
+  (( createRc > 1  )) && info "Error: Create: ${backupLabel} finished with error rc $createRc"
 
   info "Pruning label: $backupLabel"
   borgPrune "$backupLabel"
   pruneRc=$?;   rc=$( max $pruneRc $rc )
-  (( $pruneRc == 1 )) && info "Warning: Prune: ${backupLabel} finished with warnings"
-  (( $pruneRc > 1  )) && info "Error: Prune: ${backupLabel} finished with error rc $pruneRc"
+  (( pruneRc == 1 )) && info "Warning: Prune: ${backupLabel} finished with warnings"
+  (( pruneRc > 1  )) && info "Error: Prune: ${backupLabel} finished with error rc $pruneRc"
 
   info "Compacting repository $BORG_REPO"
   borgCompact
   compactRc=$?; rc=$( max $compactRc $rc )
-  (( $compactRc == 1 )) && info "Warning: Compact: ${backupLabel} finished with warnings"
-  (( $compactRc > 1  )) && info "Error: Compact: ${backupLabel}  finished with error rc $compactRc"
+  (( compactRc == 1 )) && info "Warning: Compact: ${backupLabel} finished with warnings"
+  (( compactRc > 1  )) && info "Error: Compact: ${backupLabel}  finished with error rc $compactRc"
 
 
   # if   (( $rc == 0 )); then
@@ -243,7 +243,7 @@ backupBorgMysql() {
 
   mysqlRc=$?
   (( $mysqlRc == 0 )) || {
-    # txt=$(( $mysqlRc > 1 ? 'Error' : 'Warning' ))
+    # txt=$(( mysqlRc > 1 ? 'Error' : 'Warning' ))
     txt='Error'; (( $borgRc == 1 )) && txt='Warning';
     info "$txt: backupBorgMysql: ${bbLabel}:mysqldump returned status: ${mysqlRc}"
     info "Command: backupMysql ${args[@]} ${backupBorgMysqlArgs[@]}"
@@ -289,8 +289,8 @@ set -- main "$@" # Call main
   OUTPUT=`"$@" 2>&1` || {
     rc=$?;
     
-    (( $rc == 1 )) && >&2 echo "Warning"
-    (( $rc  > 1 )) && >&2 echo "Error"
+    (( rc == 1 )) && >&2 echo "Warning"
+    (( rc  > 1 )) && >&2 echo "Error"
 
     >&2 echo 
     

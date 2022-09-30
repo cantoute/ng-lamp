@@ -64,7 +64,7 @@ store-local-create() {
 
   # store-local requires existing directory
   [[ -d "$targetDir" ]] || {
-    info "Missing local dir: $targetDir"
+    info "Warning: missing local dir: $targetDir"
 
     exitRc=$( max 1 $exitRc ) # Warning
 

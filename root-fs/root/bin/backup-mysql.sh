@@ -245,14 +245,14 @@ backupSingle() {
   # Get a list of databases from local server
   dbNames+=( $( mysqlListDbLike "${like[@]}" ) )
 
-  (( ${#dbNames[@]} > 0 )) || { info "Warning: backupMysql: no database to backup"; return 1; }
+  (( ${#dbNames[@]} )) || { info "Warning: backupMysql: no database to backup"; return 1; }
 
   backupDb "$dir" "${dbNames[@]}" -- "$@"
 }
 
 # Main
 backupMysql() {
-  local backupRc rc=0 keepDays=10
+  local rc pruneRc sizeRc rc=0 keepDays=10
 
   while (( $# > 0 )); do
     case "$1" in
@@ -309,15 +309,18 @@ backupMysql() {
     return $rc
   }
 
-  backupPrune "$dir" --keep-days $keepDays
+  (( keepDays > 0 )) && {
+    backupPrune "$dir" --keep-days $keepDays
+    pruneRc=$?; rc=$( max $pruneRc $rc )
+  }
 
   info "Info: Total bucket size"
   backupSize
-  sizeRc=$?; exitRc=$( max $sizeRc $exitRc )
+  sizeRc=$?; rc=$( max $sizeRc $exitRc )
 
   info "Info: Size of '$dir'"
   backupSize "$dir"
-  sizeRc=$?; exitRc=$( max $sizeRc $exitRc )
+  sizeRc=$?; rc=$( max $sizeRc $rc )
 
   return $rc
 }
