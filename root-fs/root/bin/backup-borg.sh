@@ -7,12 +7,10 @@
   SCRIPT_NAME="${0##*/}"
   SCRIPT_NAME_NO_EXT="${SCRIPT_NAME%.*}"
 
-  . "${SCRIPT_DIR}/backup-common.sh";
-  init && initUtils
-
-  # Obsolete?
-  # . "${SCRIPT_DIR}/backup-borg-labels.sh";
-  # localConf=( "${SCRIPT_DIR}/${SCRIPT_NAME_NO_EXT}-${hostname}.sh" )
+  . "${SCRIPT_DIR}/backup-common.sh" && init && initUtils || { rc=$?
+    >&2 echo "Error: failed to load ${SCRIPT_DIR}/backup-common.sh and init"
+    exit $rc
+  }
 }
 
 # your email@some.co
@@ -22,7 +20,7 @@ alertEmail="alert"
 logFile="/var/log/backup-borg.log"
 logrotateConf="/etc/logrotate.d/backup-borg"
 
-BORG_CREATE=( "${SCRIPT_DIR}/backup-borg-create.sh" )
+# BORG_CREATE=( "${SCRIPT_DIR}/backup-borg-create.sh" )
 BACKUP_MYSQL=( "${SCRIPT_DIR}/backup-mysql.sh" )
 
 exitRc=0
@@ -32,7 +30,7 @@ doInit=
 beSilentOnSuccess=
 
 bbLabel=
-borgCreateLabel=
+backupLabel=
 
 # Debug
 # logFile="/tmp/backup-borg.log2"
@@ -57,8 +55,8 @@ while (( $# > 0 )); do
     --do-init|--init) doInit="true";                        shift ;;
     --on-error-stop|--stop) onErrorStop="true";             shift ;;
 
-    --dry-run) DRYRUN=dryRun; BORG_CREATE+=( --dry-run );   shift ;;
-    --borg-dry-run) BORG_CREATE+=( --dry-run );             shift ;;
+    --dry-run|-n) DRYRUN=dryRun; BORG_CREATE+=( --dry-run ); shift ;;
+    --borg-dry-run) BORG_CREATE+=( --dry-run );              shift ;;
 
     --mysql-single-like|--mysql-like)
       # Takes affect only for mode 'single'
@@ -80,27 +78,69 @@ done
 ##############################################
 
 # Don't call directly, use borgCreate
-_borgCreate() {
-  # >&2 echo "BORG_REPO: $BORG_REPO"
-  # >&2 echo "BORG_PASSPHRASE: $BORG_PASSPHRASE"
+# _borgCreate() {
+#   # >&2 echo "BORG_REPO: $BORG_REPO"
+#   # >&2 echo "BORG_PASSPHRASE: $BORG_PASSPHRASE"
 
-  $DRYRUN "${BORG_CREATE[@]}" "$@"
+#   $DRYRUN "${BORG_CREATE[@]}" "$@"
+# }
+
+backupMysql() {
+  local rc
+  set -- "${BACKUP_MYSQL[@]}" "$@"
+  info "Info: backupMysql: $@"
+  $DRYRUN "$@";
+  rc=$?
+
+  (( $rc == 0 )) && info "Success: backupMysql succeeded"
+  (( $rc == 1 )) && info "Warning: backupMysql returned warnings"
+  (( $rc >  1 )) && info "Error: backupMysql returned rc $rc"
+
+  return $rc
 }
 
-backupMysql() { $DRYRUN "${BACKUP_MYSQL[@]}" "$@"; }
+backupCreate() {
+  local rc=0 createRc pruneRc compactRc backupPrefix
+  backupLabel="$1"; shift
+
+  info "Info: Starting backup label: $backupLabel"
+  borgCreate "$backupLabel" "$@"
+  createRc=$?;  rc=$( max $createRc $rc )
+  (( $createRc == 1 )) && info "Warning: Create: ${backupLabel} finished with warnings"
+  (( $createRc > 1  )) && info "Error: Create: ${backupLabel} finished with error rc $createRc"
+
+  info "Pruning label: $backupLabel"
+  borgPrune "$backupLabel"
+  pruneRc=$?;   rc=$( max $pruneRc $rc )
+  (( $pruneRc == 1 )) && info "Warning: Prune: ${backupLabel} finished with warnings"
+  (( $pruneRc > 1  )) && info "Error: Prune: ${backupLabel} finished with error rc $pruneRc"
+
+  info "Compacting repository $BORG_REPO"
+  borgCompact
+  compactRc=$?; rc=$( max $compactRc $rc )
+  (( $compactRc == 1 )) && info "Warning: Compact: ${backupLabel} finished with warnings"
+  (( $compactRc > 1  )) && info "Error: Compact: ${backupLabel}  finished with error rc $compactRc"
+
+
+  # if   (( $rc == 0 )); then
+  #   info "${backupLabel}: Backup, Prune, and Compact finished successfully"
+  # else
+  #   info "${backupLabel}: Backup, Prune, and/or Compact finished with errors"
+  # fi
+
+  return $rc
+}
 
 borgCreate() {
-  local label="$1"
-  local wrapper wrappers=()
-
-  borgCreateLabel="${label}"
+  local bbWrappers wrapper wrappers=() backupLabel="$1"
+  shift
 
   # If those functions are found
-  local bbWrappers=(
+  bbWrappers=(
     "bb_borg_create_wrapper"
-    "bb_borg_create_wrapper_${label}"
+    "bb_borg_create_wrapper_${backupLabel%%\:*}"
     "bb_borg_create_wrapper_${hostname}"
-    "bb_borg_create_wrapper_${hostname}_${label}"
+    "bb_borg_create_wrapper_${hostname}_${backupLabel%%\:*}"
   )
 
   for wrapper in "${bbWrappers[@]}"; do
@@ -109,10 +149,24 @@ borgCreate() {
     }
   done
 
-  # Call them in front. Aka wrap.
-  "${wrappers[@]}" _borgCreate "$@" "${borgCreateArgs[@]}"
+  set -- create ::"{hostname}-${backupLabel}-{now}" "$@" "${createArgs[@]}" "${excludeArgs[@]}"
+  # >&2 echo "${wrappers[@]}" "${BORG[@]}" "$@"
+
+  $DRYRUN "${wrappers[@]}" "${BORG[@]}" "$@"
 }
 
+borgPrune() {
+  local backupLabel="$1"; shift
+
+  set -- prune --glob-archives "{hostname}-${backupLabel}-*" "${pruneArgs[@]}" "${pruneKeepArgs[@]}"
+  # >&2 echo "${BORG[@]}" prune --glob-archives "{hostname}-${backupLabel}-*" "$@"
+
+  $DRYRUN "${BORG[@]}" "$@"
+}
+
+borgCompact() {
+  $DRYRUN "${BORG[@]}" compact "$@"
+}
 
 ##############################################
 
@@ -146,9 +200,9 @@ backupBorg() {
     if   (( $thisRc == 0 )); then
       info "Info: borg backup labeled '${bbLabel}' succeeded"
     elif (( $thisRc == 1 )); then
-      info "Warning: backup labeled '${bbLabel}' returned status $thisRc"
+      info "Warning: backup labeled '${bbLabel}' returned rc 1"
     else
-      info "Error: backup labeled '${bbLabel}' returned status ${thisRc}"
+      info "Error: backup labeled '${bbLabel}' returned rc ${thisRc}"
 
       [[ "$onErrorStop" == "" ]] || { echo "We stop here (--on-error-stop invoked)"; break; }
     fi
@@ -195,13 +249,13 @@ backupBorgMysql() {
     info "Command: backupMysql ${args[@]} ${backupBorgMysqlArgs[@]}"
   }
 
-  borgCreate "${borgLabel-mysql}" "$dir"
+  backupCreate "${borgLabel-mysql}" "$dir"
   
   borgRc=$?
   (( $borgRc == 0 )) || {
     txt='Error'; (( $borgRc == 1 )) && txt='Warning';
-    info "$txt: backupBorgMysql: $borgLabel:borgCreate returned status: ${borgRc}"
-    info "Command: borgCreate ${label-mysql} $dir"
+    info "$txt: backupBorgMysql: $borgLabel:backupCreate returned status: ${borgRc}"
+    info "Command: backupCreate ${label-mysql} $dir"
   }
 
   return $( max $mysqlRc $borgRc )
