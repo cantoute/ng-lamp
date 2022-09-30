@@ -50,7 +50,10 @@ bb_label_var() {
 bb_label_mysql() {
   local self="$1" bbArg="$2"; shift 2
   local s="$bbArg"
-  local dir=hourly mode=single keepDays=10 db= rc=0
+  local dir=hourly mode=single keepDays=0 db= rc=0
+  local backupArgs=() myArgs=()
+
+  [[ -v 'STORE_MYSQL' ]] && (( ${#STORE_MYSQL[@]} > 0 )) && backupArgs+=( --store "${STORE_MYSQL[@]}" )
 
   [[ "$s" == "" ]] || {
     dir="${s%%:*}"; s=${s#"$dir"}; s=${s#:}
@@ -68,20 +71,19 @@ bb_label_mysql() {
 
       [[ "$s" == "" ]] || {
         keepDays="${s%%:*}"; s=${s#"$keepDays"};s=${s#:}
+
+        while [[ "$s" != "" ]]; do
+          local s2="${s%%:*}"
+          myArgs+=( "$s2" ); s=${s#"$s2"}; s=${s#:}
+        done
       }
     }
   }
 
-
   (( keepDays > 1 )) || { keepDays=-; info "Warning: keeping minimum 1 day. disabling prune"; rc=$( max 1 $rc ); }
-
-  local backupArgs=(
+  backupArgs+=(
     --keep-days $keepDays
   )
-
-  [[ -v 'STORE_MYSQL' ]] && (( ${#STORE_MYSQL[@]} > 0 )) && backupArgs+=( --store "${STORE_MYSQL[@]}" )
-
-  local myArgs=()
 
   case "$mode" in
     all|prune) ;;
@@ -104,6 +106,12 @@ bb_label_mysql() {
   return $( max $backupMysqlRc $rc )
 
   # backupBorgMysql "$dir" "$mode" "$@"
+}
+
+bb_label_mysql-skip-lock() {
+  local self="$1" bbArg="$2"; shift 2
+
+  bb_label_mysql "$self" "$bbArg" --skip-lock-tables
 }
 
 bb_label_sleep() {
