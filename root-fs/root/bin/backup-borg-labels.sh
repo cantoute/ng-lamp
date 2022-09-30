@@ -8,43 +8,43 @@
 bb_label_home() {
   local self="$1" bbArg="$2"; shift 2
 
-  borgCreate "home" /home --exclude "home/vmail" --exclude "$backupMysqlLocalDir" "$@"
+  backupCreate "home" /home --exclude "home/vmail" --exclude "$backupMysqlLocalDir" "$@"
 }
 
 bb_label_home_no-exclude() {
   local self="$1" bbArg="$2"; shift 2
 
-  borgCreate "home" /home "$@"
+  backupCreate "home" /home "$@"
 }
 
 bb_label_home_vmail() {
   local self="$1" bbArg="$2"; shift 2
 
-  borgCreate "vmail" /home/vmail "$@"
+  backupCreate "vmail" /home/vmail "$@"
 }
 
 bb_label_sys() {
   local self="$1" bbArg="$2"; shift 2
 
-  borgCreate "sys" /etc /usr/local /root "$@"
+  backupCreate "sys" /etc /usr/local /root "$@"
 }
 
 bb_label_etc() {
   local self="$1" bbArg="$2"; shift 2
 
-  borgCreate "sys" /etc "$@"
+  backupCreate "sys" /etc "$@"
 }
 
 bb_label_usr-local() {
   local self="$1" bbArg="$2"; shift 2
 
-  borgCreate "sys" /usr/local "$@"
+  backupCreate "sys" /usr/local "$@"
 }
 
 bb_label_var() {
   local self="$1" bbArg="$2"; shift 2
 
-  borgCreate "var" /var --exclude 'var/www/vhosts' "$@"
+  backupCreate "var" /var --exclude 'var/www/vhosts' "$@"
 }
 
 bb_label_mysql() {
