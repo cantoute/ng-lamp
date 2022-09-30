@@ -7,9 +7,9 @@
   SCRIPT_NAME="${0##*/}"
   SCRIPT_NAME_NO_EXT="${SCRIPT_NAME%.*}"
 
-  . "${SCRIPT_DIR}/backup-common.sh" && init && initUtils || { rc=$?
+  . "${SCRIPT_DIR}/backup-common.sh" && init && initUtils || {
     >&2 echo "Error: failed to load ${SCRIPT_DIR}/backup-common.sh and init"
-    exit $rc
+    exit 2
   }
 }
 
@@ -88,7 +88,7 @@ done
 backupMysql() {
   local rc
   set -- "${BACKUP_MYSQL[@]}" "$@"
-  info "Info: backupMysql: $@"
+  info "Info: Starting backupMysql: $@"
   $DRYRUN "$@";
   rc=$?
 
@@ -198,7 +198,7 @@ backupBorg() {
     rc=$( max "$rc" "$thisRc" )
 
     if   (( $thisRc == 0 )); then
-      info "Info: borg backup labeled '${bbLabel}' succeeded"
+      info "Success: borg backup labeled '${bbLabel}' succeeded"
     elif (( $thisRc == 1 )); then
       info "Warning: backup labeled '${bbLabel}' returned rc 1"
     else
@@ -269,12 +269,17 @@ main() {
 
   backupBorg "$@" 2>&1 | logToFile "$logFile"
 
-  rc=$( max ${PIPESTATUS[@]} )
+  local pipeRc=(${PIPESTATUS[@]})
+
+  rc=$( max ${pipeRc[@]} )
+
+  (( ${pipeRc[1]} == 0 )) || info "Warning: failed to write logs to '$logFile'"
 
   if   (( $rc == 0 )); then info "Success: '${trace[@]}' finished successfully. rc $rc"
   elif (( $rc == 1 )); then info "Warning: '${trace[@]}' finished with warnings. rc $rc"
   else info "Error: '${trace[@]}' finished with errors. rc $rc"; fi
 
+  # echo "tttt ${pipeStatus[@]}"
   return $rc
 }
 
