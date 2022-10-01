@@ -181,7 +181,7 @@ backupBorg() {
         
         r=( "bb_label_$c" "$c" "$a" )
 
-        info "Info: backupBorg: Executing label '${bbLabel}' (${r[@]})"
+        info "Info: ${FUNCNAME[0]}: Executing label '${bbLabel}' (${r[@]})"
 
         "${r[@]}";
 
@@ -207,7 +207,7 @@ backupBorg() {
 
 # This function will work only for local dir mysql backup
 backupBorgMysql() {
-  local mysqlRc borgRc txt
+  local mysqlRc borgRc txt RUN
   local borgLabel="mysql" # Default borg label
   local dir="$backupMysqlLocalDir"
   local args=()
@@ -233,22 +233,24 @@ backupBorgMysql() {
     esac
   done
 
-  backupMysql "${args[@]}" "${backupBorgMysqlArgs[@]}"
+  RUN=( backupMysql "${args[@]}" "${backupBorgMysqlArgs[@]}" )
+  "${RUN[@]}"
 
   mysqlRc=$?
   (( $mysqlRc == 0 )) || {
     # txt=$(( mysqlRc > 1 ? 'Error' : 'Warning' )) # that one killed me
     txt='Error'; (( $borgRc == 1 )) && txt='Warning';
-    info "$txt: backupBorgMysql: ${bbLabel}:mysqldump returned status: ${mysqlRc}"
-    info "Command: backupMysql ${args[@]} ${backupBorgMysqlArgs[@]}"
+    info "$txt: ${FUNCNAME[0]}: ${bbLabel}:${RUN[0]} rc ${mysqlRc}"
+    info "Command: ${RUN[@]}"
   }
 
-  backupCreate "${borgLabel-mysql}" "$dir"
+  RUN=( backupCreate "${borgLabel-mysql}" "$dir" )
+  "${RUN[@]}"
   
   borgRc=$?
   (( $borgRc == 0 )) || {
     txt='Error'; (( $borgRc == 1 )) && txt='Warning';
-    info "$txt: backupBorgMysql: $borgLabel:backupCreate returned status: ${borgRc}"
+    info "$txt: ${FUNCNAME[0]}: ${bbLabel}:${RUN[0]} rc ${borgRc}"
     info "Command: backupCreate ${label-mysql} $dir"
   }
 
