@@ -44,11 +44,6 @@ while (( $# > 0 )); do
     --log)  logFile="$2";             shift 2 ;;
     --cron) beSilentOnSuccess="true";   shift ;;
 
-    # nice|io-nice is auto added if in PATH
-    # --no-nice) NICE=();                 shift ;;
-    # --io-nice) NICE+=( ionice -c3 );    shift ;;
-    # --nice)    NICE+=( nice );          shift ;;
-
     --verbose|--progress) borgCreateArgs+=( "$1" );         shift ;;
     --exclude|--include)  borgCreateArgs+=( "$1" "$2" );  shift 2 ;;
 
@@ -104,31 +99,30 @@ backupCreate() {
   backupLabel="$1"; shift
 
   info "Info: Starting backup label: $backupLabel"
+
   borgCreate "$backupLabel" "$@"
-  createRc=$?;  rc=$( max $createRc $rc )
+  
+  createRc=$?
   (( createRc == 1 )) && info "Warning: Create: ${backupLabel} finished with warnings"
   (( createRc > 1  )) && info "Error: Create: ${backupLabel} finished with error rc $createRc"
 
   info "Pruning label: $backupLabel"
+  
   borgPrune "$backupLabel"
-  pruneRc=$?;   rc=$( max $pruneRc $rc )
+  
+  pruneRc=$?
   (( pruneRc == 1 )) && info "Warning: Prune: ${backupLabel} finished with warnings"
   (( pruneRc > 1  )) && info "Error: Prune: ${backupLabel} finished with error rc $pruneRc"
 
   info "Compacting repository $BORG_REPO"
+  
   borgCompact
-  compactRc=$?; rc=$( max $compactRc $rc )
+  
+  compactRc=$?
   (( compactRc == 1 )) && info "Warning: Compact: ${backupLabel} finished with warnings"
   (( compactRc > 1  )) && info "Error: Compact: ${backupLabel}  finished with error rc $compactRc"
 
-
-  # if   (( $rc == 0 )); then
-  #   info "${backupLabel}: Backup, Prune, and Compact finished successfully"
-  # else
-  #   info "${backupLabel}: Backup, Prune, and/or Compact finished with errors"
-  # fi
-
-  return $rc
+  return $( max $createRc $pruneRc $compactRc )
 }
 
 borgCreate() {
@@ -149,9 +143,10 @@ borgCreate() {
     }
   done
 
+  # Append createArgs[] and excludeArgs[] to our arguments
   set -- create ::"{hostname}-${backupLabel}-{now}" "$@" "${createArgs[@]}" "${excludeArgs[@]}"
-  # >&2 echo "${wrappers[@]}" "${BORG[@]}" "$@"
 
+  # Wrappers can append or manipulate $@ or change env var
   $DRYRUN "${wrappers[@]}" "${BORG[@]}" "$@"
 }
 
@@ -159,7 +154,6 @@ borgPrune() {
   local backupLabel="$1"; shift
 
   set -- prune --glob-archives "{hostname}-${backupLabel}-*" "${pruneArgs[@]}" "${pruneKeepArgs[@]}"
-  # >&2 echo "${BORG[@]}" prune --glob-archives "{hostname}-${backupLabel}-*" "$@"
 
   $DRYRUN "${BORG[@]}" "$@"
 }
@@ -243,7 +237,7 @@ backupBorgMysql() {
 
   mysqlRc=$?
   (( $mysqlRc == 0 )) || {
-    # txt=$(( mysqlRc > 1 ? 'Error' : 'Warning' ))
+    # txt=$(( mysqlRc > 1 ? 'Error' : 'Warning' )) # that one killed me
     txt='Error'; (( $borgRc == 1 )) && txt='Warning';
     info "$txt: backupBorgMysql: ${bbLabel}:mysqldump returned status: ${mysqlRc}"
     info "Command: backupMysql ${args[@]} ${backupBorgMysqlArgs[@]}"
@@ -273,16 +267,16 @@ main() {
 
   rc=$( max ${pipeRc[@]} )
 
-  (( ${pipeRc[1]} == 0 )) || info "Warning: failed to write logs to '$logFile'"
+  (( ${pipeRc[1]} == 0 )) || info "Warning: failed to write to file '$logFile'"
 
-  if   (( $rc == 0 )); then info "Success: '${trace[@]}' finished successfully. rc $rc"
+  if   (( $rc == 0 )); then info "Success: '${trace[@]}' finished successfully."
   elif (( $rc == 1 )); then info "Warning: '${trace[@]}' finished with warnings. rc $rc"
   else info "Error: '${trace[@]}' finished with errors. rc $rc"; fi
 
   return $rc
 }
 
-set -- main "$@" # Call main
+set -- main "$@" # Pass call to main
 
 [[ "$beSilentOnSuccess" == "true" ]] && { # Aka cron mode
   OUTPUT=`"$@" 2>&1` || {

@@ -47,6 +47,11 @@ bb_label_var() {
   backupCreate "var" /var --exclude 'var/www/vhosts' "$@"
 }
 
+# Usage
+# backup-cron.sh -- mysql:hourly:single:-user_no_backup_%:10 
+# would backup all databases matching NOT LIKE 'user_no_backup_%'
+# storing in STORE[] with path prefix 'hourly' default in /home/backups/mysql-${hostname}/hourly/
+# default STORE=( local  ) /home/backups/mysql-${hostname}
 bb_label_mysql() {
   local self="$1" bbArg="$2"; shift 2
   local s="$bbArg"
@@ -55,10 +60,10 @@ bb_label_mysql() {
 
   [[ -v 'STORE_MYSQL' ]] && (( ${#STORE_MYSQL[@]} > 0 )) && backupArgs+=( --store "${STORE_MYSQL[@]}" )
 
-  [[ "$s" == "" ]] || {
+  [[ "$s" == "" ]] || { # First arg is path prefix
     dir="${s%%:*}"; s=${s#"$dir"}; s=${s#:}
 
-    [[ "$s" == "" ]] || {
+    [[ "$s" == "" ]] || { # arg2: mode all|db|single (single )
       mode="${s%%:*}"; s=${s#"$mode"}; s=${s#:}
 
       case "$mode" in

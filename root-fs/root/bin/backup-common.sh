@@ -64,51 +64,6 @@ init() {
 initUtils() {
   INIT+=( initUtils )
 
-  # Test if array contains element.
-  # Usage 
-  # containsElement()   { local s="$1"; shift; printf '%s\0' "$@" | grep -F -x -z -- "$s"; }
-  # containsStartWith() { local s="$1"; shift; case "$@" in  *"two"*) echo "found" ;; esac;  }
-  # containsEndsWith()  { case "${myarray[@]}" in  *"two"*) echo "found" ;; esac; }
-  
-  # WIP: not tested
-  # Will wildcard any string '*' and has only 4 modes. StartWith EndWith StartEndWith '*' Any (alias $#>0)
-  simpleMatch() {
-    local m="$1"; shift
-
-    for e in "$@"; do
-      case "$m" in
-        # '')  return 1 ;; # Not matching an empty string
-        '*') return ;; # Any. We got element so ok
-        *'*') case "$e" in "${e::-1}"*) return ;; esac ;; # Starts with
-        '*'*) case "$e" in   *"${e:1}") return ;; esac ;; # Ends with
-        *'*'*'*'*) >&2 echo "Error: Not acceptable pattern: '$m'"; return 10 ;;
-        *'*'*) # Starts and ends with
-          # s1="${s%'*'*}" # up to last
-          # s2="${s##*'*'}" # gets after last
-          s1="${s%%'*'*}" # get up to first (drop the longest)
-          s2="${s#*'*'}" # gets after first so $s == "$s1*$s2" (drop le shortest)
-
-          # https://stackoverflow.com/questions/918886/how-do-i-split-a-string-on-a-delimiter-in-bash/15988793#15988793
-          # ${var#*SubStr}  # drops substring from start of string up to first occurrence of `SubStr`
-          # ${var##*SubStr} # drops substring from start of string up to last occurrence of `SubStr`
-          # ${var%SubStr*}  # drops substring from last occurrence of `SubStr` to end of string
-          # ${var%%SubStr*} # drops substring from first occurrence of `SubStr` to end of string
-
-          # # and % delete the shortest possible matching substring from the start and end of the string respectively, and
-          # ## and %% delete the longest possible matching substring.
-          
-          # s1="${s%"*$s2"*}"
-
-          # IFS='*' read -r -a array <<< "$2"; unset IFS # Or was it set just for the call?
-
-          case "$e" in "$s1"*"$s2") return ;; esac
-          ;;
-      esac
-    done
-
-    return 1
-  }
-  
   # Usage: isArray BASH_VERSINFO && echo BASH_VERSINFO is an array
   # https://stackoverflow.com/questions/14525296/how-do-i-check-if-variable-is-an-array
   isArray() {
@@ -156,9 +111,6 @@ initUtils() {
     return $rc
   }
 
-  now()    { date +"%Y-%m-%dT%H-%M-%S%z"; } # avoiding ':' for filenames
-  nowIso() { date --iso-8601=seconds; }
-
   # returns max of two numbers
   # max2() { printf '%d' $(( $1 > $2 ? $1 : $2 )); }
   max2() { max "$@"; }
@@ -173,6 +125,9 @@ initUtils() {
     printf '%d' $max
   }
 
+  now()    { date +"%Y-%m-%dT%H-%M-%S%z"; } # avoiding ':' for filenames
+  nowIso() { date --iso-8601=seconds; }
+
   # sum of integers
   # Ex: sum 1 2 -3 #0
   sum() { printf "%d" "$((${@/%/+}0))"; }
@@ -181,24 +136,10 @@ initUtils() {
   # https://stackoverflow.com/questions/1527049/how-can-i-join-elements-of-an-array-in-bash
   joinBy() { local d="${1-}" f="${2-}"; shift 2 && printf %s "$f" "${@/#/$d}"; }
 
-  # joinSplit() {
-  #   local array d="$1"; shift;
-  #   IFS="$d"
-  #   read -r -a array <<< "$( joinBy "$d" "$@" )";
-  #   printf %s "${array[@]}";
-  #   unset IFS;
-    
-  # }
-
-  # a="someletters_12345_moreleters.ext"
-  # IFS="_"
-  # set $a
-  # echo $2
-  # # prints 12345
-
+  # arg1: filename (required)
   fileSize() { stat -c%s "$1" ; }
 
-  # arg1: filename (required)
+  # arg1: number (required)
   humanSize() {
     local FRM=( numfmt --to=iec-i --suffix=B )
     local str number=$1
@@ -372,8 +313,9 @@ initUtils() {
 initStore() {
   INIT+=( initStore )
 
-  [[ -v 'SCRIPT_DIR' ]] || SCRIPT_DIR="${0%/*}"
-  [[ -v 'SCRIPT_DIR' ]] || SCRIPT_NAME="${0##*/}"
+  [[ -v 'SCRIPT_DIR' ]] || {
+    SCRIPT_DIR="${0%/*}"; SCRIPT_NAME="${0##*/}";
+  }
 
   source "$SCRIPT_DIR/backup-store.sh"                \
     && source "$SCRIPT_DIR/backup-store-local.sh"     \
@@ -381,14 +323,5 @@ initStore() {
     && {
       # set default store if required
       [[ -v 'STORE' ]] || STORE=( 'local' "/home/backup/${hostname}" )
-    } || return 1
+    } || return $?
 }
-
-# seems to brake return status 
-# silentOnSuccess() {
-#   # local rc OUTPUT=`"$@"; return \\$? 2>&1` || { rc=$?; echo "$OUTPUT"; return $rc; }
-
-#   local rc=0 OUTPUT=`$( "$@" ) 2>&1;` || { rc=$?; rc=$( max $rc ${PIPESTATUS[@]} ); echo "$OUTPUT"; }
-#   # local rc=0 OUTPUT=`"$@" 2>&1` || { rc=$?; echo "$OUTPUT"; }
-#   return $rc
-# }
