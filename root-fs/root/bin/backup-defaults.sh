@@ -187,18 +187,13 @@ bb_label_mysql() {
   esac
 
   backupMysql "${backupArgs[@]}" -- "$dir" "$mode" "${myArgs[@]}" "$@"
-
   backupMysqlRc=$?
 
   return $( max $backupMysqlRc $rc )
-
-  # backupBorgMysql "$dir" "$mode" "$@"
 }
 
 bb_label_mysql-skip-lock() {
-  local self="$1" bbArg="$2"; shift 2
-
-  bb_label_mysql "$self" "$bbArg" --skip-lock-tables
+  bb_label_mysql "$@" --skip-lock-tables
 }
 
 
@@ -209,7 +204,7 @@ bb_label_mysql-skip-lock() {
 bb_label_sleep() {
   local self="$1" sleep="$2"; shift 2
 
-  [[ "$sleep" == "" ]] && sleep=60
+  [[ "$sleep" == '' ]] && sleep=60
 
   info "Sleeping ${sleep}s..."
 
@@ -219,5 +214,5 @@ bb_label_sleep() {
 bb_label_test() {
   local self="$1" bbArg="$2"; shift 2
 
-  [[ "$bbArg" == "ok" ]] || { return 128; }
+  [[ "$bbArg" == 'ok' ]] || { return 128; }
 }
