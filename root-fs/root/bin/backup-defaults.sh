@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+
+backupBorgMysqlArgs=()
+backupBorgMysqlSingleArgs=()
+
 createArgs=(
   --verbose
   --list
@@ -84,13 +88,13 @@ pruneKeepArgs=(
 ##################################
 # Default labels
 
-bb_label_home() {
+bb_label_home-full() {
   local self="$1" bbArg="$2"; shift 2
 
   backupCreate "home" /home "$@"
 }
 
-bb_label_home-light() {
+bb_label_home() {
   local self="$1" bbArg="$2"; shift 2
 
   # backupCreate "home" /home --exclude "home/vmail" --exclude "$backupMysqlLocalDir" "$@"

@@ -44,19 +44,15 @@ init() {
 
   BORG=( borg )
 
-  borgCreateArgs=()
-
-  backupBorgMysqlArgs=()
-  backupBorgMysqlSingleArgs=()
-
   RCLONE=( "$( which rclone )" )
 
   infoTmp="$( mktemp /tmp/backup-${hostname}-${0##*/}-info-XXXXXXX )"
   trap "rm -f $infoTmp" EXIT
-  info() {
-    echo "$( LC_ALL=C date ) $*" >> "$infoTmp"
-    >&2 printf "\n%s %s\n\n" "$( LC_ALL=C date )" "$*";
-  }
+  info() { echo "$( LC_ALL=C date ) $*" >> "$infoTmp"; >&2 printf "\n%s %s\n\n" "$( LC_ALL=C date )" "$*"; }
+  infoRecap() { >&2 cat "$infoTmp"; }
+
+  # Ex: DRYRUN=dryRun
+  dryRun() { >&2 echo "DRYRUN: $@"; }
 
   . "$SCRIPT_DIR/backup-defaults.sh"
 }
@@ -70,13 +66,6 @@ initUtils() {
     local variable_name=$1
     [[ "$(declare -p $variable_name 2>/dev/null)" =~ "declare -a" ]]
   }
-
-  infoRecap() {
-    >&2 cat "$infoTmp"
-  }
-
-  # Ex: DRYRUN=dryRun
-  dryRun() { >&2 echo "DRYRUN: $@"; }
 
   dotenv() {
     local rc=1 file

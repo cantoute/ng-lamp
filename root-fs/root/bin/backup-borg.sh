@@ -44,14 +44,14 @@ while (( $# > 0 )); do
     --log)  logFile="$2";             shift 2 ;;
     --cron) beSilentOnSuccess="true";   shift ;;
 
-    --verbose|--progress) borgCreateArgs+=( "$1" );         shift ;;
-    --exclude|--include)  borgCreateArgs+=( "$1" "$2" );  shift 2 ;;
+    --verbose|--progress) createArgs+=( "$1" );              shift ;;
+    --exclude|--include)  createArgs+=( "$1" "$2" );       shift 2 ;;
 
-    --do-init|--init) doInit="true";                        shift ;;
-    --on-error-stop|--stop) onErrorStop="true";             shift ;;
+    --do-init|--init)       doInit="true";                   shift ;;
+    --on-error-stop|--stop) onErrorStop="true";              shift ;;
 
-    --dry-run|-n) DRYRUN=dryRun; BORG_CREATE+=( --dry-run ); shift ;;
-    --borg-dry-run) BORG_CREATE+=( --dry-run );              shift ;;
+    --dry-run|-n) DRYRUN=dryRun; createArgs+=( --dry-run );  shift ;;
+    --borg-dry-run) createArgs+=( --dry-run );               shift ;;
 
     --mysql-single-like|--mysql-like)
       # Takes affect only for mode 'single'
