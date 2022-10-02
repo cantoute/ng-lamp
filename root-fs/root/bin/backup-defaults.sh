@@ -156,9 +156,9 @@ bb_label_usr-local() {
 # would backup all databases matching NOT LIKE 'user_no_backup_%'
 # storing in BACKUP_MYSQL_STORE with path prefix 'hourly' default in /home/backups/${hostname}-mysql/hourly/
 # default BACKUP_MYSQL_STORE=local:/home/backups/${hostname}-mysql
-bb_label_mysql() {
+bb_label_mysql-store() {
   local self="$1" bbArg="$2"; shift 2
-  local s="$bbArg" s2 store dir mode keepDays db dbA=() rc=0 _STORE
+  local s="$bbArg" s2 store dir mode keepDays db dbA=() rc=0
   local args=() labelArgs=()
 
   store="${s%%:*}"; s=${s#"$store"}; s=${s#:};
@@ -186,8 +186,10 @@ bb_label_mysql() {
   case "$mode" in
     all|prune) ;;
 
-    db) dbA+=( "$db" )
-      # [[ "$db" == "" ]] || myArgs+=( "$db" )
+    db)
+      [[ "$db" == "" ]] && {
+        info "Warning:  ${FUNCNAME[0]}: empty db: '$db'"
+      } || myArgs+=( "$db" )
       ;;
     
     single) # In single mode db becomes like
@@ -214,11 +216,11 @@ bb_label_mysql() {
 
   [[ -v 'store' && -v "$store" ]] && _STORE="${!store}"
 
-  [[ -v '_STORE' ]] && {
-    args+=( --store "${_STORE}" );
-  } || { info "Error: ${FUNCNAME[0]}: No STORE to use. store=$store"; }
+  [[ -v '_STORE' ]] && { set -- "$@" --store "${_STORE}"; } || {
+    info "Error: ${FUNCNAME[0]}: No STORE to use. store='$store'";
+  }
 
-  set -- "$dir" "$mode" "${dbA[@]}" "${args[@]}" "${labelArgs[@]}" "$@"
+  set -- "$dir" "$mode" "${dbA[@]}" "${args[@]}" "$@" "${labelArgs[@]}"
 
   backupMysql "$@"
 
@@ -226,9 +228,20 @@ bb_label_mysql() {
   return $( max $backupMysqlRc $rc )
 }
 
+bb_label_mysql() {
+  local self="$1" bbArg="$2"; shift 2
+
+  bb_label_mysql-store "$self" ":$bbArg" "$@"
+}
+
 bb_label_mysql-skip-lock() {
   bb_label_mysql "$@" --skip-lock-tables
 }
+
+bb_label_mysql-store-skip-lock() {
+  bb_label_mysql-store "$@" --skip-lock-tables
+}
+
 
 # %user:%repo
 bb_label_user() {
@@ -255,7 +268,7 @@ bb_label_user() {
 
 bb_label_my-user() {
   local self="$1" bbArg="$2"; shift 2
-  local user repo s="$bbArg" rc=0 mysqlRc store dir keep
+  local user repo s="$bbArg" rc=0 mysqlRc store dir keep subMode
 
   user="${s%%:*}"; s=${s#"$user"}; s=${s#:}
   [[ "$user" == "" ]] && { info "Error: $self:$bbArg param1(user) is required"; return 2; }
@@ -270,7 +283,17 @@ bb_label_my-user() {
     }
   }
 
-  bb_label_mysql "mysql" "${store}:${dir}:single:${user}%:${keep}"
+  subMode="${self#my-user}"
+
+  # Allow '-skip-lock' only
+  case "$subMode" in
+    -skip-lock|'') ;;
+    *) subMode=''; info "Warning: ${FUNCNAME[0]}: unknown subMode: '$subMode' self: '$self' bbArg: '$bbArg'" ;;
+  esac
+
+  set --  bb_label_mysql-store${self#my-user} "mysql${self#my-user}" "${store}:${dir}:single:${user}%:${keep}" "$@"
+
+  "$@"
 
   mysqlRc=$?
   rc=$( max $mysqlRc $rc )
@@ -283,6 +306,11 @@ bb_label_my-user() {
   return $rc
 }
 
+bb_label_my-user-skip-lock() {
+  local self="$1" bbArg="$2"; shift 2
+
+  bb_label_my-user "$self" "$bbArg" "$@"
+}
 
 #########
 # Misc
