@@ -48,8 +48,10 @@ store() {
   while (( $# > 0 )); do
     case "$1" in
       --store)
-        _STORE="${2}:${3}"
-        shift 3 ;;
+        case "$2" in
+          *:*) STORE="$2";        shift 2 ;;
+            *) STORE="${2}:${3}"; shift 3 ;;
+        esac ;;
 
       *)
         cmd="$1"; shift
