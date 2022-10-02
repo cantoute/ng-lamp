@@ -151,7 +151,7 @@ bb_label_usr-local() {
 
 
 
-# Usage
+# Usage mysql:BACKUP_MYSQL_STORE_antony:daily:single:antony%:10
 # backup-cron.sh -- mysql:hourly:single:-user_no_backup_%:10 
 # would backup all databases matching NOT LIKE 'user_no_backup_%'
 # storing in BACKUP_MYSQL_STORE with path prefix 'hourly' default in /home/backups/${hostname}-mysql/hourly/
@@ -230,31 +230,57 @@ bb_label_mysql-skip-lock() {
   bb_label_mysql "$@" --skip-lock-tables
 }
 
+# %user:%repo
+bb_label_user() {
+  local self="$1" bbArg="$2"; shift 2
+  local user repo s="$bbArg" varParts varName
+
+  user="${s%%:*}"; s=${s#"$user"}; s=${s#:};
+  [[ "$user" == "" ]] && { info "Error: $self:$bbArg param1(user) is required"; return 2; }
+
+  repo="${s%%:*}"; s=${s#"$repo"}; s=${s#:};
+
+  [[ -v "BORG_REPO_${repo}_${user}" ]] && repo="${repo}_${user}" || {
+    [[ -v "BORG_REPO_${user}" ]] && repo="${user}"
+  }
+
+  set -- backupCreate "${self}-${user}" "$( getUserHome "$user" )" "$@"
+
+  >&2 echo "$@"
+
+  if [[ -v 'repo' && "$repo" != "" ]]; then
+    usingRepo "$repo" "$@"
+  else "$@"; fi
+}
+
 bb_label_my-user() {
   local self="$1" bbArg="$2"; shift 2
-  local user repo s="$bbArg"
+  local user repo s="$bbArg" rc=0 mysqlRc store dir keep
 
-  [[ "$s" == "" ]] && {
-    info "Error: label 'user' requires a argument: username"
-    return 2
-  } || { # First arg is user
-    user="${s%%:*}"; s=${s#"$user"}; s=${s#:}
-    [[ "$user" == "" ]] && { info "Error: $self:$bbArg param1(user) is required"; return 2; }
+  user="${s%%:*}"; s=${s#"$user"}; s=${s#:}
+  [[ "$user" == "" ]] && { info "Error: $self:$bbArg param1(user) is required"; return 2; }
 
-    repo="${s%%:*}"; s=${s#"$repo"}; s=${s#:}
+  dir="${s%%:*}"; s=${s#"$dir"}; s=${s#:}
+  keep="${s%%:*}"; s=${s#"$keep"}; s=${s#:}
 
-    mysqlStore="${s%%:*}"; s=${s#"$mysqlRepo"}; s=${s#:}
-
-    mysqlDir="${s%%:*}"; s=${s#"$mysqlDir"}; s=${s#:}
-
-    mysqlLike="${s%%:*}"; s=${s#"$mysqlLike"}; s=${s#:}
+  [[ -v "BACKUP_MYSQL_STORE_${user}" ]] && store="BACKUP_MYSQL_STORE_${user}" || {
+    [[ -v "STORE_${user}" ]] && store="STORE_${user}" || {
+      BACKUP_MYSQL_STORE_userHome="local:$( getUserHome "$user" )/backup-mysql"
+      store="BACKUP_MYSQL_STORE_userHome"
+    }
   }
 
-  [[ -v 'repo' && "$repo" != "" ]] && {
-    usingRepo "$repo" "$@"
-  } || {
-    "$@"
-  }
+  bb_label_mysql "mysql" "${store}:${dir}:single:${user}%:${keep}"
+
+  mysqlRc=$?
+  rc=$( max $mysqlRc $rc )
+
+
+  bb_label_user "user" "${user}"
+  userRc=$?
+  rc=$( max $userRc $rc )
+
+  return $rc
 }
 
 

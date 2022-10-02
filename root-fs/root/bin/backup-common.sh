@@ -286,15 +286,7 @@ initUtils() {
     # printf "%s" "$conf" > "$logrotateConf"
   }
 
-  # tryDotenv=(
-  #   .backup.${hostname}.env
-  #   ~/.backup.${hostname}.env
-  #   /root/.backup.${hostname}.env
-  #   "${SCRIPT_DIR}/.backup.${hostname}.env"
-  # )
-
-  # dotenv "${tryDotenv[@]}" || { info "Failed to load env in: ${tryDotenv[@]}"; }
-
+  getUserHome() { bash -c "cd ~$(printf %q "$1") && pwd"; }
 
   # Ex: DRYRUN=dryRun
   dryRun() { >&2 echo "DRYRUN: $@"; }
