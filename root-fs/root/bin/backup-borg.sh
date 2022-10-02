@@ -21,7 +21,7 @@ logFile="/var/log/backup-borg.log"
 logrotateConf="/etc/logrotate.d/backup-borg"
 
 # BORG_CREATE=( "${SCRIPT_DIR}/backup-borg-create.sh" )
-BACKUP_MYSQL=( "${SCRIPT_DIR}/backup-mysql.sh" )
+[[ -v 'BACKUP_MYSQL' ]] || BACKUP_MYSQL=( "${SCRIPT_DIR}/backup-mysql.sh" )
 
 exitRc=0
 onErrorStop=
@@ -55,12 +55,12 @@ while (( $# > 0 )); do
 
     --mysql-single-like|--mysql-like)
       # Takes affect only for mode 'single'
-      backupBorgMysqlSingleArgs+=( --like "$2" )
+      backupMysqlSingleArgs+=( --like "$2" )
       shift 2 ;;
     
     --mysql-single-not-like|--mysql-not-like)
       # Takes affect only for mode 'single'
-      backupBorgMysqlSingleArgs+=( --not-like "$2" )
+      backupMysqlSingleArgs+=( --not-like "$2" )
       shift 2 ;;
 
     *)
@@ -72,23 +72,55 @@ done
 
 ##############################################
 
-# Don't call directly, use borgCreate
-# _borgCreate() {
-#   # >&2 echo "BORG_REPO: $BORG_REPO"
-#   # >&2 echo "BORG_PASSPHRASE: $BORG_PASSPHRASE"
-
-#   $DRYRUN "${BORG_CREATE[@]}" "$@"
-# }
-
 backupMysql() {
-  local rc
-  set -- "${BACKUP_MYSQL[@]}" "$@"
+  local rc preArgs=() args=() dir="$1" mode="$2"; shift 2
+  
+  [[ -v 'backupMysqlArgs' ]] && set -- "${backupMysqlArgs[@]}" "$@"
+
+  case "$mode" in
+    all)
+      [[ -v 'backupMysqlAllArgs'   ]] && set -- "${backupMysqlAllArgs[@]}"   "$@"
+      [[ -v 'backupMysqlArgs'      ]] && set -- "${backupMysqlArgs[@]}"      "$@"
+      ;;
+
+    prune)
+      [[ -v 'backupMysqlPruneArgs' ]] && set -- "${backupMysqlPruneArgs[@]}" "$@"
+      [[ -v 'backupMysqlArgs'      ]] && set -- "${backupMysqlArgs[@]}"      "$@"
+      ;;
+
+    db)
+      while (( $# > 0 )); do
+        case "$1" in
+          -*) break ;;
+           *) db+=( "$1" ); shift ;;
+        esac
+      done
+
+      (( ${#db[@]} > 0 )) || { info "Error: backupMysql: mode 'db' requires database names to backup."; return 2; }
+      
+      [[ -v 'backupMysqlDbArgs' ]] && set -- "${backupMysqlDbArgs[@]}" "$@"
+      [[ -v 'backupMysqlArgs'   ]] && set -- "${backupMysqlArgs[@]}"   "$@"
+
+      set -- "${db[@]}" "$@" # Db has to come as fist args
+      ;;
+    
+    single)
+      [[ -v 'backupMysqlSingleArgs' ]] && set -- "${backupMysqlSingleArgs[@]}" "$@"
+      [[ -v 'backupMysqlArgs'       ]] && set -- "${backupMysqlArgs[@]}"       "$@"
+      ;;
+
+    *) info "Error: unknown mode: '$mode'"; return 2 ;;
+  esac
+
+  set -- "${BACKUP_MYSQL[@]}" "$dir" "$mode" "$@"
+
   info "Info: Starting backupMysql: $@"
+
   $DRYRUN "$@";
   rc=$?
 
   (( rc == 0 )) && info "Success: backupMysql succeeded"
-  (( rc == 1 )) && info "Warning: backupMysql returned warnings"
+  (( rc == 1 )) && info "Warning: backupMysql returned warnings rc $rc"
   (( rc >  1 )) && info "Error: backupMysql returned rc $rc"
 
   return $rc
@@ -224,7 +256,7 @@ backupBorgMysql() {
         shift 2 ;;
 
       --store) # Not tested TODO:
-        backupBorgMysqlArgs+=( "$1" "$2" "$3" )
+        backupMysqlArgs+=( "$1" "$2" "$3" )
         shift 3 ;;
 
       *)
@@ -233,7 +265,7 @@ backupBorgMysql() {
     esac
   done
 
-  RUN=( backupMysql "${args[@]}" "${backupBorgMysqlArgs[@]}" )
+  RUN=( backupMysql "${args[@]}" "${backupMysqlArgs[@]}" )
   "${RUN[@]}"
 
   mysqlRc=$?

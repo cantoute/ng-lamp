@@ -14,8 +14,6 @@ init() {
   # LANG="en_US.UTF-8"
 
   [[ -v 'DRYRUN' ]]               || DRYRUN=
-  [[ -v 'hostname' ]]             || hostname=$( hostname -s )
-  [[ -v 'backupMysqlLocalDir' ]]  || backupMysqlLocalDir="/home/backups/mysql-${hostname}"
 
   MYSQLDUMP="$( which mysqldump )"
   FIND="$( which find )"
@@ -45,16 +43,6 @@ init() {
   BORG=( borg )
 
   RCLONE=( "$( which rclone )" )
-
-  infoTmp="$( mktemp /tmp/backup-${hostname}-${0##*/}-info-XXXXXXX )"
-  trap "rm -f $infoTmp" EXIT
-  info() { echo "$( LC_ALL=C date ) $*" >> "$infoTmp"; >&2 printf "\n%s %s\n\n" "$( LC_ALL=C date )" "$*"; }
-  infoRecap() { >&2 cat "$infoTmp"; }
-
-  # Ex: DRYRUN=dryRun
-  dryRun() { >&2 echo "DRYRUN: $@"; }
-
-  . "$SCRIPT_DIR/backup-defaults.sh"
 }
 
 initUtils() {
@@ -297,6 +285,26 @@ initUtils() {
 
     # printf "%s" "$conf" > "$logrotateConf"
   }
+
+  # tryDotenv=(
+  #   .backup.${hostname}.env
+  #   ~/.backup.${hostname}.env
+  #   /root/.backup.${hostname}.env
+  #   "${SCRIPT_DIR}/.backup.${hostname}.env"
+  # )
+
+  # dotenv "${tryDotenv[@]}" || { info "Failed to load env in: ${tryDotenv[@]}"; }
+
+
+  # Ex: DRYRUN=dryRun
+  dryRun() { >&2 echo "DRYRUN: $@"; }
+
+  infoTmp="$( mktemp /tmp/backup-${0##*/}-info-XXXXXXX )"
+  trap "rm -f $infoTmp" EXIT
+  info() { echo "$( LC_ALL=C date ) $*" >> "$infoTmp"; >&2 printf "\n%s %s\n\n" "$( LC_ALL=C date )" "$*"; }
+  infoRecap() { >&2 cat "$infoTmp"; }
+
+  . "$SCRIPT_DIR/backup-defaults.sh"
 }
 
 initStore() {
@@ -311,6 +319,6 @@ initStore() {
     && source "$SCRIPT_DIR/backup-store-rclone.sh"    \
     && {
       # set default store if required
-      [[ -v 'STORE' ]] || STORE=( 'local' "/home/backup/${hostname}" )
+      [[ -v 'STORE' ]] || STORE="local:/home/backup/${hostname}"
     } || return $?
 }

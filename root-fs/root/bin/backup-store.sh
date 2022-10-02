@@ -9,7 +9,7 @@
   init && initUtils && {
     [[ -v 'STORE' ]] || {
       # source "${SCRIPT_DIR}/backup-store-local.sh";
-      STORE=( 'local' "/home/backup/${hostname}" );
+      STORE="local:/home/backup/${hostname}"
       initStore
     }
   }
@@ -48,7 +48,7 @@ store() {
   while (( $# > 0 )); do
     case "$1" in
       --store)
-        _STORE=( "$2" "$3" )
+        _STORE="${2}:${3}"
         shift 3 ;;
 
       *)
@@ -62,19 +62,23 @@ store() {
       return 2
     }
 
-    _STORE=( "${STORE[@]}" )
+    _STORE="$STORE"
   }
 
   # >&2 echo "jjjjjj ${_STORE[@]}"
+  storeModule="${_STORE%%:*}";
+  endpoint=${_STORE#"${storeModule}"};
+  endpoint=${endpoint#:};
+  
+  # storeModule="${_STORE[0]}"
+  # endpoint="${_STORE[1]}"
 
-  storeModule="${_STORE[0]}"
-  endpoint="${_STORE[1]}"
-
-  _STORE[0]="store-${storeModule}"
+  # add functions prefix
+  # _STORE=( "store-$storeModule" "$endpoint" )
 
   case "$cmd" in
     init|prune|size)
-      "${_STORE[@]}" "$cmd" "$@"
+      store-$storeModule "$endpoint" "$cmd" "$@"
 
       cmdRc=$?
       (( $cmdRc == 0 )) || cmdRc=$( max 2 $cmdRc )
@@ -90,7 +94,7 @@ store() {
       target=$( joinBy '/' "${targetArray[@]}" )
 
       # right shift: "${@:1:$#-1}"
-      set -- "${_STORE[@]}" 'create' "${targetArray[@]}"
+      set -- store-$storeModule "$endpoint" 'create' "${targetArray[@]}"
 
       # $@ are dirs that store-local will joinBy '/' to create path
       compress | "$@"
@@ -105,7 +109,7 @@ store() {
       rc=$( max ${pipeStatus[@]} $rc )
 
       (( $rc < 2 )) && { # We run now for having a size next to file in messages
-        size=$( "${_STORE[@]}" 'size' "${targetArray[@]}" )
+        size=$( store-$storeModule "$endpoint" 'size' "${targetArray[@]}" )
 
         sizeRc=$?
         (( $sizeRc == 0 )) || {
@@ -119,18 +123,18 @@ store() {
       }
 
       if (( $rc == 0 )); then
-        info "Success: ${storeModule}(${endpoint}): Stored '${target}' rc ${rc}"
+        info "Success: ($storeModule "$endpoint"): Stored '${target}'"
         >&2 echo "Size: $size"
       elif (( $rc == 1 )); then
-        info "Warning: ${storeModule}(${endpoint}): Storing '${target}' rc ${rc}"
+        info "Warning: ($storeModule "$endpoint"): Storing '${target}' rc ${rc}"
         >&2 echo "Size: $size"
       else
-        info "Error: ${storeModule}(${endpoint}): Failed to upload '${target}' rc ${rc}"
+        info "Error: ($storeModule "$endpoint"): Failed to upload '${target}' rc ${rc}"
         >&2 echo "compress | $@"
       fi
 
       # Propagate size error
-      rc=$(max $rc $sizeRc )
+      [[ -v 'sizeRc' ]] && rc=$(max $rc $sizeRc )
 ###########
 
   # if (( $rc == 0 )); then

@@ -10,22 +10,36 @@ SCRIPT_DIR="${0%/*}"
 SCRIPT_NAME_NO_EXT="${SCRIPT_NAME%.*}"
 
 source "${SCRIPT_DIR}/backup-common.sh";
+# info "tttttttttttttttttttttttttt $BACKUP_MYSQL_STORE"
 
-########################################################
-# defaults
-#
+#############
+# Defaults
+######
+# [ -z ${BACKUP_MYSQL_STORE+x} ] || info "tttttttttttttttttttttttttt ${BACKUP_MYSQL_STORE}"
+backupMode='all'
 
-backupMysqlMode='all'
-
-BACKUP=( backupAll )
 DUMP=( dump )
 
-
-
 init && initUtils && {
-  [[ -v 'STORE' ]] || STORE=( 'local' "$backupMysqlLocalDir" )
 
-  initStore 
+  [[ -v 'BACKUP_MYSQL_STORE' ]] && STORE="$BACKUP_MYSQL_STORE" || {
+    [[ -v 'backupMysqlLocalDir' ]] && STORE="local:$backupMysqlLocalDir"
+  }
+
+  # if [[ -v 'BACKUP_MYSQL_STORE' ]]; then
+  # info "asdfasfsdf"
+    
+  # elif [[ -v 'backupMysqlLocalDir' ]]; then
+  #   STORE=( 'local' "$backupMysqlLocalDir" )
+  # fi
+  
+  # [[ -v 'BACKUP_MYSQL_STORE' ]] || {
+  #   # We try $backupMysqlLocalDir
+  #   [[ -v 'backupMysqlLocalDir' ]] && STORE=( 'local' "$backupMysqlLocalDir" );
+  # }
+
+  # STORE=( 'local' "$backupMysqlLocalDir" )
+  initStore
 } || { >&2 echo "Failed to init"; exit 2; }
 
 
@@ -37,7 +51,6 @@ init && initUtils && {
 # backup-mysql.sh db db1 db2,db3 -- -any-extra-param-to-mysql-dump
 #
 #
-
 
 dumpArgs=(
   # aka common args for all backups
@@ -66,8 +79,9 @@ dumpAllArgs=(
 # will be appended ( all ) or ( single ) accordingly
 storePath=()
 
-########################################################
+#############################
 # Utils
+####
 
 # trap Ctrl-C
 trap '>&2 echo $( date ) Backup interrupted; exit 2' INT TERM
@@ -112,37 +126,26 @@ mysqlListDbLike() {
     "${mysqlExecSql[@]}"
 }
 
-backupPrune() {
-  local find pruneArgs keepDays=10 var dir="$1"
+backup-prune() {
+  local find pruneArgs keepDays=10 var args=() dir="$1"
   shift
 
+  # Last one has last word
   while (( $# > 0 )); do
     case "$1" in
       --keep-days)
         keepDays="$2"
         shift 2 ;;
       
-      *) break ;;
+      *) args+=( "$1" ) ; shift ;;
     esac
   done
 
-  info "Info: backupMysql: called prune in '$dir' backups (keeping ${keepDays} days)"
+  info "Info: backupMysql: backup-prune (${STORE}): called prune in '$dir' backups (keeping ${keepDays} days)"
 
-  set -- --find "$dir/dump-$hostname-*.sql$compressExt" --keep-days $keepDays "$@"
+  set -- --find "$dir/dump-$hostname-*.sql$compressExt" --keep-days $keepDays "${args[@]}"
 
-  store --store "${STORE[@]}" prune "$@";
-}
-
-# backupMysqlPrune "$backupMysqlMode"
-# pruneRc=$?
-# exitRc=$( max $pruneRc $exitRc )
-
-
-#########
-# Backup folder size
-
-backupSize() {
-  store --store "${STORE[@]}" size "$@"
+  store prune "$@";
 }
 
 dump() {
@@ -160,7 +163,7 @@ dump() {
   return $rc
 }
 
-backupAll() {
+backup-all() {
   local name="$( backupMysqlName all )"
   local dir="$1"; shift
 
@@ -177,7 +180,7 @@ backupAll() {
   return $( max ${PIPESTATUS[@]} )
 }
 
-backupDb() {
+backup-db() {
   local rc=0
   local dumpRc
   local dbNames=()
@@ -186,14 +189,8 @@ backupDb() {
   while (( $# > 0 )); do
     case "$1" in
       --) shift; break ;;
-      -*)
-        break
-        ;;
-
-      *)
-        dbNames+=( ${1//,/ } )
-        shift
-        ;;
+      -*) break ;;
+       *) dbNames+=( ${1//,/ } ); shift ;;
     esac
   done
 
@@ -216,8 +213,8 @@ backupDb() {
 }
 
 # Get database list from local server and calls backupDb dbNames[]
-backupSingle() {
-  local dbNames=() like=() notLike=()
+backup-single() {
+  local dbNames=() like=() notLike=() args=()
   local nl dir="$1"; shift
 
   while (( $# > 0 )); do
@@ -225,17 +222,15 @@ backupSingle() {
       --like)
         # split on comma or space
         like+=( ${2//,/ } )
-        shift 2
-        ;;
+        shift 2 ;;
 
       --not-like)
         # split on comma or space
         notLike+=( ${2//,/ } )
-        shift 2
-        ;;
+        shift 2 ;;
 
-      --) shift; break ;;
-      *)  break ;;
+      # --) shift; break ;;
+      *)  args+=( "$1" ); shift ;;
     esac
   done
 
@@ -247,58 +242,60 @@ backupSingle() {
 
   (( ${#dbNames[@]} )) || { info "Warning: backupMysql: no database to backup"; return 1; }
 
-  backupDb "$dir" "${dbNames[@]}" -- "$@"
+  backup-db "$dir" "${dbNames[@]}" -- "${args[@]}"
 }
 
+####################
+# Backup folder size
+############
+
+backup-size() { store size "$@"; }
+
+#######
 # Main
-backupMysql() {
-  local rc pruneRc sizeRc rc=0 keepDays=10
+###
+
+main() {
+  local dir rc pruneRc sizeRc rc=0 keepDays=10 _backupArgs=()
+
+  dir="$1" backupMode="$2"; shift 2
 
   while (( $# > 0 )); do
     case "$1" in
-      --store)
-        STORE=( "$2" "$3" )
-        shift 3 ;;
+      --store) STORE="${2}:${3}"; shift 3 ;;
+
+      --store-env)
+        [[ -v "$2" ]] && {
+          STORE="${!2}"
+
+          info "Info: loaded env var ${2}: ${STORE}"
+        } || {
+          info "Warning: env var $2 isn't set, will use STORE: ${STORE[@]}"
+          rc=$( max 1 $rc ) # Warning
+        }
+        shift 2 ;;
 
       --keep-days)
         keepDays="$2";
         shift 2 ;;
 
-      --debug) shift; DRYRUN="dryRun" ;;
-      --) shift; break ;;
-      *) break ;;
+      --debug|--dry-run) shift; DRYRUN="dryRun" ;;
+      # --) shift; break ;;
+      *) args+=( "$1" ); shift
+      ;;
     esac
   done
-
-  local dir="$1"; shift
   
-  if (( $# > 0 )); then
-    case "$1" in
-      db)
-        shift
-        backupMysqlMode=db
-        BACKUP=( backupDb )
-      ;;
+  case "$backupMode" in
+    all|db|single|size)
+      set -- "backup-$backupMode" "$dir" "${args[@]}"
+    ;;
+    *) info "Error: Unknown backup mode '$1'"; return 2 ;;
+  esac
 
-      single)
-        shift
-        backupMysqlMode=single
-        BACKUP=( backupSingle )
-        ;;
+  info "Info: backupMysql: Starting $@"
 
-      all)
-        shift
-        backupMysqlMode=all
-        BACKUP=( backupAll )
-        ;;
-
-      *) ;; # Assuming default all following args are kept
-    esac
-  fi
-
-  info "Info: backupMysql: Starting ${BACKUP[@]} $dir $@"
-
-  "${BACKUP[@]}" "$dir" "$@"
+  "$@"
 
   backupRc=$?
 
@@ -310,16 +307,16 @@ backupMysql() {
   }
 
   (( keepDays > 0 )) && {
-    backupPrune "$dir" --keep-days $keepDays
+    backup-prune "$dir" --keep-days $keepDays
     pruneRc=$?; rc=$( max $pruneRc $rc )
   }
 
   info "Info: Total bucket size"
-  backupSize
+  backup-size
   sizeRc=$?; rc=$( max $sizeRc $exitRc )
 
   info "Info: Size of '$dir'"
-  backupSize "$dir"
+  backup-size "$dir"
   sizeRc=$?; rc=$( max $sizeRc $rc )
 
   return $rc
@@ -332,7 +329,7 @@ startedAt=$( nowIso )
 
 trace=( "$SCRIPT_NAME" "$@" )
 
-backupMysql "$@"
+main "$@"
 
 backupMysqlRc=$?
 exitRc=$( max $backupMysqlRc $exitRc )

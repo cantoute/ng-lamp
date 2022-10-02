@@ -1,8 +1,18 @@
 #!/usr/bin/env bash
 
+# tryDotenv=(
+#   .backup.${hostname}.env
+#   ~/.backup.${hostname}.env
+#   /root/.backup.${hostname}.env
+#   "${SCRIPT_DIR}/.backup.${hostname}.env"
+# )
 
-backupBorgMysqlArgs=()
-backupBorgMysqlSingleArgs=()
+
+[[ -v 'hostname' ]]             || hostname=$( hostname -s )
+[[ -v 'backupMysqlLocalDir' ]]  || backupMysqlLocalDir="/home/backups/${hostname}-mysql"
+
+# dotenv "${tryDotenv[@]}" || { info "Failed to load env in: ${tryDotenv[@]}"; exit 2; }
+BACKUP_MYSQL_STORE="local:$backupMysqlLocalDir"
 
 createArgs=(
   --verbose
@@ -84,17 +94,23 @@ pruneKeepArgs=(
   --keep-yearly    2
 )
 
+backupMysqlLocalDir=
+backupMysqlArgs=() # Always appended
+backupMysqlAllArgs=() # Applies only for mode 'all'
+backupMysqlDbArgs=()
+backupMysqlSingleArgs=() # Args that only apply for single mode
+backupMysqlPruneArgs=( --keep-days 10 )
 
 ##################################
 # Default labels
 
-bb_label_home-full() {
+bb_label_home() {
   local self="$1" bbArg="$2"; shift 2
 
-  backupCreate "home" /home "$@"
+  backupCreate "$self" /home "$@"
 }
 
-bb_label_home() {
+bb_label_home-users() {
   local self="$1" bbArg="$2"; shift 2
 
   # backupCreate "home" /home --exclude "home/vmail" --exclude "$backupMysqlLocalDir" "$@"
@@ -104,100 +120,141 @@ bb_label_home() {
 bb_label_home-vmail() {
   local self="$1" bbArg="$2"; shift 2
 
-  backupCreate "vmail" /home/vmail "$@"
+  backupCreate "$self" /home/vmail "$@"
 }
 
 bb_label_sys() {
   local self="$1" bbArg="$2"; shift 2
 
-  backupCreate "sys" /etc /usr/local /root "$@"
+  backupCreate "$self" /etc /usr/local /root "$@"
 }
 
 bb_label_var() {
   local self="$1" bbArg="$2"; shift 2
 
-  backupCreate "var" /var "$@"
+  backupCreate "$self" /var "$@"
 }
 
 bb_label_etc() {
   local self="$1" bbArg="$2"; shift 2
 
-  backupCreate "sys" /etc "$@"
+  backupCreate "$self" /etc "$@"
 }
 
 bb_label_usr-local() {
   local self="$1" bbArg="$2"; shift 2
 
-  backupCreate "sys" /usr/local "$@"
+  backupCreate "$self" /usr/local "$@"
 }
+
+
+
 
 
 # Usage
 # backup-cron.sh -- mysql:hourly:single:-user_no_backup_%:10 
 # would backup all databases matching NOT LIKE 'user_no_backup_%'
-# storing in STORE[] with path prefix 'hourly' default in /home/backups/mysql-${hostname}/hourly/
-# default STORE=( local  ) /home/backups/mysql-${hostname}
+# storing in BACKUP_MYSQL_STORE with path prefix 'hourly' default in /home/backups/${hostname}-mysql/hourly/
+# default BACKUP_MYSQL_STORE=local:/home/backups/${hostname}-mysql
 bb_label_mysql() {
   local self="$1" bbArg="$2"; shift 2
-  local s="$bbArg"
-  local dir=hourly mode=single keepDays=0 db= rc=0
-  local backupArgs=() myArgs=()
+  local s="$bbArg" s2 store dir mode keepDays db dbA=() rc=0 _STORE
+  local args=() labelArgs=()
 
-  [[ -v 'STORE_MYSQL' ]] && (( ${#STORE_MYSQL[@]} > 0 )) && backupArgs+=( --store "${STORE_MYSQL[@]}" )
+  store="${s%%:*}"; s=${s#"$store"}; s=${s#:};
+  dir="${s%%:*}"; s=${s#"$dir"}; s=${s#:}
+  mode="${s%%:*}"; s=${s#"$mode"}; s=${s#:}
 
-  [[ "$s" == "" ]] || { # First arg is path prefix
-    dir="${s%%:*}"; s=${s#"$dir"}; s=${s#:}
+  case "$mode" in
+    db|single) db="${s%%:*}"; s=${s#"$db"}; s=${s#:} ;;
+  esac
+  
+  keepDays="${s%%:*}"; s=${s#"$keepDays"}; s=${s#:}
 
-    [[ "$s" == "" ]] || { # arg2: mode all|db|single (single )
-      mode="${s%%:*}"; s=${s#"$mode"}; s=${s#:}
+  while [[ "$s" != "" ]]; do
+    s2="${s%%:*}"
+    labelArgs+=( "$s2" ); s=${s#"$s2"}; s=${s#:}
+  done
 
-      case "$mode" in
-        db|single)
-          [[ "$s" == "" ]] || {
-            db="${s%%:*}"; s=${s#"$db"};s=${s#:}
-          }
-          ;;
-      esac
+  [[ "$mode" == '' ]] && mode=all
 
-      [[ "$s" == "" ]] || {
-        keepDays="${s%%:*}"; s=${s#"$keepDays"};s=${s#:}
+  [[ "$dir" == '' ]] && dir="$mode"
 
-        while [[ "$s" != "" ]]; do
-          local s2="${s%%:*}"
-          myArgs+=( "$s2" ); s=${s#"$s2"}; s=${s#:}
-        done
-      }
-    }
-  }
+  [[ "$keepDays" == '' ]] && keepDays=10
 
-  (( keepDays > 1 )) || { keepDays=-; info "Warning: keeping minimum 1 day. disabling prune"; rc=$( max 1 $rc ); }
-  backupArgs+=(
-    --keep-days $keepDays
-  )
-
+  args=()
   case "$mode" in
     all|prune) ;;
 
-    db) # In single mode becomes like Required TODO
-      [[ "$db" == "" ]] || myArgs+=( ${db//,/ } )
+    db) dbA+=( "$db" )
+      # [[ "$db" == "" ]] || myArgs+=( "$db" )
       ;;
     
     single) # In single mode db becomes like
-      [[ "$db" == "" ]] || myArgs+=( --like "$db" )
-      [[ -v 'mysqlSingleArgs' ]] && myArgs+=( "${mysqlSingleArgs[@]}" )
+      [[ "$db" == "" ]] || args+=( --like "$db" )
       ;;
-
     *) info "Error: unknown mode: '$mode'"; return 2 ;;
   esac
 
-  backupMysql "${backupArgs[@]}" -- "$dir" "$mode" "${myArgs[@]}" "$@"
-  backupMysqlRc=$?
+  (( keepDays > 1 )) && {
+    args+=(
+      --keep-days $keepDays
+    )
+  } || {
+    keepDays=-1; info "Warning: keeping minimum 1 day. disabling prune";
+    rc=$( max 1 $rc ); # Warning
+  }
 
+  # If store not defined we try to load default
+  [[ "$store" == '' ]] && {
+    [[ -v 'BACKUP_MYSQL_STORE' ]] && store='BACKUP_MYSQL_STORE' || {
+      [[ -v 'STORE' ]] && store='STORE'
+    }
+  }
+
+  [[ -v 'store' && -v $store ]] && _store="${!store}"
+
+  [[ -v '_STORE' ]] && (( ${#_store[@]} == 2 )) && {
+    args+=( --store "${_store[@]}" );
+  } || { info "Error: ${FUNCNAME[0]}: No STORE to use. store=$store"; }
+
+  set -- "$dir" "$mode" "${dbA[@]}" "${args[@]}" "${labelArgs[@]}" "$@"
+
+  backupMysql "$@"
+
+  backupMysqlRc=$?
   return $( max $backupMysqlRc $rc )
 }
 
 bb_label_mysql-skip-lock() {
   bb_label_mysql "$@" --skip-lock-tables
+}
+
+bb_label_my-user() {
+  local self="$1" bbArg="$2"; shift 2
+  local user repo s="$bbArg"
+
+  [[ "$s" == "" ]] && {
+    info "Error: label 'user' requires a argument: username"
+    return 2
+  } || { # First arg is user
+    user="${s%%:*}"; s=${s#"$user"}; s=${s#:}
+    [[ "$user" == "" ]] && { info "Error: $self:$bbArg param1(user) is required"; return 2; }
+
+    repo="${s%%:*}"; s=${s#"$repo"}; s=${s#:}
+
+    mysqlStore="${s%%:*}"; s=${s#"$mysqlRepo"}; s=${s#:}
+
+    mysqlDir="${s%%:*}"; s=${s#"$mysqlDir"}; s=${s#:}
+
+    mysqlLike="${s%%:*}"; s=${s#"$mysqlLike"}; s=${s#:}
+  }
+
+  [[ -v 'repo' && "$repo" != "" ]] && {
+    usingRepo "$repo" "$@"
+  } || {
+    "$@"
+  }
 }
 
 
