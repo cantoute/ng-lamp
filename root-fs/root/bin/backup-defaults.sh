@@ -1,17 +1,19 @@
 #!/usr/bin/env bash
 
-# tryDotenv=(
-#   .backup.${hostname}.env
-#   ~/.backup.${hostname}.env
-#   /root/.backup.${hostname}.env
-#   "${SCRIPT_DIR}/.backup.${hostname}.env"
-# )
+[[ -v 'loadDotenv' && "$loadDotenv" == 'true' ]] && {
+  tryDotenv=(
+    .backup.${hostname}.env
+    ~/.backup.${hostname}.env
+    /root/.backup.${hostname}.env
+    "${SCRIPT_DIR}/.backup.${hostname}.env"
+  )
+  dotenv "${tryDotenv[@]}" || { info "Failed to load env in: ${tryDotenv[@]}"; exit 2; }
+}
 
+# Are set in backup-defaults.sh
+# [[ -v 'hostname' ]]             || hostname=$( hostname -s )
+# [[ -v 'backupMysqlLocalDir' ]]  || backupMysqlLocalDir="/home/backups/${hostname}-mysql"
 
-[[ -v 'hostname' ]]             || hostname=$( hostname -s )
-[[ -v 'backupMysqlLocalDir' ]]  || backupMysqlLocalDir="/home/backups/${hostname}-mysql"
-
-# dotenv "${tryDotenv[@]}" || { info "Failed to load env in: ${tryDotenv[@]}"; exit 2; }
 BACKUP_MYSQL_STORE="local:$backupMysqlLocalDir"
 
 createArgs=(
@@ -146,9 +148,6 @@ bb_label_usr-local() {
 
   backupCreate "$self" /usr/local "$@"
 }
-
-
-
 
 
 # Usage mysql:BACKUP_MYSQL_STORE_antony:daily:single:antony%:10

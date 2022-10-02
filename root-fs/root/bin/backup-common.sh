@@ -14,6 +14,8 @@ init() {
   # LANG="en_US.UTF-8"
 
   [[ -v 'DRYRUN' ]]               || DRYRUN=
+  [[ -v 'hostname' ]]             || hostname=$( hostname -s )
+  [[ -v 'backupMysqlLocalDir' ]]  || backupMysqlLocalDir="/home/backups/${hostname}-mysql"
 
   MYSQLDUMP="$( which mysqldump )"
   FIND="$( which find )"
@@ -45,7 +47,7 @@ init() {
   RCLONE=( "$( which rclone )" )
 }
 
-initUtils() {
+initDefaults() {
   INIT+=( initUtils )
 
   # Usage: isArray BASH_VERSINFO && echo BASH_VERSINFO is an array
@@ -296,21 +298,33 @@ initUtils() {
   info() { echo "$( LC_ALL=C date ) $*" >> "$infoTmp"; >&2 printf "\n%s %s\n\n" "$( LC_ALL=C date )" "$*"; }
   infoRecap() { >&2 cat "$infoTmp"; }
 
+
+  # initStore requires initUtils
+  initStore() {
+    INIT+=( initStore )
+
+    [[ -v 'SCRIPT_DIR' ]] || {
+      SCRIPT_DIR="${0%/*}"; SCRIPT_NAME="${0##*/}";
+    }
+
+    source "$SCRIPT_DIR/backup-store.sh"                \
+      && source "$SCRIPT_DIR/backup-store-local.sh"     \
+      && source "$SCRIPT_DIR/backup-store-rclone.sh"    \
+      && {
+        # set default store if required
+        [[ -v 'STORE' ]] || STORE="local:/home/backup/${hostname}"
+      } || return $?
+  }
+
+
+  ###########################
+  # Load defaults
+  ##########
+
   . "$SCRIPT_DIR/backup-defaults.sh"
 }
 
-initStore() {
-  INIT+=( initStore )
-
-  [[ -v 'SCRIPT_DIR' ]] || {
-    SCRIPT_DIR="${0%/*}"; SCRIPT_NAME="${0##*/}";
-  }
-
-  source "$SCRIPT_DIR/backup-store.sh"                \
-    && source "$SCRIPT_DIR/backup-store-local.sh"     \
-    && source "$SCRIPT_DIR/backup-store-rclone.sh"    \
-    && {
-      # set default store if required
-      [[ -v 'STORE' ]] || STORE="local:/home/backup/${hostname}"
-    } || return $?
+# For backward compatibility
+initUtils() {
+  initDefaults "$@"
 }

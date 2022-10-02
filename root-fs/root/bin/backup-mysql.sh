@@ -10,17 +10,16 @@ SCRIPT_DIR="${0%/*}"
 SCRIPT_NAME_NO_EXT="${SCRIPT_NAME%.*}"
 
 source "${SCRIPT_DIR}/backup-common.sh";
-# info "tttttttttttttttttttttttttt $BACKUP_MYSQL_STORE"
 
 #############
 # Defaults
 ######
-# [ -z ${BACKUP_MYSQL_STORE+x} ] || info "tttttttttttttttttttttttttt ${BACKUP_MYSQL_STORE}"
+
 backupMode='all'
 
 DUMP=( dump )
 
-init && initUtils && {
+init && initDefaults && {
 
   [[ -v 'BACKUP_MYSQL_STORE' ]] && STORE="$BACKUP_MYSQL_STORE" || {
     [[ -v 'backupMysqlLocalDir' ]] && STORE="local:$backupMysqlLocalDir"
