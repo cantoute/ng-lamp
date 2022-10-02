@@ -37,6 +37,10 @@ store-local-create() {
   local bucket="$1" # set in $STORE
   shift
 
+  [[ "$bucket" == "" || "$bucket" == '/' ]] && {
+    info "Error: bucket not acceptable bucket:'$bucket'"
+    return 2
+  }
 
   local rc storeLocalInitRc mkdirRc fileSize exitRc=0
 

@@ -212,10 +212,10 @@ bb_label_mysql() {
     }
   }
 
-  [[ -v 'store' && -v $store ]] && _store="${!store}"
+  [[ -v 'store' && -v "$store" ]] && _STORE="${!store}"
 
-  [[ -v '_STORE' ]] && (( ${#_store[@]} == 2 )) && {
-    args+=( --store "${_store[@]}" );
+  [[ -v '_STORE' ]] && {
+    args+=( --store "${_STORE}" );
   } || { info "Error: ${FUNCNAME[0]}: No STORE to use. store=$store"; }
 
   set -- "$dir" "$mode" "${dbA[@]}" "${args[@]}" "${labelArgs[@]}" "$@"
