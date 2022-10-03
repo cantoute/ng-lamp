@@ -77,7 +77,7 @@ excludeArgs=(
   --exclude '**/wp-content/*backup*'
 
   # Misc
-  --exclude '**/.ipfs/data'
+  --exclude '**/.ipfs'
   --exclude '**/.bitcoin'
   --exclude '**/downloads'
   --exclude '**/Downloads'
@@ -147,9 +147,6 @@ bb_label_usr-local() {
 
   backupCreate "$self" /usr/local "$@"
 }
-
-
-
 
 # user:$user:$repo
 bb_label_user() {

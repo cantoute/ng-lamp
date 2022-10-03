@@ -21,8 +21,8 @@ DUMP=( dump )
 
 init && initDefaults && {
 
-  [[ -v 'BACKUP_MYSQL_STORE' ]] && STORE="$BACKUP_MYSQL_STORE" || {
-    [[ -v 'backupMysqlLocalDir' ]] && STORE="local:$backupMysqlLocalDir"
+  [[ -v 'BACKUP_MYSQL_STORE' ]] || {
+    [[ -v 'backupMysqlLocalDir' ]] && BACKUP_MYSQL_STORE="local:${backupMysqlLocalDir}"
   }
 
   # if [[ -v 'BACKUP_MYSQL_STORE' ]]; then
@@ -37,7 +37,6 @@ init && initDefaults && {
   #   [[ -v 'backupMysqlLocalDir' ]] && STORE=( 'local' "$backupMysqlLocalDir" );
   # }
 
-  # STORE=( 'local' "$backupMysqlLocalDir" )
   initStore
 } || { >&2 echo "Failed to init"; exit 2; }
 

@@ -312,7 +312,7 @@ initDefaults() {
       && source "$SCRIPT_DIR/backup-store-rclone.sh"    \
       && {
         # set default store if required
-        [[ -v 'STORE' ]] || STORE="local:/home/backup/${hostname}"
+        [[ -v 'STORE' ]] || STORE="local:/home/backups/${hostname}"
       } || return $?
   }
 

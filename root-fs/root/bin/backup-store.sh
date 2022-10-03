@@ -9,7 +9,7 @@
   init && initUtils && {
     [[ -v 'STORE' ]] || {
       # source "${SCRIPT_DIR}/backup-store-local.sh";
-      STORE="local:/home/backup/${hostname}"
+      STORE="local:/home/backups/${hostname}"
       initStore
     }
   }
