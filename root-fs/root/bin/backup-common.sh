@@ -194,9 +194,10 @@ initDefaults() {
 
     (( ${#COMPRESS[@]} > 0 )) && {
       "${COMPRESS[@]}";
-      rc=$( max $? $rc )
     } || cat;
 
+    rc=$( max $? ${PIPESTATUS[@]} $rc )
+    
     return $rc
   }
 
