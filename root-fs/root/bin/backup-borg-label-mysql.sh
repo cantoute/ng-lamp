@@ -120,8 +120,8 @@ bb_label_my-user() {
   dir="${s%%:*}"; s=${s#"$dir"}; s=${s#:}
   keep="${s%%:*}"; s=${s#"$keep"}; s=${s#:}
 
-  [[ -v "BACKUP_MYSQL_STORE_${user}" ]] && store="BACKUP_MYSQL_STORE_${user}" || {
-    [[ -v "STORE_${user}" ]] && store="STORE_${user}" || {
+  [[ -v "BACKUP_MYSQL_STORE_${user//-/_}" ]] && store="BACKUP_MYSQL_STORE_${user//-/_}" || {
+    [[ -v "STORE_${user//-/_}" ]] && store="STORE_${user//-/_}" || {
       BACKUP_MYSQL_STORE_userHome="local:$( getUserHome "$user" )/backup-mysql"
       store="BACKUP_MYSQL_STORE_userHome"
     }
@@ -137,15 +137,19 @@ bb_label_my-user() {
 
   like="${user}_%"
 
+  # Backup mysql via label mysql-store
   bb_label_mysql-store "$self" "${store}:${dir}:single:${like}:${keep}" "$@"
 
   mysqlRc=$?
   rc=$( max $mysqlRc $rc )
 
-
+  # Backup user via label user
   bb_label_user "user" "${user}"
+
   userRc=$?
   rc=$( max $userRc $rc )
+
+  [[ "$store" == 'BACKUP_MYSQL_STORE_userHome' ]] && unset "$store"
 
   return $rc
 }
