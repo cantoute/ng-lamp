@@ -114,26 +114,20 @@ bb_label_my-user() {
   local self="$1" bbArg="$2"; shift 2
   local user repo s="$bbArg" rc=0 mysqlRc store dir keep like # subMode
 
+  # Processing bbArg user:dir:keep
   user="${s%%:*}"; s=${s#"$user"}; s=${s#:}
   [[ "$user" == "" ]] && { info "Error: $self:$bbArg param1(user) is required"; return 2; }
 
   dir="${s%%:*}"; s=${s#"$dir"}; s=${s#:}
   keep="${s%%:*}"; s=${s#"$keep"}; s=${s#:}
 
+  # trying env BACKUP_MYSQL_STORE_$user STORE_$user or creates a local store in user ~/backup-mysql
   [[ -v "BACKUP_MYSQL_STORE_${user//-/_}" ]] && store="BACKUP_MYSQL_STORE_${user//-/_}" || {
     [[ -v "STORE_${user//-/_}" ]] && store="STORE_${user//-/_}" || {
       BACKUP_MYSQL_STORE_userHome="local:$( getUserHome "$user" )/backup-mysql"
       store="BACKUP_MYSQL_STORE_userHome"
     }
   }
-
-  # subMode="${self#my-user}"
-
-  # # Allow '-skip-lock' only
-  # case "$subMode" in
-  #   -skip-lock|'') ;;
-  #   *) subMode=''; info "Info: ${FUNCNAME[0]}: unknown subMode: '$subMode' self: '$self' bbArg: '$bbArg'" ;;
-  # esac
 
   like="${user}_%"
 

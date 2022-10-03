@@ -13,63 +13,6 @@
   }
 }
 
-# your email@some.co
-# only used for logrotate 
-alertEmail="alert"
-
-logFile="/var/log/backup-borg.log"
-logrotateConf="/etc/logrotate.d/backup-borg"
-
-# BORG_CREATE=( "${SCRIPT_DIR}/backup-borg-create.sh" )
-[[ -v 'BACKUP_MYSQL' ]] || BACKUP_MYSQL=( "${SCRIPT_DIR}/backup-mysql.sh" )
-
-exitRc=0
-onErrorStop=
-doLogrotateCreate=
-doInit=
-beSilentOnSuccess=
-
-bbLabel=
-backupLabel=
-
-# Debug
-# logFile="/tmp/backup-borg.log2"
-# logrotateConf="/tmp/backup-borg4"
-# NICE=""
-# DRYRUN="dryRun"
-
-while (( $# > 0 )); do
-  case "$1" in
-    --)                          shift; break ;;
-    --log)  logFile="$2";             shift 2 ;;
-    --cron) beSilentOnSuccess="true";   shift ;;
-
-    --verbose|--progress) createArgs+=( "$1" );              shift ;;
-    --exclude|--include)  createArgs+=( "$1" "$2" );       shift 2 ;;
-
-    --do-init|--init)       doInit="true";                   shift ;;
-    --on-error-stop|--stop) onErrorStop="true";              shift ;;
-
-    --dry-run|-n) DRYRUN=dryRun; createArgs+=( --dry-run );  shift ;;
-    --borg-dry-run) createArgs+=( --dry-run );               shift ;;
-
-    --mysql-single-like|--mysql-like)
-      # Takes affect only for mode 'single'
-      backupMysqlSingleArgs+=( --like "$2" )
-      shift 2 ;;
-    
-    --mysql-single-not-like|--mysql-not-like)
-      # Takes affect only for mode 'single'
-      backupMysqlSingleArgs+=( --not-like "$2" )
-      shift 2 ;;
-
-    *)
-      info "Error: unknown argument '$1'. Did you forget '--' that should precede label names?"
-      exit 1
-      ;;
-  esac
-done
-
 ##############################################
 
 backupMysql() {
@@ -309,6 +252,106 @@ main() {
 
   return $rc
 }
+
+
+# your email@some.co
+# only used for logrotate 
+alertEmail="alert"
+
+logFile="/var/log/backup-borg.log"
+logrotateConf="/etc/logrotate.d/backup-borg"
+
+# BORG_CREATE=( "${SCRIPT_DIR}/backup-borg-create.sh" )
+[[ -v 'BACKUP_MYSQL' ]] || BACKUP_MYSQL=( "${SCRIPT_DIR}/backup-mysql.sh" )
+
+exitRc=0
+onErrorStop=
+doLogrotateCreate=
+doInit=
+beSilentOnSuccess=
+
+bbLabel=
+backupLabel=
+
+# Debug
+# logFile="/tmp/backup-borg.log2"
+# logrotateConf="/tmp/backup-borg4"
+# NICE=""
+# DRYRUN="dryRun"
+
+while (( $# > 0 )); do
+  case "$1" in
+    --)                          shift; break ;;
+    --log)  logFile="$2";             shift 2 ;;
+    --cron) beSilentOnSuccess="true";   shift ;;
+    --conf) loadConf="$2";            shift 2 ;;
+
+    --verbose|--progress) createArgs+=( "$1" );              shift ;;
+    --exclude|--include)  createArgs+=( "$1" "$2" );       shift 2 ;;
+
+    --do-init|--init)       doInit="true";                   shift ;;
+    --on-error-stop|--stop) onErrorStop="true";              shift ;;
+
+    --dry-run|-n) DRYRUN=dryRun; createArgs+=( --dry-run );  shift ;;
+    --borg-dry-run) createArgs+=( --dry-run );               shift ;;
+
+    --mysql-single-like|--mysql-like)
+      # Takes affect only for mode 'single'
+      backupMysqlSingleArgs+=( --like "$2" )
+      shift 2 ;;
+    
+    --mysql-single-not-like|--mysql-not-like)
+      # Takes affect only for mode 'single'
+      backupMysqlSingleArgs+=( --not-like "$2" )
+      shift 2 ;;
+
+    *)
+      info "Error: unknown argument '$1'. Did you forget '--' that should precede label names?"
+      exit 2
+      ;;
+  esac
+done
+
+###########################
+# Load local conf
+#########
+
+tryConf() {
+  while (( $# > 0 )); do
+    if [[ -f "$1" ]]; then
+      . "$1" && {
+        info "Info: ${SCRIPT_NAME}: Loaded conf: '$1'";
+        loadConf="$1"
+        return;
+      } || {
+        info "Error: failed to load conf: '$1' rc 2";
+        return 2;
+      };
+    else
+      shift;
+    fi
+  done
+}
+
+tryConf=(
+  "$SCRIPT_DIR/backup-${hostname}.sh"
+  "$SCRIPT_DIR/backup-local.sh"
+)
+
+if [[ -v 'loadConf' && "$loadConf" == '' ]]; then
+  . "$loadConf" || {
+    info "Error: ${SCRIPT_NAME}: Failed to load conf '$loadConf' rc 2";
+    exit 2;
+  }
+else
+  # Not finding a file isn't an error
+  # Finding a file and failing to load it is an error and we exit
+  tryConf "${tryConf[@]}" || { exit $?; }
+fi
+
+# [[ -f "$SCRIPT_DIR/backup-${hostname}.sh" ]] && . "$SCRIPT_DIR/backup-${hostname}.sh" || {
+#   [[ -f "$SCRIPT_DIR/backup-local.sh" ]] && . "$SCRIPT_DIR/backup-local.sh";
+# }
 
 set -- main "$@" # Pass call to main
 

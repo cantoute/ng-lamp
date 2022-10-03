@@ -1,70 +1,47 @@
 #!/bin/bash
 
-set -u
-
-[[ -v 'INIT' ]] || {
-  # Only when called directly
-
-  SCRIPT_DIR="${0%/*}"
-  SCRIPT_NAME="${0##*/}"
-  SCRIPT_NAME_NO_EXT="${SCRIPT_NAME%.*}"
-
-  . "${SCRIPT_DIR}/backup-common.sh" && init && initUtils || {
-    >&2 echo "Error: failed to load ${SCRIPT_DIR}/backup-common.sh and init"
-    exit 2
-  }
-}
-
-
+# Borg environment
 tryDotenv=(
   # .backup.${hostname}.env
   # ~/.backup.${hostname}.env
   /root/.backup.${hostname}.env
   # "${SCRIPT_DIR}/.backup.${hostname}.env"
 )
-
 dotenv "${tryDotenv[@]}" || { info "Failed to load env in: ${tryDotenv[@]@Q}"; exit 2; }
 
+alertEmail=alert
 
 # BACKUP_MYSQL_STORE=local:/home/backups/${hostname}-mysql
 # BACKUP_MYSQL_STORE_user=rclone:user@localhost:22/home/backups/${hostname}-%user%-mysql
 # BACKUP_MYSQL_STORE_some_label=rclone:user@localhost:22/home/backups/${hostname}-mysql
 
-alertEmail=alert
 
-
-# load common labels
-source "${SCRIPT_DIR}/backup-borg-label.sh";
-
-
-# Create your own
+# Global to borg create
 bb_borg_create_wrapper() {
   "$@" --exclude '**/node_modules'
 }
 
-bb_label_my-user() {
-  local rc=0 myRc borgRc label="$1" bbArg="$2"; shift 2
+# Wrapper for label named home
+bb_borg_create_wrapper_home() {
+  local args=(
+    --exclude 'home/postgresql/data'
+    --exclude "home/backups/${hostname}-mysql"
+  )
 
-  # local myDir="${backupMysqlLocalDir}-${label}"
+  "$@" "${args[@]}"
+}
 
-  local myUser="$bbArg"
-  local myDir=~/$myUser/backup/mysql
+# Custom label 'custom-home'
+bb_label_custom-home() {
+  local self="$1" bbArg="$2"; shift 2
 
-  # Create local backup
-  # usingRepo "${myUser}" backupBorgMysql single --label "${myUser}" --dir "${myDir}"  --like "${myUser}_%"
-  backupBorgMysql single --dir "${myDir}"  --like "${myUser}_%"
+  local args=(
+    --exclude 'home/postgresql/data'
+    --exclude "home/backups/${hostname}-mysql"
+  )
 
-  myRc=$( max $? $rc )
-
-  # Upload the backup to borg repo using BORG_REPO_${label}
-  usingRepo "${myUser}" borgCreate "${myUser}" ~/$myUser "$@"
-
-  rc=$( max $? $rc )
-
-  return $rc
+  backupCreate "$self" /home "${args[@]}" "$@"
 }
 
 
-
-. "${SCRIPT_DIR}/backup-borg.sh";
-
+# Examples: see backup-defaults.sh and backup-borg-label-mysql.sh
