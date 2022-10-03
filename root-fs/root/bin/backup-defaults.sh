@@ -108,44 +108,58 @@ pruneKeepArgs=(
 bb_label_home() {
   local self="$1" bbArg="$2"; shift 2
 
-  backupCreate "$self" /home "$@"
+  set -- backupCreate "$self" /home "$@"
+  
+  tryingRepo "$self" "home" -- "$@"
 }
 
 bb_label_home-users() {
   local self="$1" bbArg="$2"; shift 2
 
   # backupCreate "home" /home --exclude "home/vmail" --exclude "$backupMysqlLocalDir" "$@"
-  bb_label_home "$self" "$bbArg" --exclude "home/vmail" --exclude "$backupMysqlLocalDir" "$@"
+  set -- bb_label_home "$self" "$bbArg" --exclude "home/vmail" --exclude "$backupMysqlLocalDir" "$@"
+  
+  tryingRepo "$self" "home-users" "users" "home" -- "$@"
 }
 
-bb_label_home-vmail() {
+bb_label_vmail() {
   local self="$1" bbArg="$2"; shift 2
 
-  backupCreate "$self" /home/vmail "$@"
+  set -- backupCreate "$self" /home/vmail "$@"
+
+  tryingRepo "$self" "vmail" "home" -- "$@"
 }
 
 bb_label_sys() {
   local self="$1" bbArg="$2"; shift 2
 
-  backupCreate "$self" /etc /usr/local /root "$@"
+  set -- backupCreate "$self" /etc /usr/local /root "$@"
+
+  tryingRepo "$self" "sys" -- "$@"
 }
 
 bb_label_var() {
   local self="$1" bbArg="$2"; shift 2
 
-  backupCreate "$self" /var "$@"
+  set -- backupCreate "$self" /var "$@"
+
+  tryingRepo "$self" "var" -- "$@"
 }
 
 bb_label_etc() {
   local self="$1" bbArg="$2"; shift 2
 
-  backupCreate "$self" /etc "$@"
+  set -- backupCreate "$self" /etc "$@"
+
+  tryingRepo "$self" "etc" "sys" -- "$@"
 }
 
 bb_label_usr-local() {
   local self="$1" bbArg="$2"; shift 2
 
-  backupCreate "$self" /usr/local "$@"
+  set -- backupCreate "$self" /usr/local "$@"
+
+  tryingRepo "$self" "sys" -- "$@"
 }
 
 # user:$user:$repo
@@ -158,17 +172,16 @@ bb_label_user() {
 
   repo="${s%%:*}"; s=${s#"$repo"}; s=${s#:};
 
-  [[ -v "BORG_REPO_${repo}_${user}" ]] && repo="${repo}_${user}" || {
-    [[ -v "BORG_REPO_${user}" ]] && repo="${user}"
-  }
+  # [[ -v "BORG_REPO_${repo}_${user}" ]] && repo="${repo}_${user}" || {
+  #   [[ -v "BORG_REPO_${user}" ]] && repo="${user}"
+  # }
 
   set -- backupCreate "${self}-${user}" "$( getUserHome "$user" )" "$@"
 
-  >&2 echo "$@"
+  # >&2 echo "$@"
+  info "Info: ${FUNCNAME[0]}: executing $@"
 
-  if [[ -v 'repo' && "$repo" != "" ]]; then
-    usingRepo "$repo" "$@"
-  else "$@"; fi
+  tryingRepo "${repo}_${user}" "$repo" "$user" "$self" "user" -- "$@"
 }
 
 #########

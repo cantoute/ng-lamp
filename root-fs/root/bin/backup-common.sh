@@ -239,10 +239,16 @@ initDefaults() {
     [[ -v 'BORG_PASSPHRASE' ]] && BORG_PASSPHRASE_ORIG="$BORG_PASSPHRASE"
 
     var="BORG_REPO_${repo}"
-    [[ -v "$var" ]] && export BORG_REPO="${!var}"
+    [[ -v "$var" ]] && {
+      export BORG_REPO="${!var}";
+      tryingRepoSkip="true";
+    }
 
     var="BORG_PASSPHRASE_${repo}"
-    [[ -v "$var" ]] && export BORG_PASSPHRASE="${!var}"
+    [[ -v "$var" ]] && {
+      export BORG_PASSPHRASE="${!var}";
+      tryingRepoSkip="true";
+    }
 
     "$@"
 
@@ -253,6 +259,27 @@ initDefaults() {
     [[ -v 'BORG_PASSPHRASE_ORIG' ]] && export BORG_PASSPHRASE="${BORG_PASSPHRASE_ORIG}" || unset BORG_PASSPHRASE
 
     return $rc
+  }
+
+  tryingRepo() {
+    local repo s
+
+    while (( $# > 0 )); do
+      case "$1" in
+        --) shift; break ;;
+         *) # We keep first one found and shift out the others
+          [[ -v 'repo' ]] || {
+            s="${1//-/_}";
+            [[ -v "BORG_REPO_$s" ]] && repo="$s"
+          }
+          shift; ;;
+      esac
+    done
+
+    [[ -v 'repo' && ! -v 'tryingRepoSkip' ]] && {
+      info "Info: ${FUNCNAME[0]}: using repo: $repo"
+      usingRepo "$repo" "$@";
+    } || { "$@"; }
   }
 
   createLogrotate() {

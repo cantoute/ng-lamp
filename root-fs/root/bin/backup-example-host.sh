@@ -26,9 +26,9 @@ tryDotenv=(
 dotenv "${tryDotenv[@]}" || { info "Failed to load env in: ${tryDotenv[@]@Q}"; exit 2; }
 
 
-# BACKUP_MYSQL_STORE=local:/home/backup/${hostname}-mysql
-# BACKUP_MYSQL_STORE_user=rclone:user@localhost:22/home/backup/${hostname}-%user%-mysql
-# BACKUP_MYSQL_STORE_some_label=rclone:user@localhost:22/home/backup/${hostname}-mysql
+# BACKUP_MYSQL_STORE=local:/home/backups/${hostname}-mysql
+# BACKUP_MYSQL_STORE_user=rclone:user@localhost:22/home/backups/${hostname}-%user%-mysql
+# BACKUP_MYSQL_STORE_some_label=rclone:user@localhost:22/home/backups/${hostname}-mysql
 
 alertEmail=alert
 
