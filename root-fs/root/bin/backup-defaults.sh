@@ -201,5 +201,11 @@ bb_label_sleep() {
 bb_label_test() {
   local self="$1" bbArg="$2"; shift 2
 
-  [[ "$bbArg" == 'ok' ]] || { return 128; }
+  case "$bbArg" in
+                 [0-9]*) return $bbArg ;;
+         ok|success|s|t) return 0      ;;
+         warning|warn|w) return 1      ;;
+       ko|error|err|e|f) return 2      ;;
+                      *) return 2      ;;
+  esac
 }
