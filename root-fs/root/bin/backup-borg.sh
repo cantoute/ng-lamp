@@ -232,11 +232,40 @@ backupBorgMysql() {
   return $( max $mysqlRc $borgRc )
 }
 
+tryConf() {
+  while (( $# > 0 )); do
+    if [[ -f "$1" ]]; then
+      . "$1" && {
+        info "Info: ${SCRIPT_NAME}: Loaded conf: '$1'";
+        tryConfLoaded="$1"
+        return;
+      } || { # Seems there is an error in config file
+        info "Error: failed to load conf: '$1' rc 2";
+        return 2;
+      };
+    else
+      shift;
+    fi
+  done
+}
+
 ###################################################
 # Main
 
 main() {
-  local rc trace=( "$SCRIPT_NAME" "$@" )
+  local rc trace=( "$SCRIPT_NAME" "${FUNCNAME[0]}": "$@" )
+
+  # To be able to trap all output for --cron mode we need to load 
+  if [[ -v 'loadConf' && "$loadConf" == '' ]]; then
+    . "$loadConf" || {
+      info "Error: ${SCRIPT_NAME}: Failed to load conf '$loadConf' rc 2";
+      return 2;
+    }
+  else
+    # Not finding a file isn't an error
+    # Finding a file and failing to load it is an error and we exit
+    tryConf "${tryConf[@]}" || { return $?; }
+  fi
 
   backupBorg "$@" 2>&1 | logToFile "$logFile"
 
@@ -244,7 +273,7 @@ main() {
 
   rc=$( max ${pipeRc[@]} )
 
-  (( ${pipeRc[1]} == 0 )) || info "Warning: failed to write to file '$logFile'"
+  (( ${pipeRc[1]} == 0 )) && { loggingToFile="$logFile"; } || { info "Warning: failed to write to file '$logFile'"; }
 
   if   (( $rc == 0 )); then info "Success: '${trace[@]}' finished successfully."
   elif (( $rc == 1 )); then info "Warning: '${trace[@]}' finished with warnings. rc $rc"
@@ -272,6 +301,16 @@ beSilentOnSuccess=
 
 bbLabel=
 backupLabel=
+
+
+###########################
+# Look for local conf
+#########
+
+tryConf=(
+  "$SCRIPT_DIR/backup-${hostname}.sh"
+  "$SCRIPT_DIR/backup-local.sh"
+)
 
 # Debug
 # logFile="/tmp/backup-borg.log2"
@@ -312,42 +351,6 @@ while (( $# > 0 )); do
   esac
 done
 
-###########################
-# Load local conf
-#########
-
-tryConf() {
-  while (( $# > 0 )); do
-    if [[ -f "$1" ]]; then
-      . "$1" && {
-        info "Info: ${SCRIPT_NAME}: Loaded conf: '$1'";
-        loadConf="$1"
-        return;
-      } || {
-        info "Error: failed to load conf: '$1' rc 2";
-        return 2;
-      };
-    else
-      shift;
-    fi
-  done
-}
-
-tryConf=(
-  "$SCRIPT_DIR/backup-${hostname}.sh"
-  "$SCRIPT_DIR/backup-local.sh"
-)
-
-if [[ -v 'loadConf' && "$loadConf" == '' ]]; then
-  . "$loadConf" || {
-    info "Error: ${SCRIPT_NAME}: Failed to load conf '$loadConf' rc 2";
-    exit 2;
-  }
-else
-  # Not finding a file isn't an error
-  # Finding a file and failing to load it is an error and we exit
-  tryConf "${tryConf[@]}" || { exit $?; }
-fi
 
 # [[ -f "$SCRIPT_DIR/backup-${hostname}.sh" ]] && . "$SCRIPT_DIR/backup-${hostname}.sh" || {
 #   [[ -f "$SCRIPT_DIR/backup-local.sh" ]] && . "$SCRIPT_DIR/backup-local.sh";
@@ -355,7 +358,7 @@ fi
 
 set -- main "$@" # Pass call to main
 
-[[ "$beSilentOnSuccess" == "true" ]] && { # Aka cron mode
+[[ -v 'beSilentOnSuccess' && "$beSilentOnSuccess" == "true" ]] && { # Aka cron mode
   OUTPUT=`"$@" 2>&1` || {
     rc=$?;
     
@@ -370,7 +373,34 @@ set -- main "$@" # Pass call to main
     infoRecap
     >&2 echo "##########################"
 
-    echo "$OUTPUT";
+    # IFS=$'\n' outputA=( $OUTPUT )
+    # nb=${#outputA[@]}
+
+    # readarray -t outputA <<<"${OUTPUT}"
+    # nb=${#outputA[@]}
+
+    nb="${OUTPUT//[^\n]}"; nb=${#nb}
+
+    nbHead=100
+    nbTail=100
+
+    # There is a log file and nb lines is greater than nbHead + nbTail + 100
+    # We truncate
+    if [[ -v 'loggingToFile' ]] && (( nb > nbHead + nbTail + 100 )); then
+      head -n $nbHead <( echo "$OUTPUT" )
+
+      echo ...
+      echo "##########################"
+      echo "# Truncated $(( nb - nbHead - nbTail )) lines"
+      echo "# Logged into '$loggingToFile'"
+      echo "##########################"
+      echo ...
+
+      tail -n $nbTail <( echo "$OUTPUT" )
+    else
+      echo "$OUTPUT"
+    fi
+
     exit $rc;
   }
 } || {
