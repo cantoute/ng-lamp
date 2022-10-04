@@ -362,8 +362,8 @@ set -- main "$@" # Pass call to main
   OUTPUT=`"$@" 2>&1` || {
     rc=$?;
     
-    (( rc == 1 )) && >&2 echo "Warning"
-    (( rc  > 1 )) && >&2 echo "Error"
+    (( rc == 1 )) && >&2 echo "** Warning **"
+    (( rc  > 1 )) && >&2 echo "## ERROR ##"
 
     >&2 echo 
     
