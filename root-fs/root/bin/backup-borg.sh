@@ -11,7 +11,7 @@ alertEmail="alert"
 logFile="/var/log/backup-borg.log"
 logrotateConf="/etc/logrotate.d/backup-borg"
 
-. "${SCRIPT_DIR}/backup-common.sh" && init && initUtils && initDefaults || {
+. "${SCRIPT_DIR}/backup-common.sh" && init && initUtils || {
     >&2 echo "Error: failed to load ${SCRIPT_DIR}/backup-common.sh and init"
     exit 2
   }
@@ -83,29 +83,16 @@ while (( $# > 0 )); do
   esac
 done
 
-# [[ -v 'loadDotenv' && "$loadDotenv" == 'true' ]] && {
-  # tryDotenv=(
-  #   .backup.${hostname}.env
-  #   ~/.backup.${hostname}.env
-  #   /root/.backup.${hostname}.env
-  #   "${SCRIPT_DIR}/.backup.${hostname}.env"
-  # )
-  [[ -v 'tryDotenv' ]] && (( ${#tryDotenv[@]} > 0 )) && dotenv "${tryDotenv[@]}" || {
-    info "Failed to load env in: ${tryDotenv[@]}"; exit 2;
-  }
-# }
-
-
-# tryConf=(
-#   "$SCRIPT_DIR/backup-${hostname}.sh"
-#   "$SCRIPT_DIR/backup-local.sh"
-# )
+# Load dotenv
+[[ -v 'tryDotenv' ]] && (( ${#tryDotenv[@]} > 0 )) && dotenv "${tryDotenv[@]}" || {
+  info "Failed to load env in: ${tryDotenv[@]}"; exit 2;
+}
 
 tryConf() {
   while (( $# > 0 )); do
     if [[ -f "$1" ]]; then
       . "$1" && {
-        info "Info: ${SCRIPT_NAME}: Loaded conf: '$1'";
+        >&2 echo "Info: ${SCRIPT_NAME}: Loaded conf: '$1'";
         loadedConf="$1"
         return;
       } || { # Seems there is an error in config file
@@ -136,7 +123,11 @@ loadOrTryConf() {
 # loadConfRc=$?
 # (( loadConfRc == 0 )) && [[ "$loadConfOutput" == '' ]] && unset 'loadConfOutput'
 
-loadOrTryConf "${tryConfFiles[@]}"
+if [[ -v 'beSilentOnSuccess' ]]; then
+  loadOrTryConf "${tryConfFiles[@]}" >>"$infoTmp" 2>&1
+else
+  loadOrTryConf "${tryConfFiles[@]}"
+fi
 loadConfRc=$?
 
 (( loadConfRc == 0 )) || {
@@ -162,6 +153,8 @@ loadConfRc=$?
 # [[ -f "$SCRIPT_DIR/backup-${hostname}.sh" ]] && . "$SCRIPT_DIR/backup-${hostname}.sh" || {
 #   [[ -f "$SCRIPT_DIR/backup-local.sh" ]] && . "$SCRIPT_DIR/backup-local.sh";
 # }
+
+autoNice
 
 set -- main "$@" # Pass call to main
 

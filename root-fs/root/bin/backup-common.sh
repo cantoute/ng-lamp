@@ -38,17 +38,19 @@ init() {
     compressExt=
   fi
 
-  # self nice and ionice if they can be found in path
-  command -v renice >/dev/null 2>&1 && renice -n 10 -p $$ > /dev/null
-  command -v ionice >/dev/null 2>&1 && ionice -c3   -p $$ > /dev/null
-
   BORG=( borg )
 
   RCLONE=( "$( which rclone )" )
 }
 
-initDefaults() {
+initUtils() {
   INIT+=( initUtils )
+
+  autoNice() {
+    # self nice and ionice if they can be found in path
+    command -v renice >/dev/null 2>&1 && renice -n 10 -p $$ > /dev/null
+    command -v ionice >/dev/null 2>&1 && ionice -c3   -p $$ > /dev/null
+  }
 
   # Usage: isArray BASH_VERSINFO && echo BASH_VERSINFO is an array
   # https://stackoverflow.com/questions/14525296/how-do-i-check-if-variable-is-an-array
@@ -360,16 +362,4 @@ initDefaults() {
         [[ -v 'STORE' ]] || STORE="local:/home/backups/${hostname}"
       } || return $?
   }
-
-
-  ###########################
-  # Load defaults
-  ##########
-
-  . "$SCRIPT_DIR/backup-defaults.sh"
-}
-
-# For backward compatibility
-initUtils() {
-  initDefaults "$@"
 }
