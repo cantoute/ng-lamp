@@ -275,6 +275,8 @@ initUtils() {
     [[ -v 'BORG_REPO_ORIG' ]]       && export       BORG_REPO="${BORG_REPO_ORIG}"       || unset BORG_REPO
     [[ -v 'BORG_PASSPHRASE_ORIG' ]] && export BORG_PASSPHRASE="${BORG_PASSPHRASE_ORIG}" || unset BORG_PASSPHRASE
 
+    [[ -v 'tryingRepoSkip' ]] && unset 'tryingRepoSkip'
+
     return $rc
   }
 
@@ -292,7 +294,7 @@ initUtils() {
           shift; ;;
       esac
     done
-    
+
     [[ -v 'tryingRepoSkip' ]] && { "$@"; return; }
 
     [[ -v 'repo' ]] && {
