@@ -132,9 +132,12 @@ loadOrTryConf() {
   fi
 }
 
-loadConfOutput=`loadOrTryConf "${tryConfFiles[@]}"`
+# loadConfOutput=`loadOrTryConf "${tryConfFiles[@]}"`
+# loadConfRc=$?
+# (( loadConfRc == 0 )) && [[ "$loadConfOutput" == '' ]] && unset 'loadConfOutput'
+
+loadOrTryConf "${tryConfFiles[@]}"
 loadConfRc=$?
-(( loadConfRc == 0 )) && [[ "$loadConfOutput" == '' ]] && unset 'loadConfOutput'
 
 (( loadConfRc == 0 )) || {
   info "Error: Loading conf returned rc $loadConfRc. ${tryConfFiles[@]}"
