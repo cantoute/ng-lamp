@@ -1,21 +1,11 @@
 #!/usr/bin/env bash
 
-[[ -v 'loadDotenv' && "$loadDotenv" == 'true' ]] && {
-  tryDotenv=(
-    .backup.${hostname}.env
-    ~/.backup.${hostname}.env
-    /root/.backup.${hostname}.env
-    "${SCRIPT_DIR}/.backup.${hostname}.env"
-  )
-  dotenv "${tryDotenv[@]}" || { info "Failed to load env in: ${tryDotenv[@]}"; exit 2; }
-}
-
 # Set in backup-common.sh
 # [[ -v 'hostname' ]]             || hostname=$( hostname -s )
 # [[ -v 'backupMysqlLocalDir' ]]  || backupMysqlLocalDir="/home/backups/${hostname}-mysql"
 
 # Include mysql labels ( mysql mysql-skip-lock my-user my-user-skip-lock )
-. "${SCRIPT_DIR}/backup-borg-label-mysql.sh"
+# . "${SCRIPT_DIR}/backup-borg-label-mysql.sh"
 
 
 createArgs=(
@@ -165,23 +155,39 @@ bb_label_usr-local() {
 # user:$user:$repo
 bb_label_user() {
   local self="$1" bbArg="$2"; shift 2
-  local user repo s="$bbArg"
+  local ISF user users repo s="$bbArg" rc=() args=( "$@" )
 
   user="${s%%:*}"; s=${s#"$user"}; s=${s#:};
   [[ "$user" == "" ]] && { info "Error: $self:$bbArg param1(user) is required"; return 2; }
 
   repo="${s%%:*}"; s=${s#"$repo"}; s=${s#:};
 
-  # [[ -v "BORG_REPO_${repo}_${user}" ]] && repo="${repo}_${user}" || {
-  #   [[ -v "BORG_REPO_${user}" ]] && repo="${user}"
-  # }
+  # Split on comma
+  IFS=,; users=( $user ); unset IFS
 
-  set -- backupCreate "${self}-${user}" "$( getUserHome "$user" )" "$@"
+  for user in "${users[@]}"; do
+    userHome="$( getUserHome "$user" )" && [[ "$userHome" != '' ]] && {
+      set -- 'backupCreate' "${self}-${user}" "$( getUserHome "$user" )" "${args[@]}"
 
-  # >&2 echo "$@"
-  info "Info: ${FUNCNAME[0]}: executing $@"
+      # >&2 echo "$@"
+      info "Info: ${FUNCNAME[0]}: executing user:$user $@"
 
-  tryingRepo "${repo}_${user}" "$repo" "$user" "$self" "user" -- "$@"
+      tryingRepo "${repo}_${user}" "$user" "$repo" "$self" "user" -- "$@"
+      # "$@"
+
+      rc+=( $? )
+    } || {
+      info "Error: ${FUNCNAME[0]}: Could not get user '$user' home dir."
+      rc+=( 2 )
+    }
+  done
+
+  [[ -v 'rc' ]] && (( ${#rc} > 0 )) || {
+    info "Error: No user was backed up. Call: ${FUNCNAME[0]} $@"
+    rc=(2)
+  }
+
+  return $( max "${rc[@]}" )
 }
 
 #########

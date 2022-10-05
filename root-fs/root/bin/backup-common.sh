@@ -113,7 +113,19 @@ initDefaults() {
 
   # Ex: join_by , a b c #a,b,c
   # https://stackoverflow.com/questions/1527049/how-can-i-join-elements-of-an-array-in-bash
-  joinBy() { local d="${1-}" f="${2-}"; shift 2 && printf %s "$f" "${@/#/$d}"; }
+  # update: don't return error status if no strings to join
+  joinBy() {
+    (( $# == 1 )) && return
+    (( $#  > 0 )) || { >&2 echo "Error: function ${FUNCNAME[0]} takes minimum 1 parameter. arg1: the separator."; return 1; }
+
+    local d="${1-}" f="${2-}"; shift 2 && printf %s "$f" "${@/#/$d}";
+  }
+
+  # joinBy() {
+  #   (( $# > 0 )) || { >&2 echo "Error: ${FUNCNAME[0]}: takes minimum 1 parameter, the separator."; return 1; }
+
+  #   local d="${1-}" f="${2-}"; shift 2 && printf %s "$f" "${@/#/$d}";
+  # }
 
   # arg1: filename (required)
   fileSize() { stat -c%s "$1" ; }
@@ -172,16 +184,18 @@ initDefaults() {
 
 
   # takes 0 or n filenames where the stdin will be copied to (appended)
+  # It maintain pipe even if can't write to file
   logToFile() {
-    (( $# == 0 )) && { cat; } || {
-      local TEE=( tee --output-error=warn )
-      local file
+    if (( $# == 0 )); then
+      cat;
+    else
+      local file TEE=( tee --output-error=warn ) # If we can't log to file will return rc=1 and not brake pipe.
 
-      # assuming all args are names of files we append to
+      # Args are names of files we append to
       for file in "$@"; do TEE+=( -a "$file" ); done
 
-      "${TEE[@]}"
-    }
+      "${TEE[@]}";
+    fi
   }
 
   compress() {
@@ -264,6 +278,7 @@ initDefaults() {
 
   tryingRepo() {
     local repo s
+    [[ -v 'tryingRepoSkip' ]] && { "$@"; return; }
 
     while (( $# > 0 )); do
       case "$1" in
@@ -277,10 +292,12 @@ initDefaults() {
       esac
     done
 
-    [[ -v 'repo' && ! -v 'tryingRepoSkip' ]] && {
+    [[ -v 'repo' ]] && {
       info "Info: ${FUNCNAME[0]}: using repo: $repo"
-      usingRepo "$repo" "$@";
-    } || { "$@"; }
+      set -- usingRepo "$repo" "$@";
+    }
+
+    "$@"
   }
 
   createLogrotate() {
