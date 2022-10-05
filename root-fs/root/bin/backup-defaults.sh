@@ -172,7 +172,7 @@ bb_label_user() {
       # >&2 echo "$@"
       info "Info: ${FUNCNAME[0]}: executing user:$user $@"
 
-      tryingRepo "${repo}_${user}" "$user" "$repo" "$self" "user" -- "$@"
+      tryingRepo "${repo}_${user}" "$user" "$repo" "$self" "user" "home" -- "$@"
       # "$@"
 
       rc+=( $? )
