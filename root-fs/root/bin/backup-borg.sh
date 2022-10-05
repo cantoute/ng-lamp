@@ -134,9 +134,12 @@ loadOrTryConf() {
 
 loadConfOutput=`loadOrTryConf "${tryConfFiles[@]}"`
 loadConfRc=$?
-[[ "$loadConfOutput" == '' ]] && unset 'loadConfOutput'
+(( loadConfRc == 0 )) && [[ "$loadConfOutput" == '' ]] && unset 'loadConfOutput'
 
-(( loadConfRc == 0 )) || info "Error loading conf. ${tryConfFiles[@]}"
+(( loadConfRc == 0 )) || {
+  info "Error: Loading conf returned rc $loadConfRc. ${tryConfFiles[@]}"
+  exit $( max 2 $loadConfRc $exitRc )
+}
 
 # BORG_CREATE=( "${SCRIPT_DIR}/backup-borg-create.sh" )
 

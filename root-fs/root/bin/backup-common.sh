@@ -293,7 +293,7 @@ initDefaults() {
     done
 
     [[ -v 'repo' ]] && {
-      info "Info: ${FUNCNAME[0]}: using repo: $repo"
+      info "Info: ${FUNCNAME[0]}: using borg repo: BORG_REPO_${repo}"
       set -- usingRepo "$repo" "$@";
     }
 
