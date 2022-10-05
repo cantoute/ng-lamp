@@ -19,26 +19,21 @@ backupMode='all'
 
 DUMP=( dump )
 
-init && initDefaults && {
-
-  [[ -v 'BACKUP_MYSQL_STORE' ]] || {
-    [[ -v 'backupMysqlLocalDir' ]] && BACKUP_MYSQL_STORE="local:${backupMysqlLocalDir}"
+. "${SCRIPT_DIR}/backup-common.sh" && init && initUtils || {
+    >&2 echo "Error: failed to load ${SCRIPT_DIR}/backup-common.sh and init"
+    exit 2
   }
 
-  # if [[ -v 'BACKUP_MYSQL_STORE' ]]; then
-  # info "asdfasfsdf"
-    
-  # elif [[ -v 'backupMysqlLocalDir' ]]; then
-  #   STORE=( 'local' "$backupMysqlLocalDir" )
-  # fi
-  
-  # [[ -v 'BACKUP_MYSQL_STORE' ]] || {
-  #   # We try $backupMysqlLocalDir
-  #   [[ -v 'backupMysqlLocalDir' ]] && STORE=( 'local' "$backupMysqlLocalDir" );
-  # }
+. "${SCRIPT_DIR}/backup-defaults.sh" || {
+    >&2 echo "Error: failed to load ${SCRIPT_DIR}/backup-defaults.sh"
+    exit 2
+  }
 
-  initStore
-} || { >&2 echo "Failed to init"; exit 2; }
+[[ -v 'BACKUP_MYSQL_STORE' ]] || {
+  [[ -v 'backupMysqlLocalDir' ]] && BACKUP_MYSQL_STORE="local:${backupMysqlLocalDir}"
+}
+
+initStore
 
 
 ########
