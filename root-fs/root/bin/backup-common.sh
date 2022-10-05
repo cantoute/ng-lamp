@@ -280,7 +280,6 @@ initUtils() {
 
   tryingRepo() {
     local repo s
-    [[ -v 'tryingRepoSkip' ]] && { "$@"; return; }
 
     while (( $# > 0 )); do
       case "$1" in
@@ -293,6 +292,8 @@ initUtils() {
           shift; ;;
       esac
     done
+    
+    [[ -v 'tryingRepoSkip' ]] && { "$@"; return; }
 
     [[ -v 'repo' ]] && {
       info "Info: ${FUNCNAME[0]}: using borg repo: BORG_REPO_${repo}"
