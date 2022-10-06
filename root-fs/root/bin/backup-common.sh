@@ -343,10 +343,10 @@ initUtils() {
   # Ex: DRYRUN=dryRun
   dryRun() { >&2 echo "DRYRUN: $@"; }
 
-  infoTmp="$( mktemp /tmp/backup-${0##*/}-info-XXXXXXX )"
-  trap "rm -f $infoTmp" EXIT
-  info() { echo "$( LC_ALL=C date ) $*" >> "$infoTmp"; >&2 printf "\n%s %s\n\n" "$( LC_ALL=C date )" "$*"; }
-  infoRecap() { >&2 cat "$infoTmp"; }
+  infoRecapTmp="$( mktemp /tmp/backup-${0##*/}-info-XXXXXXX )"
+  trap "rm -f $infoRecapTmp" EXIT
+  info() { echo "$( LC_ALL=C date ) $*" >> "$infoRecapTmp"; >&2 printf "\n%s %s\n\n" "$( LC_ALL=C date )" "$*"; }
+  infoRecap() { >&2 cat "$infoRecapTmp"; }
 
 
   # initStore requires initUtils

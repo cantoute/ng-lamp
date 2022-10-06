@@ -9,8 +9,6 @@ SCRIPT_NAME="${0##*/}"
 SCRIPT_DIR="${0%/*}"
 SCRIPT_NAME_NO_EXT="${SCRIPT_NAME%.*}"
 
-source "${SCRIPT_DIR}/backup-common.sh";
-
 #############
 # Defaults
 ######

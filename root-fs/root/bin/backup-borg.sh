@@ -93,8 +93,8 @@ tryConf() {
     if [[ -f "$1" ]]; then
       . "$1" && {
         >&2 echo "Info: ${SCRIPT_NAME}: Loaded conf: '$1'";
-        loadedConf="$1"
-        return;
+        loadedConf="$1";
+        return 0;
       } || { # Seems there is an error in config file
         info "Error: failed to load conf: '$1' rc 2";
         return 2;
@@ -108,10 +108,10 @@ tryConf() {
 loadOrTryConf() {
   # To be able to trap all output for --cron mode we need to load 
   if [[ -v 'loadConf' && "$loadConf" == '' ]]; then
-    . "$loadConf" || {
-      info "Error: ${SCRIPT_NAME}: Failed to load conf '$loadConf' rc 2";
-      return 2;
-    }
+    . "$loadConf" && { loadedConf="$1"; } || {
+        info "Error: ${SCRIPT_NAME}: Failed to load conf '$loadConf' rc 2";
+        return 2;
+      }
   else
     # Not finding a file isn't an error
     # Finding a file and failing to load it is an error and we exit
@@ -124,7 +124,7 @@ loadOrTryConf() {
 # (( loadConfRc == 0 )) && [[ "$loadConfOutput" == '' ]] && unset 'loadConfOutput'
 
 if [[ -v 'beSilentOnSuccess' ]]; then
-  loadOrTryConf "${tryConfFiles[@]}" >>"$infoTmp" 2>&1
+  loadOrTryConf "${tryConfFiles[@]}" >>"$infoRecapTmp" 2>&1
 else
   loadOrTryConf "${tryConfFiles[@]}"
 fi
