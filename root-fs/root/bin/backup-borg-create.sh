@@ -60,8 +60,14 @@ excludeArgs=(
   --exclude '**/wp-content/*webp*'
   --exclude '**/wp-content/*backup*'
 
-  # IPFS
+  # Misc
   --exclude '**/.ipfs/data'
+  --exclude '**/.bitcoin'
+  --exclude '**/downloads'
+  --exclude '**/Downloads'
+
+  # Node
+  --exclude '**/node_modules'
 )
 
 pruneArgs=(
@@ -98,14 +104,20 @@ while (( $# > 0 )); do
     --debug)
       DRYRUN=dryRun
       DEBUG=true
-      shift
-      ;;
+      shift ;;
 
     --dry-run)
       createArgs+=(--dry-run)
       pruneArgs+=(--dry-run)
-      shift
-      ;;
+      shift ;;
+
+    --no-default-exclude)
+      excludeArgs=()
+      shift ;;
+
+    --no-default-keep)
+      pruneKeepArgs=()
+      shift ;;
 
     # --no-nice)
     #   NICE=()
