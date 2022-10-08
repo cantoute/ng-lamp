@@ -4,7 +4,7 @@ Y=-y
 
 ## Munin
 initMunin() {
-  apt install $Y munin munin-node munin-plugins-extra libwww-perl libcache-{perl,cache-perl} libnet-dns-perl libfcgi-client-perl
+  apt install $Y munin munin-node munin-plugins-extra libwww-perl libcache-{perl,cache-perl} libnet-dns-perl libfcgi-client-perl libdbd-mysql-perl
 
   # we don't want to expose /munin/ on all virtual hosts
   a2disconf munin
