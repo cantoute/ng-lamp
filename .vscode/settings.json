@@ -50,6 +50,7 @@
     "drush",
     "DRYRUN",
     "dumpall",
+    "fastly",
     "ionice",
     "ipfs",
     "letsencrypt",
