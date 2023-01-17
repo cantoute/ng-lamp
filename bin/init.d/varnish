@@ -6,7 +6,7 @@ Y=-y
 initVarnish() {
   # https://packagecloud.io/varnishcache/varnish70/
 
-  curl -s https://packagecloud.io/install/repositories/varnishcache/varnish70/script.deb.sh | sudo bash
+  curl -s https://packagecloud.io/install/repositories/varnishcache/varnish72/script.deb.sh | sudo bash
 
   # script does an apt update
 
@@ -27,7 +27,7 @@ initVarnish() {
 
   git clone https://github.com/varnish/varnish-modules.git /root/varnish-modules
   cd /root/varnish-modules
-  git checkout 7.0
+  git checkout 7.2
 
   ./bootstrap
   ./configure   # run "configure -h" first to list options
