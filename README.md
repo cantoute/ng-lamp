@@ -17,67 +17,131 @@ This stack is flexible, solid and works well for wordpress hosting. Getting the 
 
 ```txt
 .
-├── etc
-│   ├── apache2
-│   │   ├── conf-available
-│   │   │   └── ng-lamp.conf
-│   │   ├── ports.conf
-│   │   └── sites-available
-│   │       ├── 000-ng-lamp-default.conf
-│   │       ├── localhost.conf
-│   │       └── www.example.com.conf.skel
-│   ├── cron.d
-│   │   └── backups
-│   ├── fail2ban
-│   │   └── jail.local
-│   ├── munin
-│   │   └── plugin-conf.d
-│   │       ├── apache
-│   │       └── nginx
-│   ├── netdata
-│   │   └── python.d
-│   │       └── nginx.conf
-│   ├── nginx
-│   │   ├── nginx.conf
-│   │   ├── ng-lamp
-│   │   │   ├── 00_cloudflare.conf
-│   │   │   ├── 00_fastly.conf.skel
-│   │   │   ├── 00_limit.conf
-│   │   │   ├── 00_misc.conf
-│   │   │   ├── 00_ssl.conf
-│   │   │   ├── 00_upstreams.conf
-│   │   │   ├── 10_default-host.conf
-│   │   │   ├── 20_localhost.conf
-│   │   │   ├── munin.conf.skel
-│   │   │   ├── netdata.conf.skel
-│   │   │   ├── phpmyadmin.conf.skel
-│   │   │   ├── redirect.conf.skel
-│   │   │   └── wordpress.conf.skel
-│   │   └── snippets
-│   │       ├── ban-bots.conf
-│   │       ├── common-proxy-buffer.conf
-│   │       ├── common-proxy.conf
-│   │       ├── common-proxy-timeout.conf
-│   │       ├── common-vhost.conf
-│   │       ├── letsencrypt-acme-challenge.conf
-│   │       ├── wordpress.conf
-│   │       └── wordpress-webp-express.conf
-│   ├── php
-│   │   └── 7.4
-│   │       └── fpm
-│   │           └── pool.d
-│   │               └── www-adm.conf
-│   ├── skel
-│   └── vim
-│       └── vimrc.local
-├── home
-│   └── www-adm
-│       └── www.mysql
-│           └── config.inc.php
-└── root
-    └── bin
-        ├── backup-mysql.sh
-        └── backup-rdiff.sh
+├── bin
+│   ├── init.d
+│   │   ├── imgopt
+│   │   ├── install-borg.sh
+│   │   ├── install-rclone.sh
+│   │   ├── munin
+│   │   ├── mysql-stuff
+│   │   ├── netdata
+│   │   ├── php-sury
+│   │   ├── proftpd
+│   │   └── varnish
+│   ├── init.sh
+│   └── sync.sh
+├── README.md
+└── root-fs
+    ├── etc
+    │   ├── apache2
+    │   │   ├── conf-available
+    │   │   │   ├── dont-cache-robots-txt.conf
+    │   │   │   └── ng-lamp.conf
+    │   │   ├── ports.conf
+    │   │   └── sites-available
+    │   │       ├── 000-ng-lamp-default.conf
+    │   │       ├── localhost.conf
+    │   │       ├── munin.conf.skel
+    │   │       └── www.example.com.conf.skel
+    │   ├── cron.d
+    │   │   └── backups
+    │   ├── etckeeper
+    │   │   └── diff.d
+    │   │       ├── 10git-diff.sh
+    │   │       └── 10hg-diff
+    │   ├── fail2ban
+    │   │   └── jail.local
+    │   ├── munin
+    │   │   ├── plugin-conf.d
+    │   │   │   ├── apache
+    │   │   │   ├── nginx
+    │   │   │   └── varnish
+    │   │   └── plugins
+    │   │       ├── varnish5_
+    │   │       ├── varnish5_allocations -> varnish5_
+    │   │       ├── varnish5_backend_traffic -> varnish5_
+    │   │       ├── varnish5_bad -> varnish5_
+    │   │       ├── varnish5_bans -> varnish5_
+    │   │       ├── varnish5_bans_lurker -> varnish5_
+    │   │       ├── varnish5_esi -> varnish5_
+    │   │       ├── varnish5_expunge -> varnish5_
+    │   │       ├── varnish5_hcb -> varnish5_
+    │   │       ├── varnish5_hit_rate -> varnish5_
+    │   │       ├── varnish5_losthrd -> varnish5_
+    │   │       ├── varnish5_lru -> varnish5_
+    │   │       ├── varnish5_main_uptime -> varnish5_
+    │   │       ├── varnish5_memory_usage -> varnish5_
+    │   │       ├── varnish5_mgt_uptime -> varnish5_
+    │   │       ├── varnish5_objects -> varnish5_
+    │   │       ├── varnish5_objects_per_objhead -> varnish5_
+    │   │       ├── varnish5_request_rate -> varnish5_
+    │   │       ├── varnish5_session -> varnish5_
+    │   │       ├── varnish5_session_herd -> varnish5_
+    │   │       ├── varnish5_shm -> varnish5_
+    │   │       ├── varnish5_shm_writes -> varnish5_
+    │   │       ├── varnish5_threads -> varnish5_
+    │   │       ├── varnish5_transfer_rates -> varnish5_
+    │   │       └── varnish5_vcl -> varnish5_
+    │   ├── netdata
+    │   │   └── python.d
+    │   │       ├── apache.conf
+    │   │       └── nginx.conf
+    │   ├── nginx
+    │   │   ├── nginx.conf
+    │   │   ├── ng-lamp
+    │   │   │   ├── 00_limit.conf
+    │   │   │   ├── 00_misc.conf
+    │   │   │   ├── 00_ssl.conf
+    │   │   │   ├── 00_upstreams.conf
+    │   │   │   ├── 10_default-host.conf
+    │   │   │   ├── 20_localhost.conf
+    │   │   │   ├── munin.conf.skel
+    │   │   │   ├── netdata.conf.skel
+    │   │   │   ├── phpmyadmin.conf.skel
+    │   │   │   ├── redirect.conf.skel
+    │   │   │   └── wordpress.conf.skel
+    │   │   └── snippets
+    │   │       ├── ban-bots.conf
+    │   │       ├── common-proxy-buffer.conf
+    │   │       ├── common-proxy.conf
+    │   │       ├── common-proxy-timeout.conf
+    │   │       ├── common-vhost.conf
+    │   │       ├── letsencrypt-acme-challenge.conf
+    │   │       ├── letsencrypt-acme-challenge-proxied.conf
+    │   │       ├── real-ip-cloudflare.conf
+    │   │       ├── real-ip-fastly.conf
+    │   │       ├── wordpress.conf
+    │   │       └── wordpress-webp-express.conf
+    │   ├── php
+    │   │   └── 7.4
+    │   │       └── fpm
+    │   │           └── pool.d
+    │   │               └── www-adm.conf
+    │   ├── skel
+    │   └── vim
+    │       └── vimrc.local
+    ├── home
+    │   └── www-adm
+    │       └── www.mysql
+    │           └── config.inc.php
+    └── root
+        └── bin
+            ├── backup-borg-create.sh
+            ├── backup-borg-label-mysql.sh
+            ├── backup-borg.sh
+            ├── backup-common.sh
+            ├── backup-cron.sh
+            ├── backup-defaults.sh
+            ├── backup-example-host.sh
+            ├── backup-mysql-rclone.sh
+            ├── backup-mysql-restic.bash
+            ├── backup-mysql.sh
+            ├── backup-pg.sh
+            ├── backup-rdiff.sh
+            ├── backup-store-local.sh
+            ├── backup-store-rclone.sh
+            ├── backup-store.sh
+            └── bormgatic.yaml
 ```
 
 ### What it does

@@ -43,6 +43,7 @@
   "cSpell.words": [
     "antony",
     "certbot",
+    "cloudflare",
     "datname",
     "debian",
     "delaycompress",
@@ -67,6 +68,7 @@
     "numfmt",
     "postgres",
     "postgresql",
+    "proxied",
     "psql",
     "ratelimit",
     "rcat",
@@ -79,6 +81,7 @@
     "vhosts",
     "vmail",
     "webp",
+    "wordpress",
     "zstd"
   ],
   "nginx-conf-hint.format.align": true,

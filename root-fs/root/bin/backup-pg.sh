@@ -14,7 +14,10 @@ pgUsername=postgres
 pgHostname=localhost
 
 # backupPgAuth=( -h "$pgHostname" -U "$pgUsername" )
-backupPgAuth=()
+backupPgAuth=(
+  # -h "$pgHostname"
+  # -U "$pgUsername"
+)
 
 tryConfFiles=(
   "$SCRIPT_DIR/backup-${hostname}.sh"
@@ -125,26 +128,33 @@ backup-pg-list-db-like() {
 backup-pg-db() {
   local dir="$1"; shift
   local dump=( backup-pg-wrap pg_dump -Fp )
-  local name=( ) db pipeRc thisRc rc=() schemaOnly
+  local name=() nameAppend dbList=() db pipeRc thisRc rc=() schemaOnly
+
+  while (( $# > 0 )); do
+    case "$1" in
+      -*) break ;;
+      *) dbList+=( "$1" ); shift;;
+    esac
+  done
 
   while (( $# > 0 )); do
     case "$1" in
       --schema|-s) 
                   dump+=( -s );
-                  name+=( 'schema-only' );
+                  nameAppend='schema-only';
                   schemaOnly=' schema-only';
                   shift ;;
 
-           --name) name=( "$2" );          shift 2 ;;
-               -*) dump+=( "$1"     );   shift ;;
+           --name) name+=( "$2" );          shift 2 ;;
+              #  -*) dump+=( "$1"     );   shift ;;
                --) shift;                break ;;
                 *) break ;;
     esac
   done
 
-  >&2 echo "adfsasadf $@ ${@//,/ }"
+  [[ -v 'nameAppend' && "$nameAppend" != '' ]] && name+=( "$nameAppend" )
 
-  for db in ${@//,/ }
+  for db in ${dbList[@]//,/ }
   do
     info "Schema-only backup of '$db'"
 
@@ -152,7 +162,7 @@ backup-pg-db() {
     # [[ "$name" == '' ]] && name="$db" || name="${db}-${name}"
     
     # >&2 echo "${dump[@]}" "$db"
-    "${dump[@]}" "$db" |
+    "${dump[@]}" "$@" "$db" |
       onEmptyReturn 2 store create "$dir" "$( backup-pg-backup-name "$db" "${name[@]}" ).sql"
     
     pipeRc=( ${PIPESTATUS[@]} )
@@ -166,9 +176,9 @@ backup-pg-db() {
 
     rc+=( $thisRc )
 
-    (( thisRc == 0 )) && { info "${FUNCNAME[0]}: Success: Backed up${schemaOnly-} db:'$db'"; }
-    (( thisRc == 1 )) && { info "${FUNCNAME[0]}: Warning: Backing up${schemaOnly-} db:'$db' rc $thisRc"; }
-    (( thisRc  > 1 )) && { info "${FUNCNAME[0]}: Error: Failed to backup${schemaOnly-} db:'$db' rc $thisRc"; }
+    (( thisRc == 0 )) && { info "${FUNCNAME[0]}: Success: Backed up db:'$db'${schemaOnly-}"; }
+    (( thisRc == 1 )) && { info "${FUNCNAME[0]}: Warning: Backing up db:'$db'${schemaOnly-} rc $thisRc"; }
+    (( thisRc  > 1 )) && { info "${FUNCNAME[0]}: Error: Failed to backup db:'$db'${schemaOnly-} rc $thisRc"; }
 
     # if ! pg_dump -Fp -s -h "$pgHostname" -U "$pgUsername" "$DATABASE" | gzip > $FINAL_BACKUP_DIR"$DATABASE"_SCHEMA.sql.gz.in_progress; then
     #   echo  1>&2
@@ -187,23 +197,71 @@ backup-pg-db() {
 
 backup-pg-all() {
   local dir="$1"; shift
-  local dump=( backup-pg-wrap pg_dumpall "$@" )
-  local name=()
+  local dump=( backup-pg-wrap pg_dumpall )
+  local name=() nameAppend backupName
 
   while (( $# > 0 )); do
     case "$1" in
                --)                                 shift; break ;;
-      --schema|-s) dump+=( -s ); name+=( 'schema-only' ); shift ;;
-           --name) name=( "$2" );                       shift 2 ;;
+      --schema|-s) dump+=( -s ); nameAppend=schema-only ; shift ;;
+           --name) name+=( "$2" );                       shift 2 ;;
                -*) dump+=( "$1" );                        shift ;;
                 *)                                        break ;;
     esac
   done
+  
+  [[ -v 'nameAppend' && "$nameAppend" != '' ]] && name+=( "$nameAppend" )
+  
+  set -- "${dump[@]}" "$@"
 
-  # echo 
-  "${dump[@]}" |
-    onEmptyReturn 2 store create "$dir" "$( backup-pg-backup-name 'all' "${name[@]}" ).sql"
+  backupName=$( backup-pg-backup-name 'all' "${name[@]}" )
+  info "Info: ${FUNCNAME[0]}: Backing up to: ${dir}/$backupName  (${STORE})"
+
+  "$@" |
+    onEmptyReturn 2 store create "$dir" "${backupName}.sql"
 }
+
+backup-pg-db-like() {
+  local dir="$1"; shift
+  local name d db args=() like=()
+
+  # while (( $# > 0 )); do
+  #   case "$1" in
+  #              --)                                 shift; break ;;
+  #     --schema|-s) args+=( -s ); name+=( 'schema-only' ); shift ;;
+  #          --name) name=( "$2" );                       shift 2 ;;
+  #              -*) args+=( "$1" );                        shift ;;
+  #               *) like+=( "$1" )                                       break ;;
+  #   esac
+  # done
+
+  while (( $# > 0 )); do
+    case "$1" in
+               --) shift;                break ;;
+      --schema|-s) 
+                  args+=( -s );
+                  # name+=( 'schema-only' );
+                  # schemaOnly=' schema-only';
+                  shift ;;
+
+           --name) args+=( --name "$2" );               shift 2 ;;
+           --like) like+=( "$2" );              shift 2 ;;
+       --not-like) like+=( "-${2//,/,-}" );     shift 2 ;;
+                *) break ;;
+    esac
+  done
+
+  set -- "${args[@]}" -- "$@"
+
+  [[ -v 'name' ]]
+
+  for d in $( backup-pg-list-db-like "${like[@]}" ); do
+    db+=( $d )
+  done
+
+  backup-pg-db "$dir" ${db[@]} "$@"
+}
+
 
 ################################################
 # backup config
@@ -240,17 +298,23 @@ initStore
 
 trace=( "$SCRIPT_NAME" "$@" )
 
-backupPgMode="$1"
-shift
+backupPgDir="$1"
+backupPgMode="$2"
+shift 2
 
 case "$backupPgMode" in
-  all|db|single|list-db-like|backup-name)
+  all|db|single|db-like)
+    backup-pg-$backupPgMode "$backupPgDir" "$@"
+    rc=$?
+    ;;
+
+  list-db-like|backup-name)
     backup-pg-$backupPgMode "$@"
     rc=$?
     ;;
 
   globals)
-    backup-pg-all "$@" -g
+    backup-pg-all "$backupPgDir" --name globals -g "$@"
     rc=$?
     ;;
 
@@ -260,11 +324,10 @@ esac
 
 
 (( rc == 0 )) && { info "$SCRIPT_NAME: Success: ( ${trace[@]} )"; }
-(( rc == 1 )) && { info "$SCRIPT_NAME: Warning: Backup return some warnings ( ${trace[@]} ) rc $rc"; }
+(( rc == 1 )) && { info "$SCRIPT_NAME: Warning: Backup returned some warnings ( ${trace[@]} ) rc $rc"; }
 (( rc  > 1 )) && {
-    info "$SCRIPT_NAME: Error: at leas one backup failed ( ${trace[@]} ) rc $rc";
+    info "$SCRIPT_NAME: Error: At least one backup failed ( ${trace[@]} ) rc $rc";
     info "Call: ${trace[@]}"
   }
-
 
 exit $rc

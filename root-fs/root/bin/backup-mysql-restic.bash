@@ -291,19 +291,19 @@ tmpWrap() {
 main() {
   case "$dumpType" in
     full)
-      local fileName="${hostName}-full"
+      local fileName="mysqldump-${hostName}-full"
       local path
       
       [ "$resticPath" -eq "" ] || {
         path="$resticPath"
       } && {
-        path="${hostName}/mysql/full"
+        path="/mysql/full"
       }
       
       cmd="$nice $MYSQLDUMP $dumpArgs $fullDumpArgs"
       echo $cmd;
 
-      local tmp=$(mktemp --tmpdir="${tmpdir}" "mysqldump-${hostName}-${timestamp}${fileExt}.XXXXXX")
+      local tmp=$(mktemp --tmpdir="${tmpdir}" "${fileName}-${timestamp}${fileExt}.XXXXXX")
       tmpFiles+=( "${tmp}" )
 
       echo "temp file ${tmp}"
