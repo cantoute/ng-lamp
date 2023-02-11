@@ -52,6 +52,7 @@
     "DRYRUN",
     "dumpall",
     "fastly",
+    "Googlebot",
     "ionice",
     "ipfs",
     "letsencrypt",
