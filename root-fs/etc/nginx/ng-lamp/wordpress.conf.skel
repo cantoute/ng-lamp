@@ -18,6 +18,7 @@ server {
 
   root /home/foo/example.com/www;
 
+  # access_log /var/log/nginx/access.log combined_vhost;
   # access_log /var/log/nginx/www.example.com_access.log;
   # error_log /var/log/nginx/www.example.com_error.log;
 
