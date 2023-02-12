@@ -38,17 +38,17 @@ geo $remote_addr $is_local {
   #1.2.3.4/32 1;
 }
 
-limit_req_zone $stupid_bot zone=stupid_bot:10m rate=12r/m;
-limit_req_zone $limit_ip zone=limit_ip:10m rate=2r/s;
-limit_req_zone $server_name zone=per_host:10m rate=10r/s;
+limit_req_zone $stupid_bot  zone=stupid_bot:20m   rate=12r/m;
+limit_req_zone $limit_ip    zone=limit_ip:10m     rate=2r/s;
+limit_req_zone $server_name zone=server_name:10m  rate=10r/s;
 
 # general limit over all virtual hosts combined
-limit_req zone=stupid_bot burst=100 delay=100;
+limit_req zone=stupid_bot burst=50 delay=50;
+# limit_req zone=server_name burst=500 delay=50;
 
 ##
 # Misc
 ##
-
 
 include /etc/nginx/mime.types;
 default_type application/octet-stream;

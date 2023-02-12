@@ -37,16 +37,16 @@ server {
 
   # enforce HSTS headers
   # remove them from backend response
-  proxy_hide_header Strict-Transport-Security;
-  proxy_hide_header X-XSS-Protection;
-  proxy_hide_header X-Content-Type-Options;
-  proxy_hide_header X-Frame-Options;
+  # proxy_hide_header Strict-Transport-Security;
+  # proxy_hide_header X-XSS-Protection;
+  # proxy_hide_header X-Content-Type-Options;
+  # proxy_hide_header X-Frame-Options;
 
-  add_header Strict-Transport-Security
-    "max-age=15768000; includeSubDomains; preload";
-  add_header X-XSS-Protection "1; mode=block";
-  add_header X-Content-Type-Options nosniff;
-  add_header X-Frame-Options SAMEORIGIN;
+  # add_header Strict-Transport-Security
+  #   "max-age=15768000; includeSubDomains; preload";
+  # add_header X-XSS-Protection "1; mode=block";
+  # add_header X-Content-Type-Options nosniff;
+  # add_header X-Frame-Options SAMEORIGIN;
 
   ## redirect all host aliases to first server_name
   if ( $host != $server_name ) {
