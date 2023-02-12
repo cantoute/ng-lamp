@@ -4,11 +4,12 @@ server {
   include snippets/letsencrypt-acme-challenge.conf;
   # include snippets/ban-bots.conf;
   include snippets/common-vhost.conf;
-  include snippets/wordpress.conf;
 
   # optimise webp delivery when using worpdress plugin webp-express
   # Note: has to be included before snippets/wordpress.conf
-  # include snippets/wordpress-webp-express.conf;
+  include snippets/wordpress-webp-express.conf;
+
+  include snippets/wordpress.conf;
 
   listen 80;
   # listen [::]:80;
@@ -30,7 +31,7 @@ server {
   # ssl_certificate_key /etc/letsencrypt/live/example.com/privkey.pem;
 
   ## Enforce https
-  # if ( $https = '' ) {
+  # if ( $https != on ) {
   #   return 301 https://$server_name$request_uri;
   # }
 
