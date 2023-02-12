@@ -1,54 +1,56 @@
 # certbot certonly --webroot --webroot-path /var/www/letsencrypt -d example.com -d www.example.com
 
 server {
-  listen 80;
-  # listen [::]:80;
-
-  server_name www.example.com example.com;
-
-  root /home/example-user/example.com/www;
-
-  client_max_body_size 128m;
-
   include snippets/letsencrypt-acme-challenge.conf;
-  include snippets/common-vhost.conf;
-
   # include snippets/ban-bots.conf;
+  include snippets/common-vhost.conf;
+  include snippets/wordpress.conf;
 
   # optimise webp delivery when using worpdress plugin webp-express
   # Note: has to be included before snippets/wordpress.conf
   # include snippets/wordpress-webp-express.conf;
 
-  include snippets/wordpress.conf;
+  listen 80;
+  # listen [::]:80;
 
-  # first run this then uncomment/adjust following lines
-  # certbot certonly --webroot --webroot-path /var/www/letsencrypt -d example.com -d www.example.com
+  server_name www.example.com example.com;
+
+  root /home/foo/example.com/www;
+
+  # access_log /var/log/nginx/www.example.com_access.log;
+  # error_log /var/log/nginx/www.example.com_error.log;
+
+  client_max_body_size 128m;
 
   # listen 443 ssl http2;
-
-  # if ( $scheme != https ) {
-  #   return 301 https://$server_name$request_uri;
-  # }
+  # #listen [::]:443 ssl http2;
 
   # ssl_trusted_certificate /etc/letsencrypt/live/example.com/chain.pem;
   # ssl_certificate /etc/letsencrypt/live/example.com/fullchain.pem;
   # ssl_certificate_key /etc/letsencrypt/live/example.com/privkey.pem;
 
+  ## Enforce https
+  # if ( $https = '' ) {
+  #   return 301 https://$server_name$request_uri;
+  # }
+
+  # enforce HSTS headers
+  # remove them from backend response
+  proxy_hide_header Strict-Transport-Security;
+  proxy_hide_header X-XSS-Protection;
+  proxy_hide_header X-Content-Type-Options;
+  proxy_hide_header X-Frame-Options;
+
+  add_header Strict-Transport-Security
+    "max-age=15768000; includeSubDomains; preload";
+  add_header X-XSS-Protection "1; mode=block";
+  add_header X-Content-Type-Options nosniff;
+  add_header X-Frame-Options SAMEORIGIN;
+
   ## redirect all host aliases to first server_name
   if ( $host != $server_name ) {
     return 301 $scheme://$server_name$request_uri;
   }
-
-  # remove the hsts header if it's present in the response
-  proxy_hide_header Strict-Transport-Security;
-  add_header Strict-Transport-Security
-    "max-age=15768000; includeSubDomains; preload";
-  add_header X-Content-Type-Options nosniff;
-  add_header X-XSS-Protection "1; mode=block";
-
-  add_header X-Frame-Options SAMEORIGIN;
-
-  access_log /var/log/nginx/www.example.com_access.log;
 
   location / {
     try_files /dev/null @backend;
@@ -68,8 +70,8 @@ server {
     # avoid client closing connection to backend
     proxy_set_header Connection '';
 
-    # 100 req not delayed, then 1r/s up to 200 req then return 429
-    limit_req zone=per_ip burst=200 delay=100;
+    # 100 req unrestricted, then 1r/s up to 100 req then return 429
+    limit_req zone=limit_ip burst=200 delay=100;
 
     # proxy_set_header Accept-Encoding "gzip";
 
