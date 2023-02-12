@@ -292,7 +292,7 @@ main() {
   return $rc
 }
 
-
+# Catch the output and make a short version of the full output (to read in an email)
 [[ -v 'beSilentOnSuccess' && "$beSilentOnSuccess" == "true" ]] && { # Aka cron mode
   OUTPUT=`"$@" 2>&1` || {
     rc=$?;

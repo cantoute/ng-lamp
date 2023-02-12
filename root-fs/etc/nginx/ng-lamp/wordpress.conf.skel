@@ -15,13 +15,13 @@ server {
 
   # include snippets/ban-bots.conf;
 
-  # optimise webp delevery when using worpdress plugin webp-express
+  # optimise webp delivery when using worpdress plugin webp-express
   # Note: has to be included before snippets/wordpress.conf
   # include snippets/wordpress-webp-express.conf;
 
   include snippets/wordpress.conf;
 
-  # first run this then uncomment/adjust folowing lines
+  # first run this then uncomment/adjust following lines
   # certbot certonly --webroot --webroot-path /var/www/letsencrypt -d example.com -d www.example.com
 
   # listen 443 ssl http2;
