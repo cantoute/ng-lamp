@@ -54,6 +54,23 @@ server {
     return 301 $scheme://$server_name$request_uri;
   }
 
+  location ~ \.(txt)$ {
+    add_header cache-control max-age=3,must-revalidate;
+    try_files $uri @backend;
+  }
+
+  # Allow JetPack only
+  location /xmlrpc.php {
+    # JetPack
+    allow 192.0.64.0/18;
+    deny all;
+
+    try_files /dev/null @backend;
+
+    access_log off;
+    log_not_found off;
+  }
+
   location / {
     try_files /dev/null @backend;
   }

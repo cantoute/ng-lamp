@@ -142,6 +142,7 @@ map $sent_http_content_type $expires {
   text/css                        10d;
   text/javascript                 10d;
   text/x-javascript               10d;
+  text/plain                       2m;
 }
 
 # required for snippets/wordpress-webp-express
