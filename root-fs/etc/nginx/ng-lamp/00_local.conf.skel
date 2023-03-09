@@ -146,7 +146,7 @@ map $sent_http_content_type $expires {
 }
 
 # required for snippets/wordpress-webp-express
-map $http_accept $webp_extension {
+map $http_accept $dot_webp {
   default       '';
-  ~*webp        .webp;
+  ~webp        .webp;
 }
