@@ -150,4 +150,7 @@ fi
 apt autoclean
 apt clean
 
-source init.d/mysql-stuff
+source ${SCRIPT_PATH}/init.d/mysql-stuff
+
+echo "Adding usr/local/bin utils"
+cp ${SCRIPT_PATH}/../root-fs/usr/local/bin/* /usr/local/bin
