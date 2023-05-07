@@ -144,7 +144,7 @@ if [[ $installNetData =~ ^(Y|y| ) ]] || [[ -z $installNetData ]]; then
   . ${SCRIPT_PATH}/init.d/netdata
 fi
 
-# Finelizing
+# Finalizing
 
 # clear some disk space
 apt autoclean
