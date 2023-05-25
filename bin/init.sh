@@ -105,8 +105,10 @@ apt install $Y mariadb-client mariadb-server
 mysql_secure_installation
 
 
-# update user skel (.bashrc)
+# update user skel (.bashrc .vim)
 $SYNC /etc/skel/
+
+cp -R /etc/skel/.vim /root/
 
 # setup fail2ban
 # for phpMyAdmin don't forget to add this in config.inc.php: $cfg['AuthLog'] = 'syslog';
