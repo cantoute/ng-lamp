@@ -1,5 +1,5 @@
 {
-  "cSpell.logLevel": "Warning",
+  "cSpell.logLevel": "Information",
   "cSpell.enabledLanguageIds": [
     "asciidoc",
     "c",
@@ -85,10 +85,12 @@
     "ratelimit",
     "rcat",
     "rclone",
+    "rdiff",
     "referer",
     "renice",
     "restic",
     "sendfile",
+    "skel",
     "sqlite",
     "tmpdir",
     "varnishd",
@@ -101,6 +103,7 @@
     "worpdress",
     "zstd"
   ],
-  "nginx-conf-hint.format.align": true,
-  "cSpell.enableFiletypes": ["*"]
+  "nginx-conf-hint.format.align": false,
+  "cSpell.enableFiletypes": ["*"],
+  "editor.tabSize": 2
 }
