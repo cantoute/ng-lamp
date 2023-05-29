@@ -17,9 +17,9 @@
 
   - Manage varnish behaviors by simply setting dedicated headers in Nginx
 
-    Have a varnish reverse proxy up and running in minutes yet flexible and can be easily managed on a per site or per path behavior.
+    Have a professional varnish reverse proxy up and running in minutes yet flexible and easily managed on a per site or per path behavior driving it right from nginx configuration by setting dedicated headers without ever having to touch varnish `.vcl` configuration directly.
 
-    Default-TTL, Default-Grace, Stale-If-Error, Stale-If-Bot, Retry-If-Error, Rule-Wordpress, Clear-Cookie-All, Clear-Cookie-PHPSESSID, Cache-Ajax, Query-String-Sort, etc...
+    Ex: Default-TTL, Default-Grace, Stale-If-Error, Stale-If-Bot, Retry-If-Error, Rule-Wordpress, Clear-Cookie-All, Clear-Cookie-PHPSESSID, Cache-Ajax, Query-String-Sort, etc... _(all well documented)_
 
 ## Description
 
