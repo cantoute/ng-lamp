@@ -7,7 +7,8 @@
 - ~~munin configuration~~ Done
 - ~~backups (rdiff-backup / mysqldump)~~ Done but can be improved
 - ~~install imgopt utility~~ Done
-- adding varnish
+- include varnish-vrocks configuration
+
   a rock solid configuration for varnish https://gitlab.com/cantoute/varnish-vrocks
 
   Repo is private, but I'm open to share the sources on request _(not to Big Brother)_
