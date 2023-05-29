@@ -16,7 +16,9 @@ This is a toolbox for installing a LAMP behind Nginx reverse proxy on **Debian 1
 This stack is flexible, solid and works well for wordpress hosting. Getting the benefit of Nginx power yet still having .htaccess ease of use.
 
 ```txt
-.
+./
+├── backup-restor copy.md
+├── backup-restore.md
 ├── bin
 │   ├── init.d
 │   │   ├── imgopt
@@ -89,11 +91,10 @@ This stack is flexible, solid and works well for wordpress hosting. Getting the 
     │   ├── nginx
     │   │   ├── nginx.conf
     │   │   ├── ng-lamp
-    │   │   │   ├── 00_limit.conf
-    │   │   │   ├── 00_misc.conf
-    │   │   │   ├── 00_ssl.conf
+    │   │   │   ├── 00_local.conf.skel
     │   │   │   ├── 00_upstreams.conf
     │   │   │   ├── 10_default-host.conf
+    │   │   │   ├── 10_limit_maps.conf
     │   │   │   ├── 20_localhost.conf
     │   │   │   ├── munin.conf.skel
     │   │   │   ├── netdata.conf.skel
@@ -107,7 +108,6 @@ This stack is flexible, solid and works well for wordpress hosting. Getting the 
     │   │       ├── common-proxy-timeout.conf
     │   │       ├── common-vhost.conf
     │   │       ├── letsencrypt-acme-challenge.conf
-    │   │       ├── letsencrypt-acme-challenge-proxied.conf
     │   │       ├── real-ip-cloudflare.conf
     │   │       ├── real-ip-fastly.conf
     │   │       ├── wordpress.conf
@@ -124,24 +124,29 @@ This stack is flexible, solid and works well for wordpress hosting. Getting the 
     │   └── www-adm
     │       └── www.mysql
     │           └── config.inc.php
-    └── root
-        └── bin
-            ├── backup-borg-create.sh
-            ├── backup-borg-label-mysql.sh
-            ├── backup-borg.sh
-            ├── backup-common.sh
-            ├── backup-cron.sh
-            ├── backup-defaults.sh
-            ├── backup-example-host.sh
-            ├── backup-mysql-rclone.sh
-            ├── backup-mysql-restic.bash
-            ├── backup-mysql.sh
-            ├── backup-pg.sh
-            ├── backup-rdiff.sh
-            ├── backup-store-local.sh
-            ├── backup-store-rclone.sh
-            ├── backup-store.sh
-            └── bormgatic.yaml
+    ├── root
+    │   └── bin
+    │       ├── backup-borg-create.sh
+    │       ├── backup-borg-label-mysql.sh
+    │       ├── backup-borg.sh
+    │       ├── backup-common.sh
+    │       ├── backup-cron.sh
+    │       ├── backup-defaults.sh
+    │       ├── backup-example-host.sh
+    │       ├── backup-mysql-rclone.sh
+    │       ├── backup-mysql-restic.bash
+    │       ├── backup-mysql.sh
+    │       ├── backup-pg.sh
+    │       ├── backup-rdiff.sh
+    │       ├── backup-store-local.sh
+    │       ├── backup-store-rclone.sh
+    │       └── backup-store.sh
+    └── usr
+        └── local
+            └── bin
+                └── top-ip
+
+33 directories, 95 files
 ```
 
 ### What it does
@@ -161,6 +166,12 @@ This stack is flexible, solid and works well for wordpress hosting. Getting the 
 - install nodejs LTS (currently 14.x)
 - install `imgopt` utility and dependencies. https://github.com/kormoc/imgopt
 - backup script
+
+  - _New:_ backup scripts using borg and on the fly mysql to S3 Buckets (tested with minio.io)
+
+    The backups script are now tested for almost a year in production (Jun 2023)
+    But they surely are lacking of more documentation [Restaure Examples](./backup-restore.md)
+
   - backup of mysql database : full dump at 0:00 + single database at 4, 12, 20
   - rdiff-backup : at 4, 12, 20 (keeping 4 weeks of history)
 
