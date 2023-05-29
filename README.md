@@ -8,6 +8,17 @@
 - ~~backups (rdiff-backup / mysqldump)~~ Done but can be improved
 - ~~install imgopt utility~~ Done
 - adding varnish
+  a rock solid configuration for varnish https://gitlab.com/cantoute/varnish-vrocks
+
+  Repo is private, but I'm open to share the sources on request _(not to Big Brother)_
+
+  Feel free to post an issue :)
+
+  - Manage varnish behaviors by simply setting dedicated headers in Nginx
+
+    Have a varnish reverse proxy up and running in minutes yet flexible and can be easily managed on a per site or per path behavior.
+
+    Default-TTL, Default-Grace, Stale-If-Error, Stale-If-Bot, Retry-If-Error, Rule-Wordpress, Clear-Cookie-All, Clear-Cookie-PHPSESSID, Cache-Ajax, Query-String-Sort, etc...
 
 ## Description
 
