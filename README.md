@@ -5,7 +5,7 @@
 - ~~try `init.sh` on a fresh install~~ Done
 - ~~fail2ban on phpMyAdmin~~ Done
 - ~~munin configuration~~ Done
-- ~~backups (rdiff-backup / mysqldump)~~ Done but can be improved
+- ~~backups (rdiff-backup / mysqldump / borg)~~ Done but documentation is to be improved
 - ~~install imgopt utility~~ Done
 - include varnish-vrocks configuration
 
@@ -23,7 +23,7 @@
 
 ## Description
 
-This is a toolbox for installing a LAMP behind Nginx reverse proxy on **Debian 10 (Buster)**
+This is a toolbox for installing a LAMP behind Nginx reverse proxy on **Debian 10 (Buster)** _works with Debian 11 and 12_
 
 This stack is flexible, solid and works well for wordpress hosting. Getting the benefit of Nginx power yet still having .htaccess ease of use.
 
