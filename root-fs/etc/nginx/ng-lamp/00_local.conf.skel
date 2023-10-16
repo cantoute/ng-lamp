@@ -32,6 +32,7 @@ geo $remote_addr $is_local {
   default '';
   # CIDR in the list below not limited
   127.0.0.0/8 1;
+  ::1 1;
 
   # here we want to add our local external ip (WordPress cron uses it)
   #1.2.3.4/32 1;
