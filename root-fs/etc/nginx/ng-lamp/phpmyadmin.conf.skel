@@ -1,22 +1,23 @@
 server {
+  server_name mysql.example.com www.mysql.example.com;
+
   include snippets/letsencrypt-acme-challenge.conf;
   include snippets/ban-bots.conf;
   include snippets/common-vhost.conf;
 
+  http2 on;
   listen 80;
 
   ## ipv6
   # listen [::]:80;
-  # listen [::]:443 ssl http2;
-
-  server_name mysql.example.com www.mysql.example.com;
+  # listen [::]:443 ssl;
 
   root /home/www-adm/www.mysql;
 
   # first run this then uncomment/adjust following lines
   # certbot certonly --webroot --webroot-path /var/www/letsencrypt -d mysql.example.com -d www.mysql.example.com
 
-  # listen 443 ssl http2;
+  # listen 443 ssl;
 
   # ssl_trusted_certificate /etc/letsencrypt/live/mysql.example.com/chain.pem;
   # ssl_certificate /etc/letsencrypt/live/mysql.example.com/fullchain.pem;

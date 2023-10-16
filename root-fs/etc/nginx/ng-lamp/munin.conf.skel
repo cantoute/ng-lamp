@@ -1,19 +1,20 @@
 
 server {
+  server_name munin.example.com www.munin.example.com;
+
   include snippets/letsencrypt-acme-challenge.conf;
   include snippets/common-vhost.conf;
   include snippets/ban-bots.conf;
 
+  http2 on;
   listen 80;
-
-  server_name munin.example.com www.munin.example.com;
 
   root /var/cache/munin/www;
 
   # first run this then uncomment/adjust following lines
   # certbot certonly --webroot --webroot-path /var/www/letsencrypt -d munin.example.com -d www.munin.example.com
 
-  # listen 443 ssl http2;
+  # listen 443 ssl;
 
   # ssl_trusted_certificate /etc/letsencrypt/live/munin.example.com/chain.pem;
   # ssl_certificate /etc/letsencrypt/live/munin.example.com/fullchain.pem;
