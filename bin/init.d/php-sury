@@ -18,12 +18,22 @@ apt install $Y php-pear php${PHP_VERSION}-fpm php${PHP_VERSION}-cli php${PHP_VER
   php${PHP_VERSION}-mcrypt php${PHP_VERSION}-imap php${PHP_VERSION}-memcache php${PHP_VERSION}-memcached \
   php${PHP_VERSION}-soap
 
+systemctl restart php${PHP_VERSION}-fpm
+
 # this one doesn't exist in 7.0
 apt install $Y php7.4-maxminddb
 
-$SYNC /etc/php/${PHP_VERSION}/fpm/pool.d
+# PHP_VERSION=8.2
 
-systemctl restart php${PHP_VERSION}-fpm
+# apt install $Y php-pear php${PHP_VERSION}-fpm php${PHP_VERSION}-cli php${PHP_VERSION}-apcu \
+#   php${PHP_VERSION}-opcache php${PHP_VERSION}-curl php${PHP_VERSION}-imagick php${PHP_VERSION}-gnupg php${PHP_VERSION}-mysql \
+#   php${PHP_VERSION}-intl php${PHP_VERSION}-zip php${PHP_VERSION}-xsl php${PHP_VERSION}-xmlrpc php${PHP_VERSION}-xml \
+#   php${PHP_VERSION}-uuid php${PHP_VERSION}-sqlite3 php${PHP_VERSION}-mbstring php${PHP_VERSION}-bcmath php${PHP_VERSION}-bz2 \
+#   php${PHP_VERSION}-mcrypt php${PHP_VERSION}-imap php${PHP_VERSION}-memcache php${PHP_VERSION}-memcached \
+#   php${PHP_VERSION}-soap php{PHP_VERSION}-maxminddb
+# $SYNC /etc/php/${PHP_VERSION}/fpm/pool.d
+# systemctl restart php${PHP_VERSION}-fpm
+
 
 echo "Installing php composer"
 php -r "readfile('http://getcomposer.org/installer');" | php -- --install-dir=/usr/local/bin/ --filename=composer
