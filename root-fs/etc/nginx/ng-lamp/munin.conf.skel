@@ -34,8 +34,8 @@ server {
   # Here, the whole vhost has auth requirements.
   # You can duplicate it to the graph and html locations if you have
   # something else that doesn't need auth.
-  auth_basic "Restricted stats";
-  auth_basic_user_file /some/path/to/.htpasswd;
+  #auth_basic "Restricted stats";
+  #auth_basic_user_file /some/path/to/.htpasswd;
 
   location ^~ /cgi-bin/munin-cgi-graph/ {
     # not authenticated => no rewrite (back to auth)
