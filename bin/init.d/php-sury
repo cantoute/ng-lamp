@@ -16,7 +16,7 @@ apt install $Y php-pear php${PHP_VERSION}-fpm php${PHP_VERSION}-cli php${PHP_VER
   php${PHP_VERSION}-intl php${PHP_VERSION}-json php${PHP_VERSION}-zip php${PHP_VERSION}-xsl php${PHP_VERSION}-xmlrpc php${PHP_VERSION}-xml \
   php${PHP_VERSION}-uuid php${PHP_VERSION}-sqlite3 php${PHP_VERSION}-mbstring php${PHP_VERSION}-bcmath php${PHP_VERSION}-bz2 \
   php${PHP_VERSION}-mcrypt php${PHP_VERSION}-imap php${PHP_VERSION}-memcache php${PHP_VERSION}-memcached \
-  php${PHP_VERSION}-soap
+  php${PHP_VERSION}-soap php${PHP_VERSION}-gd
 
 systemctl restart php${PHP_VERSION}-fpm
 
@@ -30,7 +30,7 @@ apt install $Y php7.4-maxminddb
 #   php${PHP_VERSION}-intl php${PHP_VERSION}-zip php${PHP_VERSION}-xsl php${PHP_VERSION}-xmlrpc php${PHP_VERSION}-xml \
 #   php${PHP_VERSION}-uuid php${PHP_VERSION}-sqlite3 php${PHP_VERSION}-mbstring php${PHP_VERSION}-bcmath php${PHP_VERSION}-bz2 \
 #   php${PHP_VERSION}-mcrypt php${PHP_VERSION}-imap php${PHP_VERSION}-memcache php${PHP_VERSION}-memcached \
-#   php${PHP_VERSION}-soap php{PHP_VERSION}-maxminddb
+#   php${PHP_VERSION}-soap php{PHP_VERSION}-maxminddb php${PHP_VERSION}-gd
 # $SYNC /etc/php/${PHP_VERSION}/fpm/pool.d
 # systemctl restart php${PHP_VERSION}-fpm
 
