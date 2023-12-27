@@ -6,18 +6,23 @@ Y=-y
 initImgopt() {
   apt install $Y advancecomp optipng libjpeg-turbo-progs build-essential wget
 
-  curl -o /usr/local/bin/imgopt https://raw.githubusercontent.com/kormoc/imgopt/main/imgopt \
+  curl -o /usr/local/bin/imgopt https://github.com/kormoc/imgopt/raw/main/imgopt \
     && chmod a+x /usr/local/bin/imgopt
+
+  # source available here https://github.com/amadvance/advancecomp
+  # here we get a built binary from an unofficial source saving us to build it
+  curl -o /usr/local/bin/advpng https://github.com/imagemin/advpng-bin/raw/main/vendor/linux/advpng \
+    && chmod a+x /usr/local/bin/advpng
 
   cd /tmp
 
-  curl -o jfifremove.c https://raw.githubusercontent.com/kormoc/imgopt/main/jfifremove.c \
+  curl -o jfifremove.c https://github.com/kormoc/imgopt/raw/main/jfifremove.c \
     && gcc -o jfifremove jfifremove.c \
-    && mv jfifremove /usr/local/bin/
+    && cp jfifremove /usr/local/bin/
 
   wget http://www.jonof.id.au/files/kenutils/pngout-20200115-linux.tar.gz \
     && tar xzvf pngout-20200115-linux.tar.gz \
-    && mv pngout-20200115-linux/amd64/pngout /usr/local/bin/
+    && cp pngout-20200115-linux/amd64/pngout /usr/local/bin/
 
   cd -
 }
