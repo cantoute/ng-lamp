@@ -20,7 +20,7 @@ initMunin() {
   munin-node-configure --suggest --shell | sh
 
   # install https://github.com/MorbZ/munin-php-fpm
-  wget -O php-fpm https://raw.github.com/MorbZ/munin-php-fpm/master/php-fpm.php
+  wget -O php-fpm https://github.com/morbz-archive/munin-php-fpm/raw/master/php-fpm.php
   chmod a+x php-fpm 
   ln -s php-fpm php-fpm-memory
   ln -s php-fpm  php-fpm-cpu
