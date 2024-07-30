@@ -1,9 +1,9 @@
 # simple virtual host for redirecting entire domain.
 server {
+  server_name example-source.com www.example-source.com;
+
   listen 80;
   # listen [::]:80;
-
-  server_name example-source.com www.example-source.com;
 
   include snippets/letsencrypt-acme-challenge.conf;
 

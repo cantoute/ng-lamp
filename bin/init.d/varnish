@@ -7,11 +7,11 @@ initVarnish() {
   # https://packagecloud.io/varnishcache/varnish70/
 
   # this script does an apt update
-  curl -s https://packagecloud.io/install/repositories/varnishcache/varnish72/script.deb.sh | sudo bash
+  # curl -s https://packagecloud.io/install/repositories/varnishcache/varnish72/script.deb.sh | sudo bash
+  # apt install varnish varnish-dev
 
-  apt install varnish varnish-dev
-
-  apt install autotools-dev
+  # use distribution varnish 7.1
+  apt install varnish varnish-modules
 
   # add group varnish to munin
   adduser munin varnish
@@ -20,25 +20,24 @@ initVarnish() {
   # listen to port localhost:6081 and localhost:6091
   # restrict to localhost
   # adjust cache size to your needs
-  # TODO: cache on tmpfs
   systemctl edit --full varnish
 
   # varnish-modules
-  apt install varnish-dev python3-sphinx make automake autotools-dev libtool
+  # apt install varnish-dev python3-sphinx make automake autotools-dev libtool
 
-  git clone https://github.com/varnish/varnish-modules.git /root/varnish-modules
-  cd /root/varnish-modules
-  git checkout 7.2
+  # git clone https://github.com/varnish/varnish-modules.git /root/varnish-modules
+  # cd /root/varnish-modules
+  # git checkout 7.2
 
-  ./bootstrap
-  ./configure   # run "configure -h" first to list options
-  make
-  #make check    # optional (tests)
-  # Note: a building from source you need to run make rst-docs before being able to install.
-  make rst-docs # optional (docs)
-  make install  # optional (installation), run as root
+  # ./bootstrap
+  # ./configure   # run "configure -h" first to list options
+  # make
+  # #make check    # optional (tests)
+  # # Note: a building from source you need to run make rst-docs before being able to install.
+  # make rst-docs # optional (docs)
+  # make install  # optional (installation), run as root
 
-  cd -
+  # cd -
 }
 
 initVarnish

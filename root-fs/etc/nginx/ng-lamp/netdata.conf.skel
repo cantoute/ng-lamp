@@ -1,10 +1,11 @@
 # certbot certonly --webroot --webroot-path /var/www/letsencrypt -d netdata.example.com -d www.netdata.example.com
 
 server {
+  server_name netdata.example.com www.netdata.example.com;
+
+  http2 on;
   listen 80;
   # listen [::]:80;
-
-  server_name netdata.example.com www.netdata.example.com;
 
   root /var/www/html;
 
@@ -13,7 +14,7 @@ server {
 
   include snippets/ban-bots.conf;
 
-  #listen 443 ssl http2;
+  #listen 443 ssl;
 
   #if ( $scheme != https ) {
   #  return 301 https://$server_name$request_uri;
