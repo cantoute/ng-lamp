@@ -90,7 +90,8 @@ cp /etc/nginx/nginx.conf /etc/nginx/nginx.conf.dist.bak
 $SYNC /etc/nginx
 
 cd /etc/nginx/conf.d
-ln -s ../ng-lamp/*.conf ./
+# ln -s ../ng-lamp/*.conf ./
+cp ../ng-lamp/*.conf ./
 
 # required by snippets/letsencrypt-acme-challenge.conf
 mkdir /var/www/letsencrypt
