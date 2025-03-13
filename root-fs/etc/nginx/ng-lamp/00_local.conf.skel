@@ -136,6 +136,7 @@ map $request_uri $remove_sniffers {
 map $sent_http_content_type $expires {
   default                         off;
   ~image/                         10d;
+  ~video/                         10d;
   ~font/                          10d;
   application/vnd.ms-fontobject   10d;
   application/x-font-ttf          10d;
