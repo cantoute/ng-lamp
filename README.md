@@ -223,3 +223,13 @@ then run [init.sh](./bin/init.sh)
 # single file
 ./bin/sync.sh /etc/apache2/ports.conf
 ```
+
+# Notes
+
+## MariaDB
+
+```bash
+systemctl edit --full mariadb
+
+# and change line ProtectHome=false to allow lib dir in home
+```
