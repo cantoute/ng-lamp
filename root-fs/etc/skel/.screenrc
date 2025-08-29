@@ -1,0 +1,8 @@
+defscrollback 50000
+
+# credit https://unix.stackexchange.com/questions/40242/scroll-inside-screen-or-pause-output
+
+# Enable mouse scrolling and scroll bar history scrolling
+
+termcapinfo xterm*|rxvt*|kterm*|Eterm* ti@:te@
+mousetrack on
